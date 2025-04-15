@@ -17,7 +17,7 @@ public class LetStatement : IStatement
             Statement = statement;
         }
         public override string Message => $"The type of the let statement is unknown, since theres no equals to expression, and the type wasnt declared" +
-                                          $"\nat: '{Statement.LetToken.GetLineOfCode()}'\nline {Statement.LetToken.Line}, column {Statement.LetToken.Column}.";
+                                          $"\nat: '{Statement.LetToken.GetLocationStringRepresentation()}.";
     }
     public static LetStatement Parse(Parser parser)
     {

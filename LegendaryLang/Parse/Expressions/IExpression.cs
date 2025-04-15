@@ -36,7 +36,7 @@ public interface IExpression : ISyntaxNode
         {
             if(parsed is NormalLangPath normalLangPath)
                 return StructCreationExpression.Parse(parser, normalLangPath);
-            throw new Exception("Expected struct creation expression, found something else");
+            throw new ExpectedParserException(parser, [ParseType.StructPath],parsed.FirstIdentifierToken);
         }
 
 
@@ -44,7 +44,7 @@ public interface IExpression : ISyntaxNode
         {
             if(parsed is NormalLangPath normalLangPath)
                 return  FunctionCallExpression.ParseFunctionCallExpression(parser, normalLangPath);
-            throw new Exception("Expected functionc call expression, found something else");
+            throw new ExpectedParserException(parser, [ParseType.FunctionCall],parsed.FirstIdentifierToken);
         }
         return parsedPath;
     }

@@ -21,7 +21,7 @@ public class AssignVariableExpression : IExpression
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        throw new NotImplementedException();
+        
     }
 
     public AssignVariableExpression(IExpression assigner,  IExpression equalsTo)

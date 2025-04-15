@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using System.Text.RegularExpressions;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Types;
 using File = LegendaryLang.Lex.File;
@@ -16,6 +17,10 @@ public  class ExpectedParserException : ParseException
 
 
 
+    public static string SpaceByCaps(string input)
+    {
+        return Regex.Replace(input, "(?<!^)([A-Z])", " $1");
+    }
 
     public override string Message
     {
@@ -26,11 +31,9 @@ public  class ExpectedParserException : ParseException
             // Use the found token's representation if it exists.
             string foundRepresentation = _found != null ? _found.ToString() : "nothing";
 
-            var line = _found?.Line ?? Parser.LastToken?.Line ?? 0;
-            // Assuming the Token class provides access to file and line information.
-            string foundLine = Parser.File.GetLine(line) ;
+            var tokenToUse = _found ?? Parser.LastToken;
 
-            return $"Expected one of the following: {expectedList} but found {foundRepresentation}\nat: '{foundLine}'\nline {line}";
+            return $"Expected one of the following: [{expectedList}] but found {SpaceByCaps(_found?.GetType().Name)} '{foundRepresentation}'\n{tokenToUse.GetLocationStringRepresentation()}";
         }
     }
     public ExpectedParserException(Parser parser,IEnumerable<ParseType> expected, Token? found)

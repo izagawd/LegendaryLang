@@ -11,11 +11,21 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class StructCreationExpression : IExpression
 {
-    
+    public class StructFieldTokenIsNullException : ParseException
+    {
+        public Token LookUpToken { get; }
+
+        public StructFieldTokenIsNullException(Token lookUpToken)
+        {
+            LookUpToken = lookUpToken;
+        }
+
+        public override string Message => $"Expected struct all fields to have names\n{LookUpToken?.GetLocationStringRepresentation()}";
+    }
     public static  StructCreationExpression Parse(Parser parser, NormalLangPath path)
     {
 
-        CurlyBrace.ParseLeft(parser);
+        var curlyBrace = CurlyBrace.ParseLeft(parser);
         var token = parser.Peek();
         var assignments = new List<AssignVariableExpression>();
         while (token is not RightCurlyBraceToken)
@@ -32,17 +42,17 @@ public class StructCreationExpression : IExpression
             
             assignments.Add(fieldAssignment);
         }
-        CurlyBrace.Parseight(parser);
+        var curlyBrace2 = CurlyBrace.Parseight(parser);
         var variableAssignments = assignments.Select(i => new AssignedField()
         {
             EqualsTo = i.EqualsTo,
-            FieldToken = ((i.Assigner as PathExpression).Path as NormalLangPath).FirstIdentifierToken
+            FieldToken = ((i.Assigner as PathExpression)?.Path as NormalLangPath)?.FirstIdentifierToken
         }).ToArray();
         foreach (var assignment in variableAssignments)
         {
             if (assignment.FieldToken is null)
             {
-                throw new Exception("Field token is null");
+                throw new StructFieldTokenIsNullException(curlyBrace2);
             }
         }
         return new StructCreationExpression(path, variableAssignments );

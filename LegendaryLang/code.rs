@@ -14,7 +14,5 @@ struct B{
     field2: std::primitive::i32,
 }
 fn main() -> std::primitive::i32{
-    let nester = (gay()).f;
-    nester
 
 }

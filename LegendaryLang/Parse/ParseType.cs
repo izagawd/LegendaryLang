@@ -13,5 +13,7 @@ public enum ParseType
     Struct,
     Bool,
     Operator,
-    Dot
+    Dot,
+    StructPath,
+    FunctionCall
 }

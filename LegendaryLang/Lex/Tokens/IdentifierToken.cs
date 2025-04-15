@@ -9,6 +9,11 @@ public class IdentifierToken: Token
           Identity = identity;
      }
 
+     public override string ToString()
+     {
+          return Identity;
+     }
+
      public override bool Equals(object? obj)
      {
           if (obj is IdentifierToken identTok)

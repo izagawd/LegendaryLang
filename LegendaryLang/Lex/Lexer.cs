@@ -101,12 +101,16 @@ namespace LegendaryLang.Lex
                             file.AddToken(new ColonToken(file, column, line));
                         }
                         break;
-                    case '\n' or '\r':
+                    case  '\r':
+                        break;
+                    case  '\n':
                         line += 1;
-                        column = 0;
                         file.AddCode(code.Substring((int)last_line_break_pos, (int)column));
+                        column = 0;
+
                         last_line_break_pos = index;
                         break;
+                    
                     case var b when (b >= '0' && b <= '9'):
                         
                         // Record the starting column of the number.
