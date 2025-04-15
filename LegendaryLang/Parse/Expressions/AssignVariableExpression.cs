@@ -1,0 +1,56 @@
+﻿using System.Linq.Expressions;
+using LegendaryLang.Lex.Tokens;
+
+using LegendaryLang.Semantics;
+using LLVMSharp.Interop;
+
+namespace LegendaryLang.Parse.Expressions;
+
+public class AssignVariableExpression : IExpression
+{
+    public static AssignVariableExpression Parse(Parser parser, IExpression assignerExpression)
+    {
+        Equality.Parse(parser);
+        var expression = IExpression.Parse(parser);
+        return new AssignVariableExpression(assignerExpression,  expression);
+    }
+    public Token LookUpToken => Assigner.LookUpToken;
+    
+    public IExpression EqualsTo { get; set; }
+    public IExpression Assigner { get; }
+
+    public void Analyze(SemanticAnalyzer analyzer)
+    {
+        throw new NotImplementedException();
+    }
+
+    public AssignVariableExpression(IExpression assigner,  IExpression equalsTo)
+    {
+
+        Assigner = assigner;
+
+        EqualsTo = equalsTo;
+        
+    }
+    public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    {
+        var valueToEq = EqualsTo.DataRefCodeGen(codeGenContext);
+        
+        var variableRef = Assigner.DataRefCodeGen(codeGenContext);
+        if (variableRef.ValueClassification == ValueClassification.RValue)
+        {
+            throw new Exception("Assigner should not be RValue");
+        }
+
+        
+        valueToEq.Type.AssignTo(codeGenContext, valueToEq, variableRef);
+        return  codeGenContext.GetVoid();
+    }
+
+    public BaseLangPath? BaseLangPath { get; }
+
+    public BaseLangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
+    {
+        return BaseLangPath.VoidBaseLangPath;
+    }
+}
