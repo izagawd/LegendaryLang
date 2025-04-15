@@ -240,8 +240,6 @@ public class CodeGenContext
                 CodeGen(def); // Generate LLVM IR for functions, etc.
             }
 
-   
-            Console.WriteLine(FromByte(LLVM.PrintModuleToString(Module)));
             sbyte* idk;
             if (LLVM.VerifyModule(Module, LLVMVerifierFailureAction.LLVMPrintMessageAction, &idk) != 0)
             {

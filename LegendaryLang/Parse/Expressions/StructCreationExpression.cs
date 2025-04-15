@@ -85,7 +85,7 @@ public class StructCreationExpression : IExpression
                 .First(j => j.FieldToken.Identity == structType.Fields[i].Name);
             var data = gotten.EqualsTo.DataRefCodeGen(codeGenContext);
             var fieldPtr = codeGenContext.Builder.BuildStructGEP2(structType.TypeRef,structPtr,(uint)i);
-            codeGenContext.Builder.BuildStore(data.ValueRef, fieldPtr);
+
             data.Type.AssignTo(codeGenContext, data, new VariableRefItem()
             {
                 Type = data.Type,
