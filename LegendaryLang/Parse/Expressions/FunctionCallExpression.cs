@@ -1,15 +1,40 @@
-﻿using LegendaryLang.Lex.Tokens;
+﻿using System.Collections.Immutable;
+using LegendaryLang.Lex.Tokens;
 
 using LegendaryLang.Semantics;
+using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse.Expressions;
 
 public class FunctionCallExpression : IExpression
 {
+    public ImmutableArray<IExpression> Arguments { get; }
     public static FunctionCallExpression ParseFunctionCallExpression(Parser parser,
-        VariableRefItem dataRefItem)
+        NormalLangPath normalLangPath)
     {
-        return null;
+        var leftParenth = Parenthesis.ParseLeft(parser);
+        var currentToken = parser.Peek();
+        var expressions = new List<IExpression>();
+        while (currentToken is not RightParenthesisToken)
+        {
+            var expression = IExpression.Parse(parser);
+            expressions.Add(expression);
+            currentToken = parser.Peek();
+            if (currentToken is CommaToken)
+            {
+                Comma.Parse(parser);
+                currentToken = parser.Peek();
+            }
+        }
+        Parenthesis.ParseRight(parser);
+        return new FunctionCallExpression(normalLangPath, expressions);
+    }
+
+    public NormalLangPath FunctionPath { get; }
+    public FunctionCallExpression(NormalLangPath path, IEnumerable<IExpression> arguments)
+    {
+        Arguments = arguments.ToImmutableArray();
+        FunctionPath = path;
     }
     public Token LookUpToken { get; }
     public void Analyze(SemanticAnalyzer analyzer)
@@ -19,7 +44,26 @@ public class FunctionCallExpression : IExpression
 
     public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
-        throw new NotImplementedException();
+        var zaPath = codeGenContext.GetRefItemFor(FunctionPath) as FunctionRefItem;
+        var callResult =  codeGenContext.Builder.BuildCall2(zaPath.Function.FunctionType, zaPath.Function.FunctionValueRef,
+            Arguments.Select(
+                i =>
+                {
+                    var gened =i.DataRefCodeGen(codeGenContext);
+                    return gened.Type.LoadValueForRetOrArg(codeGenContext,gened);
+                }).ToArray()
+            );
+        var returnType = (codeGenContext.GetRefItemFor(zaPath.Function.ReturnType) as TypeRefItem).Type;
+        LLVMValueRef stackPtr= codeGenContext.Builder.BuildAlloca(returnType.TypeRef);
+                
+        codeGenContext.Builder.BuildStore(callResult, stackPtr);
+ 
+        return new VariableRefItem()
+        {
+            ValueClassification = ValueClassification.LValue,
+            Type = returnType,
+            ValueRef = stackPtr,
+        };
     }
 
     public LangPath? BaseLangPath { get; }

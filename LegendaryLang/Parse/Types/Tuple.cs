@@ -16,6 +16,11 @@ public class TupleType : Type
             .Sum();
     }
 
+    public override LLVMValueRef LoadValueForRetOrArg(CodeGenContext context, VariableRefItem variableRef)
+    {
+        throw new NotImplementedException();
+    }
+
     public override LLVMValueRef AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr)
     {
         throw new NotImplementedException();

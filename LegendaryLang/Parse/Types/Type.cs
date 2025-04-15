@@ -8,8 +8,10 @@ namespace LegendaryLang.Parse.Types;
 public abstract class Type : IDefinition
 {
 
+    
     public abstract LLVMValueRef AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr);
     public abstract int GetPrimitivesCompositeCount(CodeGenContext context);
+
     /// <summary>
     /// Abstracts away loading a value, so it can be used for parameters and return types. done because if its
     /// a primitive, simply return its value. if its not, load it from its pointer (since non primitive
@@ -18,17 +20,7 @@ public abstract class Type : IDefinition
     /// <param name="context"></param>
     /// <param name="variableRef"></param>
     /// <returns></returns>
-    public unsafe virtual LLVMValueRef LoadValueForRetOrArg(CodeGenContext context,VariableRefItem variableRef)
-    {
-        if (GetPrimitivesCompositeCount(context) > 0)
-        {
-            return  context.Builder.BuildLoad2(TypeRef,variableRef.ValueRef);
-        }
-
-            return  LLVM.GetUndef(TypeRef);
-        
-      
-    }
+    public  abstract LLVMValueRef LoadValueForRetOrArg(CodeGenContext context, VariableRefItem variableRef);
     /// <summary>
     /// 
     /// </summary>

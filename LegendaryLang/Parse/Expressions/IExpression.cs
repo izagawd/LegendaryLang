@@ -6,6 +6,7 @@ using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse.Expressions;
 
+
 public interface IExpression : ISyntaxNode
 {
     /// <summary>
@@ -14,10 +15,16 @@ public interface IExpression : ISyntaxNode
     /// <param name="codeGenContext"></param>
     /// <returns></returns>
     public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext);
-
+ 
+    /// <summary>
+    /// Parses field access, struct cration, variable assignment, etc. pretty much anything after a
+    /// path (NOTE: a path can be a local or global var. a::b::c is considered a path)
+    /// </summary>
+    /// <param name="parser"></param>
+    /// <returns></returns>
     public static IExpression ParsePossibleIdentPossibilities(Parser parser)
     {
-        var parsed = NormalLangPath.Parse(parser);
+        LangPath parsed = NormalLangPath.Parse(parser);
         var parsedPath = new PathExpression(parsed);
         var next = parser.Peek();
         if (next is EqualityToken)
@@ -27,7 +34,9 @@ public interface IExpression : ISyntaxNode
 
         if (next is LeftCurlyBraceToken)
         {
-            return StructCreationExpression.Parse(parser, parsed);
+            if(parsed is NormalLangPath normalLangPath)
+                return StructCreationExpression.Parse(parser, normalLangPath);
+            throw new Exception("Expected struct creation expression, found something else");
         }
 
         if (next is DotToken)
@@ -39,6 +48,13 @@ public interface IExpression : ISyntaxNode
                 return AssignVariableExpression.Parse(parser, accessExpr);
             }
             return accessExpr;
+        }
+
+        if (next is LeftParenthesisToken)
+        {
+            if(parsed is NormalLangPath normalLangPath)
+                return  FunctionCallExpression.ParseFunctionCallExpression(parser, normalLangPath);
+            throw new Exception("Expected functionc call expression, found something else");
         }
         return parsedPath;
     }

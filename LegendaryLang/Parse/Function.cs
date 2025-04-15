@@ -12,6 +12,8 @@ public class  Function: IDefinition
 {
     public bool HasBeenGened { get; set; }
 
+    public LLVMTypeRef FunctionType { get; set; }
+    public LLVMValueRef FunctionValueRef { get; set; }
     public unsafe void CodeGen(CodeGenContext context)
         {
             // 1. Determine the LLVM return type.
@@ -28,15 +30,19 @@ public class  Function: IDefinition
             fixed (LLVMTypeRef* llvmFunctionType = paramTypes)
             {
                  functionType = LLVM.FunctionType(llvmReturnType,(LLVMSharp.Interop.LLVMOpaqueType**) llvmFunctionType,(uint) paramTypes.Length, 0);
+                 FunctionType = functionType;
             }
             LLVMValueRef function = LLVM.AddFunction(context.Module, Name.ToCString(), functionType);
 
-            // 4. Create an entry basic block and position the builder.
+            FunctionValueRef = function;
+
             LLVMBasicBlockRef entryBlock = LLVM.AppendBasicBlock(function, "entry".ToCString());
             LLVM.PositionBuilderAtEnd(context.Builder, entryBlock);
-
-            // 5. (Optional) Create a new scope for function parameters.
-            // If you have a scoped symbol table, push a new scope.
+            context.AddToTop(new NormalLangPath(null,[Name]), new FunctionRefItem()
+            {
+                Function = this,
+            });
+       
             context.AddRefScope();
 
             // 6. For each parameter, allocate space and store the parameter into it.
@@ -75,7 +81,7 @@ public class  Function: IDefinition
 
     public int Priority => 3;
 
-    public Token LookUpToken => null;
+    public Token? LookUpToken {get; }
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
@@ -89,12 +95,13 @@ public class  Function: IDefinition
     public string Name { get; }
     public LangPath ReturnType { get; }
 
-    public Function(string name, IEnumerable<Variable> variables, LangPath returnType, BlockExpression blockExpression)
+    public Function(string name, IEnumerable<Variable> variables, LangPath returnType, BlockExpression blockExpression, Token? lookUpToken = null)
     {
         Arguments = variables.ToImmutableArray();
         Name = name;
         ReturnType = returnType;
         BlockExpression = blockExpression;
+        LookUpToken = lookUpToken;
     }
 
     public static Function Parse(Parser parser)

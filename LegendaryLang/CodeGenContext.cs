@@ -33,6 +33,11 @@ public interface IHasType
 {
     Type Type { get; }
 }
+
+public class FunctionRefItem : IRefItem
+{
+    public required  Function Function { get; init; }
+}
 public class TypeRefItem : IRefItem, IHasType
 {
     public  LLVMTypeRef TypeRef

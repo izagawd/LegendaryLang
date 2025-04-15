@@ -76,7 +76,44 @@ public class Struct : Type
     {
         
     }
-    
+    public unsafe override LLVMValueRef LoadValueForRetOrArg(CodeGenContext context,VariableRefItem variableRef)
+    {
+        
+        if (GetPrimitivesCompositeCount(context) > 0)
+        {
+
+            LLVMValueRef aggr = LLVM.GetUndef(TypeRef);
+            for (int i = 0; i < Fields.Length; i++)
+            {
+                var field = Fields[i];
+                var type = context.GetRefItemFor(field.TypePath) as TypeRefItem;
+                var otherField = context.Builder.BuildStructGEP2(TypeRef, variableRef.ValueRef, (uint)i);
+                var refIt = new VariableRefItem()
+                {
+                    ValueRef = otherField,
+                    Type = type.Type,
+                    ValueClassification = ValueClassification.LValue
+                };
+              
+                if (aggr == null)
+                {
+                    aggr = context.Builder.BuildExtractValue(aggr,(uint) i);
+                }
+                else
+                {
+                    aggr = context.Builder.BuildInsertValue(aggr, type.Type.LoadValueForRetOrArg(context,refIt) ,(uint) i);
+                }
+         
+                
+            }
+
+            return aggr;
+        }
+
+        return  LLVM.GetUndef(TypeRef);
+        
+      
+    }
     public LangPath GetTypeIden()
     {
         return new NormalLangPath(null,[..Module.Path, Name]);

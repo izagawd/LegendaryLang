@@ -54,6 +54,7 @@ public abstract class PrimitiveType : Type
 
         });
     }
+    
 
     public override int Priority => -1;
     public override LangPath Ident =>LangPath.PrimitivePath.Append([Name]);
