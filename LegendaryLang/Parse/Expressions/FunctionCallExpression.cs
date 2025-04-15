@@ -57,14 +57,12 @@ public class FunctionCallExpression : IExpression
         LLVMValueRef stackPtr= returnType.AssignToStack(codeGenContext,new VariableRefItem()
         {
                 Type = returnType,
-                ValueClassification = ValueClassification.RValue,
                 ValueRef = callResult
         });  
 
  
         return new VariableRefItem()
         {
-            ValueClassification = ValueClassification.LValue,
             Type = returnType,
             ValueRef = stackPtr,
         };

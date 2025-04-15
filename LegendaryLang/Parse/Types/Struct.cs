@@ -16,44 +16,42 @@ public class Struct : Type
             var field = Fields[i];
             var fieldType = codeGenContext.GetRefItemFor(field.TypePath) as TypeRefItem;
             LLVMValueRef fieldValuePtr;
+            var fieldPtrPtr = codeGenContext.Builder.BuildStructGEP2(TypeRef,ptr.ValueRef,
+                GetIndexOfField(field.Name));
             if (value.ValueRef.TypeOf.Kind == LLVMTypeKind.LLVMPointerTypeKind)
             {
                 fieldValuePtr = codeGenContext.Builder.BuildStructGEP2(TypeRef, value.ValueRef,
                     GetIndexOfField(field.Name));
-            }
-            else
-            {
-                fieldValuePtr = codeGenContext.Builder.BuildAlloca(fieldType.TypeRef);
-                var toExtract = codeGenContext.Builder.BuildExtractValue(value.ValueRef,(uint)i);
-                fieldType.Type.AssignTo(codeGenContext,
-                    new VariableRefItem()
-                    {
-                        ValueRef = toExtract,
-                        Type = fieldType.Type,
-                        ValueClassification = ValueClassification.RValue
-                    }, new VariableRefItem()
-                    {
-                        ValueRef = fieldValuePtr,
-                        Type = fieldType.Type,
-                        ValueClassification = ValueClassification.LValue
-                    });
-            }
 
-            var fieldPtrPtr = codeGenContext.Builder.BuildStructGEP2(TypeRef,ptr.ValueRef,
-                    GetIndexOfField(field.Name));
                 fieldType.Type.AssignTo(codeGenContext, new VariableRefItem()
                     {
                         ValueRef = fieldValuePtr,
-                        ValueClassification = ValueClassification.LValue,
                         Type = fieldType.Type
                     },
                     new VariableRefItem()
                     {
                         ValueRef = fieldPtrPtr,
-                        ValueClassification = ValueClassification.LValue,
                         Type = fieldType.Type
                     });
-        
+
+
+            }
+            else
+            {
+
+                var toExtract = codeGenContext.Builder.BuildExtractValue(value.ValueRef,(uint)i);
+                fieldType.Type.AssignTo(codeGenContext,
+                    new VariableRefItem()
+                    {
+                        ValueRef = toExtract,
+                        Type = fieldType.Type
+                    }, new VariableRefItem()
+                    {
+                        ValueRef = fieldPtrPtr,
+                        Type = fieldType.Type
+                    });
+            }
+
 
         }
     
@@ -119,8 +117,7 @@ public class Struct : Type
                 var refIt = new VariableRefItem()
                 {
                     ValueRef = otherField,
-                    Type = type.Type,
-                    ValueClassification = ValueClassification.LValue
+                    Type = type.Type
                 };
               
                 if (aggr == null)

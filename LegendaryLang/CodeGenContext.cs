@@ -68,7 +68,7 @@ public class VariableRefItem : IRefItem, IHasType
 {
     public required Type Type {get; init;}
     public  required LLVMValueRef ValueRef {get; init; }
-    public required ValueClassification ValueClassification {get; init;}
+
     /// <summary>
     /// 
     /// </summary>
@@ -205,8 +205,7 @@ public class CodeGenContext
         Void = new VariableRefItem
         {
             ValueRef = null,
-            Type =emptyTuple,
-            ValueClassification = ValueClassification.LValue
+            Type =emptyTuple
         };
     }
     public List<IDefinition> definitionsList { get; } = new List<IDefinition>();

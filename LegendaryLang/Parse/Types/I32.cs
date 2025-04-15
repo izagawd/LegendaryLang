@@ -21,7 +21,7 @@ public abstract class PrimitiveType : Type
 
     public override LLVMValueRef LoadValueForRetOrArg(CodeGenContext context, VariableRefItem variableRef)
     {
-        if (variableRef.ValueClassification == ValueClassification.RValue)
+        if (variableRef.ValueRef.TypeOf.Kind != LLVMTypeKind.LLVMPointerTypeKind)
         {
             return variableRef.ValueRef;
         }
@@ -32,7 +32,7 @@ public abstract class PrimitiveType : Type
     public override LLVMValueRef AssignToStack(CodeGenContext context, VariableRefItem dataRefItem)
     {
         LLVMValueRef value;
-        if (dataRefItem.ValueClassification == ValueClassification.RValue)
+        if (dataRefItem.ValueRef.TypeOf.Kind != LLVMTypeKind.LLVMPointerTypeKind)
         {
             value = dataRefItem.ValueRef;
             

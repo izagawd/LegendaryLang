@@ -59,12 +59,10 @@ public class  Function: IDefinition
                 argType.Type.AssignTo(context,new VariableRefItem()
                 {
                     Type = argType.Type,
-                    ValueClassification = ValueClassification.RValue,
                     ValueRef = param,
                 }, new VariableRefItem()
                 {
                     Type = argType.Type,
-                    ValueClassification = ValueClassification.LValue,
                     ValueRef = alloca,
                 });
 
@@ -73,8 +71,7 @@ public class  Function: IDefinition
                 context.AddToTop(new NormalLangPath(null,[argument.Name]), new VariableRefItem()
                 {
                     Type = (context.GetRefItemFor(argument.TypePath) as TypeRefItem).Type,
-                    ValueRef = alloca,
-                    ValueClassification = ValueClassification.LValue
+                    ValueRef = alloca
                 });
 
             }

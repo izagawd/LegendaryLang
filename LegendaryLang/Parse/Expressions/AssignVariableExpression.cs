@@ -37,7 +37,7 @@ public class AssignVariableExpression : IExpression
         var valueToEq = EqualsTo.DataRefCodeGen(codeGenContext);
         
         var variableRef = Assigner.DataRefCodeGen(codeGenContext);
-        if (variableRef.ValueClassification == ValueClassification.RValue)
+        if (variableRef.ValueRef.TypeOf.Kind != LLVMTypeKind.LLVMPointerTypeKind)
         {
             throw new Exception("Assigner should not be RValue");
         }

@@ -15,6 +15,8 @@ public abstract class Type : IDefinition
     /// <returns>Stack pointer</returns>
     public virtual LLVMValueRef AssignToStack(CodeGenContext context, VariableRefItem dataRefItem)
     {
+        
+        
         // types that arent primitive, whether they are intended to be an lvalue or not, their 
         // value refs are pointers to stack allocated memory.
         // if its intended to be an rvalue simply use that pointer
@@ -23,7 +25,6 @@ public abstract class Type : IDefinition
         AssignTo(context, dataRefItem, new VariableRefItem()
         {
             Type = this,
-            ValueClassification = ValueClassification.LValue,
             ValueRef = allocated
         });
         

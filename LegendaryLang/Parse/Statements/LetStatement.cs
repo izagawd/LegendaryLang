@@ -62,8 +62,7 @@ public class LetStatement : IStatement
             context.AddToTop(new NormalLangPath( null,[Variable.Name]),new VariableRefItem()
             {
                 Type = genedVal.Type,
-                ValueRef = stackPtr,
-                ValueClassification = ValueClassification.LValue
+                ValueRef = stackPtr
             });
         }
     }

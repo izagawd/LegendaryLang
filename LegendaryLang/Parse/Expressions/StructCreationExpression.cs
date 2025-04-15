@@ -77,6 +77,7 @@ public class StructCreationExpression : IExpression
         
         LLVMValueRef structPtr = codeGenContext.Builder.BuildAlloca(structType.TypeRef);
         
+        
         for (var i = 0; i < structType.Fields.Length; i++)
         {
             
@@ -89,7 +90,6 @@ public class StructCreationExpression : IExpression
             data.Type.AssignTo(codeGenContext, data, new VariableRefItem()
             {
                 Type = data.Type,
-                ValueClassification = ValueClassification.LValue,
                 ValueRef = fieldPtr
             });
 
@@ -99,8 +99,7 @@ public class StructCreationExpression : IExpression
         return new VariableRefItem()
         {
             Type = structType,
-            ValueRef = structPtr,
-            ValueClassification = ValueClassification.RValue
+            ValueRef = structPtr
         };
 
     }

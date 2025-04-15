@@ -39,8 +39,7 @@ public class PathExpression : IExpression
         return new VariableRefItem()
         {
             ValueRef = gotten,
-            Type = refItem.Type,
-            ValueClassification = ValueClassification.LValue
+            Type = refItem.Type
         };
     }
 

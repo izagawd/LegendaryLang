@@ -30,8 +30,7 @@ public class BoolExpression : IExpression
         return new VariableRefItem()
         {
             ValueRef = boolValue,
-            Type = (context.GetRefItemFor(BaseLangPath) as TypeRefItem)?.Type,
-            ValueClassification = ValueClassification.RValue
+            Type = (context.GetRefItemFor(BaseLangPath) as TypeRefItem)?.Type
         };
     }
 

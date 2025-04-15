@@ -90,9 +90,14 @@ public interface IExpression : ISyntaxNode
     
             expression = FieldAccessExpression.Parse(parser,expression);
             token = parser.Peek();
-
+            
         
 
+        }
+
+        if (token is EqualityToken)
+        {
+            expression = AssignVariableExpression.Parse(parser, expression);
         }
         return expression;
     }

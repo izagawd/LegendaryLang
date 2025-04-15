@@ -27,8 +27,7 @@ public class NumberExpression : IExpression
         return new VariableRefItem()
         {
             ValueRef = LLVM.ConstInt(LLVM.Int32Type(), ulong.Parse(Token.Number), 0),
-            Type = (codeGenContext.GetRefItemFor(BaseLangPath) as TypeRefItem).Type,
-            ValueClassification = ValueClassification.RValue
+            Type = (codeGenContext.GetRefItemFor(BaseLangPath) as TypeRefItem).Type
         };
     }
 

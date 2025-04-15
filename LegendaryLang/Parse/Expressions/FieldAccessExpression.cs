@@ -61,8 +61,7 @@ public class FieldAccessExpression : IExpression
             {
                 Type = fieldTypeRef.Type,
             
-                ValueRef = fieldPtr,
-                ValueClassification = ValueClassification.LValue
+                ValueRef = fieldPtr
             };
  
     }
