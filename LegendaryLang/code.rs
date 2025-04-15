@@ -1,18 +1,11 @@
-struct A{
-    field : std::primitive::i32,
-
-}
-struct Nester{
-    f: std::primitive::i32,
-    dd: something::A
-}
-fn gay() -> something::Nester{
-    something::Nester{f= 5, dd = something::A{field = 5}}
-}
-struct B{
-    nested: something::A,
-    field2: std::primitive::i32,
+struct Human{
+    age: std::primitive::i32,
+    is_gay: bool,
 }
 fn main() -> std::primitive::i32{
-
+    let human = something::Human{
+        age = 10,
+        is_gay = true
+    };
+    3
 }
