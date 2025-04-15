@@ -68,8 +68,8 @@ public class LetStatement : IStatement
         }
     }
     // Would be set after semantic analysis
-    private BaseLangPath? TypePath { get;  set; }
-    public BaseLangPath SetTypePath(SemanticAnalyzer analyer)
+    private LangPath? TypePath { get;  set; }
+    public LangPath SetTypePath(SemanticAnalyzer analyer)
     {
         if (TypePath is null)
         {

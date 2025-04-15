@@ -69,7 +69,7 @@ public class Struct : Type
     }
 
     public override int Priority => 1;
-    public override BaseLangPath Ident => GetTypeIden();
+    public override LangPath Ident => GetTypeIden();
     public override Token LookUpToken { get; }
 
     public override void Analyze(SemanticAnalyzer analyzer)
@@ -77,7 +77,7 @@ public class Struct : Type
         
     }
     
-    public BaseLangPath GetTypeIden()
+    public LangPath GetTypeIden()
     {
         return new NormalLangPath(null,[..Module.Path, Name]);
     }

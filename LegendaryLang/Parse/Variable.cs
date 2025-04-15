@@ -12,15 +12,15 @@ public class  Variable
         if (nextToken is ColonToken)
         {
             Colon.Parse(parser);
-            var typeId = BaseLangPath.Parse(parser);
+            var typeId = LangPath.Parse(parser);
             return new Variable(name, typeId);
         }
         return new Variable(name);
     }
     public IdentifierToken IdentifierToken {get; }
     public string Name => IdentifierToken.Identity;
-    public BaseLangPath? TypePath { get; set; }
-    public Variable(IdentifierToken token, BaseLangPath? typePath = null)
+    public LangPath? TypePath { get; set; }
+    public Variable(IdentifierToken token, LangPath? typePath = null)
     {
         IdentifierToken = token;
         TypePath = typePath;

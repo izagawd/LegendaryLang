@@ -56,7 +56,7 @@ public abstract class PrimitiveType : Type
     }
 
     public override int Priority => -1;
-    public override BaseLangPath Ident =>BaseLangPath.PrimitivePath.Append([Name]);
+    public override LangPath Ident =>LangPath.PrimitivePath.Append([Name]);
 }
 public class I32 : PrimitiveType
 {

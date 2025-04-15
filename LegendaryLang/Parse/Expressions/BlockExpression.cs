@@ -116,19 +116,19 @@ public class BlockExpression : IExpression, IStatement
         }
     }
 
-    public BaseLangPath? BaseLangPath { get; }
+    public LangPath? BaseLangPath { get; }
 
 
-    public BaseLangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
+    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
         if (MustReturn)
         {
-            return BaseLangPath.VoidBaseLangPath;
+            return LangPath.VoidBaseLangPath;
         }
 
         if (SyntaxNodes.Length == 0)
         {
-            return BaseLangPath.VoidBaseLangPath;
+            return LangPath.VoidBaseLangPath;
         }
 
         var last = SyntaxNodes.Last();
@@ -136,7 +136,7 @@ public class BlockExpression : IExpression, IStatement
         {
             return expression.SetTypePath(semanticAnalyzer);
         }
-        return BaseLangPath.VoidBaseLangPath;
+        return LangPath.VoidBaseLangPath;
     }
 
     public void Analyze(SemanticAnalyzer analyzer)

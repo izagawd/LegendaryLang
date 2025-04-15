@@ -8,9 +8,9 @@ namespace LegendaryLang.Parse.Expressions;
 public class PathExpression : IExpression
 {
  
-    public BaseLangPath Path { get; }
+    public LangPath Path { get; }
 
-    public PathExpression(BaseLangPath path)
+    public PathExpression(LangPath path)
     {
      
         Path = path;
@@ -44,7 +44,7 @@ public class PathExpression : IExpression
         };
     }
 
-    public BaseLangPath? BaseLangPath { get; set; }
+    public LangPath? BaseLangPath { get; set; }
 
 
     /// <summary>
@@ -52,7 +52,7 @@ public class PathExpression : IExpression
     /// This can be used later for type checking or further code generation.
     /// </summary>
     /// <param name="semanticAnalyzer"></param>
-    public BaseLangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
+    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
         // For example, you could look up the type information for this variable
         // in a semantic symbol table maintained during the Analyze phase.

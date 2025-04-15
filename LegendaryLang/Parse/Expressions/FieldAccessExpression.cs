@@ -67,9 +67,9 @@ public class FieldAccessExpression : IExpression
  
     }
 
-    public BaseLangPath? BaseLangPath { get; }
+    public LangPath? BaseLangPath { get; }
 
-    public BaseLangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
+    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
         throw new NotImplementedException();
     }

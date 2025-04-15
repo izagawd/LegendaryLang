@@ -31,10 +31,10 @@ public class UnaryOperationExpression : IExpression
         return Expression.DataRefCodeGen(codeGenContext);
     }
 
-    public BaseLangPath? BaseLangPath { get; }
+    public LangPath? BaseLangPath { get; }
 
 
-    public BaseLangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
+    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
         return Expression.SetTypePath(semanticAnalyzer);
     }

@@ -22,7 +22,7 @@ public class TupleType : Type
     }
 
     public override LLVMTypeRef TypeRef { get; protected set; }
-    public override BaseLangPath Ident => new TupleLangPath(OtherTypes.Select(i => i.Ident));
+    public override LangPath Ident => new TupleLangPath(OtherTypes.Select(i => i.Ident));
     public override Token LookUpToken { get; }
     public override void Analyze(SemanticAnalyzer analyzer)
     {

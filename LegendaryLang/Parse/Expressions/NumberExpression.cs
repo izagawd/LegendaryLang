@@ -32,16 +32,16 @@ public class NumberExpression : IExpression
         };
     }
 
-    public BaseLangPath? BaseLangPath => new I32().Ident;
+    public LangPath? BaseLangPath => new I32().Ident;
 
     public unsafe LLVMTypeRef TypeRefCodeGen(CodeGenContext analyzer)
     {
         return LLVM.Int32Type();
     }
 
-    public BaseLangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
+    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
-       return BaseLangPath.PrimitivePath.Append(["i32"]);
+       return LangPath.PrimitivePath.Append(["i32"]);
     }
 
     public void Analyze(SemanticAnalyzer analyzer)

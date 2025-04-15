@@ -47,10 +47,10 @@ public class AssignVariableExpression : IExpression
         return  codeGenContext.GetVoid();
     }
 
-    public BaseLangPath? BaseLangPath { get; }
+    public LangPath? BaseLangPath { get; }
 
-    public BaseLangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
+    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
-        return BaseLangPath.VoidBaseLangPath;
+        return LangPath.VoidBaseLangPath;
     }
 }

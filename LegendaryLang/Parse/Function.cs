@@ -87,9 +87,9 @@ public class  Function: IDefinition
     public BlockExpression BlockExpression { get; }
     public readonly ImmutableArray<Variable> Arguments;
     public string Name { get; }
-    public BaseLangPath ReturnType { get; }
+    public LangPath ReturnType { get; }
 
-    public Function(string name, IEnumerable<Variable> variables, BaseLangPath returnType, BlockExpression blockExpression)
+    public Function(string name, IEnumerable<Variable> variables, LangPath returnType, BlockExpression blockExpression)
     {
         Arguments = variables.ToImmutableArray();
         Name = name;
@@ -125,11 +125,11 @@ public class  Function: IDefinition
             }
             parser.Pop();
             nextToken = parser.Peek();
-            BaseLangPath returnTyp = BaseLangPath.VoidBaseLangPath;
+            LangPath returnTyp = LangPath.VoidBaseLangPath;
             if (nextToken is RightPointToken)
             {
                 parser.Pop();
-                returnTyp = BaseLangPath.Parse(parser);
+                returnTyp = LangPath.Parse(parser);
             }
             return new Function(name, variables,returnTyp,Expressions.BlockExpression.Parse(parser));
         } else

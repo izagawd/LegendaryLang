@@ -6,9 +6,9 @@ using LegendaryLang.Lex.Tokens;
 namespace LegendaryLang.Parse;
 
 
-public class EmptyPathException(BaseLangPath paths) : ParseException
+public class EmptyPathException(LangPath paths) : ParseException
 {
-    public BaseLangPath Path => paths;
+    public LangPath Path => paths;
 
     public override string Message => $"Expected at least one string in the path. None were found";
 }
@@ -16,14 +16,14 @@ public class EmptyPathException(BaseLangPath paths) : ParseException
 
 
 
-public class TupleLangPath : BaseLangPath
+public class TupleLangPath : LangPath
 {
     public override string ToString()
     {
         return $"({string.Join(",", TypePaths)})";
     }
 
-    public ImmutableArray<BaseLangPath> TypePaths { get; }
+    public ImmutableArray<LangPath> TypePaths { get; }
 
     public override bool Equals(object? obj)
     {
@@ -34,7 +34,7 @@ public class TupleLangPath : BaseLangPath
         return false;
     }
 
-    public TupleLangPath(IEnumerable<BaseLangPath> paths)
+    public TupleLangPath(IEnumerable<LangPath> paths)
     {
         TypePaths = paths.ToImmutableArray();
     }
@@ -65,7 +65,7 @@ public struct PathSegment
         return segment.Text;
     }
 }
-public class NormalLangPath: BaseLangPath
+public class NormalLangPath: LangPath
 {
     public ImmutableArray<PathSegment> Path { get; }
 
@@ -99,16 +99,16 @@ public class NormalLangPath: BaseLangPath
         return false;
     }
 }
-public abstract class BaseLangPath
+public abstract class LangPath
 {
     public static NormalLangPath PrimitivePath = new NormalLangPath(null,["std", "primitive"]);
     public static TupleLangPath VoidBaseLangPath { get; } = new TupleLangPath([]);
-    public static bool operator ==(BaseLangPath path1, BaseLangPath path2)
+    public static bool operator ==(LangPath path1, LangPath path2)
     {
         return path1.Equals(path2);
     }
 
-    public static bool operator !=(BaseLangPath path1, BaseLangPath path2)
+    public static bool operator !=(LangPath path1, LangPath path2)
     {
         return !(path1 == path2);
     }

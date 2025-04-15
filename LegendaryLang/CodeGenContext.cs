@@ -93,10 +93,10 @@ public class CodeGenContext
         }
         definition.HasBeenGened = true;
     }
-    private Stack<Dictionary<BaseLangPath, IRefItem>> ScopeItems = new();
+    private Stack<Dictionary<LangPath, IRefItem>> ScopeItems = new();
 
 
-    public IRefItem? GetRefItemFor(BaseLangPath ident)
+    public IRefItem? GetRefItemFor(LangPath ident)
     {
         foreach (var scope in ScopeItems)
         {
@@ -142,7 +142,7 @@ public class CodeGenContext
     }
 
 
-    public void AddToTop(BaseLangPath symb, IRefItem refItem)
+    public void AddToTop(LangPath symb, IRefItem refItem)
     {
         ScopeItems.Peek().Add(symb, refItem);
     }
@@ -155,7 +155,7 @@ public class CodeGenContext
  
     }
 
-    public Dictionary<BaseLangPath, IRefItem> PopRefs()
+    public Dictionary<LangPath, IRefItem> PopRefs()
     {
         return ScopeItems.Pop();
 
@@ -174,9 +174,9 @@ public class CodeGenContext
     // Dictionary to map custom BaseLangPath's to LLVMTypeRef's (if needed)
 
     
-    public Dictionary<BaseLangPath, Struct> TypeMap { get; } = new();
+    public Dictionary<LangPath, Struct> TypeMap { get; } = new();
 
-    public Struct GetLangType(BaseLangPath lang)
+    public Struct GetLangType(LangPath lang)
     {
         return TypeMap[lang];
     }

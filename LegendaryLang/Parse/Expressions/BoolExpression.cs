@@ -35,14 +35,14 @@ public class BoolExpression : IExpression
         };
     }
 
-    public BaseLangPath? BaseLangPath => BoolType.Ident;
+    public LangPath? BaseLangPath => BoolType.Ident;
 
     public LLVMTypeRef TypeRefCodeGen(CodeGenContext analyzer)
     {
         return BoolType.TypeRef;
     }
 
-    public BaseLangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
+    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
         return BoolType.Ident;
     }

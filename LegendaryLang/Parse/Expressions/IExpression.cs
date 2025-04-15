@@ -43,8 +43,8 @@ public interface IExpression : ISyntaxNode
         return parsedPath;
     }
 
-    public BaseLangPath? BaseLangPath { get; }
-    public BaseLangPath SetTypePath(SemanticAnalyzer semanticAnalyzer);
+    public LangPath? BaseLangPath { get; }
+    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer);
 
     public static IExpression ParsePrimary(Parser parser)
     {
@@ -129,7 +129,7 @@ public class BracketExpression : IExpression
     }
 
 
-    public BaseLangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
+    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
         return Expression.SetTypePath(semanticAnalyzer);
     }
@@ -139,7 +139,7 @@ public class BracketExpression : IExpression
         throw new NotImplementedException();
     }
 
-    public BaseLangPath? BaseLangPath => Expression.BaseLangPath;
+    public LangPath? BaseLangPath => Expression.BaseLangPath;
     public Token LookUpToken => LeftParenthesisToken;
 }
 
@@ -163,9 +163,9 @@ public class BinaryOperationExpression : IExpression
         throw new NotImplementedException();
     }
 
-    public BaseLangPath? BaseLangPath { get; }
+    public LangPath? BaseLangPath { get; }
 
-    public BaseLangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
+    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
         throw new NotImplementedException();
     }

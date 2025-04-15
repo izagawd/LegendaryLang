@@ -47,7 +47,7 @@ public class StructCreationExpression : IExpression
         }
         return new StructCreationExpression(path, variableAssignments );
     }
-    public BaseLangPath StructTypePath { get; }
+    public LangPath StructTypePath { get; }
 
 
     public ImmutableArray<AssignedField> AssignFields { get; }
@@ -62,7 +62,7 @@ public class StructCreationExpression : IExpression
         public IdentifierToken FieldToken { get; init; }
         public IExpression EqualsTo { get; init; }
     }
-    public StructCreationExpression(BaseLangPath structTypePath, IEnumerable<AssignedField> assignVariableExpressions)
+    public StructCreationExpression(LangPath structTypePath, IEnumerable<AssignedField> assignVariableExpressions)
     {
         StructTypePath = structTypePath;
         AssignFields = assignVariableExpressions.ToImmutableArray();
@@ -80,11 +80,19 @@ public class StructCreationExpression : IExpression
         for (var i = 0; i < structType.Fields.Length; i++)
         {
             
+            // assigns each field pretty much
             var gotten = AssignFields
                 .First(j => j.FieldToken.Identity == structType.Fields[i].Name);
             var data = gotten.EqualsTo.DataRefCodeGen(codeGenContext);
-            var pt = codeGenContext.Builder.BuildStructGEP2(structType.TypeRef,structPtr,(uint)i);
-             codeGenContext.Builder.BuildStore(data.ValueRef, pt);
+            var fieldPtr = codeGenContext.Builder.BuildStructGEP2(structType.TypeRef,structPtr,(uint)i);
+            codeGenContext.Builder.BuildStore(data.ValueRef, fieldPtr);
+            data.Type.AssignTo(codeGenContext, data, new VariableRefItem()
+            {
+                Type = data.Type,
+                ValueClassification = ValueClassification.LValue,
+                ValueRef = fieldPtr
+            });
+
         }
         
         
@@ -97,8 +105,8 @@ public class StructCreationExpression : IExpression
 
     }
 
-    public BaseLangPath? BaseLangPath { get; }
-    public BaseLangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
+    public LangPath? BaseLangPath { get; }
+    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
         throw new NotImplementedException();
     }

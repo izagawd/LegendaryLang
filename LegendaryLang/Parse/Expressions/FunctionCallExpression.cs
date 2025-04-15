@@ -22,8 +22,8 @@ public class FunctionCallExpression : IExpression
         throw new NotImplementedException();
     }
 
-    public BaseLangPath? BaseLangPath { get; }
-    public BaseLangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
+    public LangPath? BaseLangPath { get; }
+    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
         throw new NotImplementedException();
     }
