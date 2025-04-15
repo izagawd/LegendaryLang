@@ -6,63 +6,8 @@ using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse.Types;
 
-public class Struct : Type
+public class Struct : CustomType
 {
-    
-    public override void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr)
-    {
-        for (int i = 0; i < Fields.Length; i++)
-        {
-            var field = Fields[i];
-            var fieldType = codeGenContext.GetRefItemFor(field.TypePath) as TypeRefItem;
-            LLVMValueRef fieldValuePtr;
-            var fieldPtrPtr = codeGenContext.Builder.BuildStructGEP2(TypeRef,ptr.ValueRef,
-                GetIndexOfField(field.Name));
-            if (value.ValueRef.TypeOf.Kind == LLVMTypeKind.LLVMPointerTypeKind)
-            {
-                fieldValuePtr = codeGenContext.Builder.BuildStructGEP2(TypeRef, value.ValueRef,
-                    GetIndexOfField(field.Name));
-
-                fieldType.Type.AssignTo(codeGenContext, new VariableRefItem()
-                    {
-                        ValueRef = fieldValuePtr,
-                        Type = fieldType.Type
-                    },
-                    new VariableRefItem()
-                    {
-                        ValueRef = fieldPtrPtr,
-                        Type = fieldType.Type
-                    });
-
-
-            }
-            else
-            {
-
-                var toExtract = codeGenContext.Builder.BuildExtractValue(value.ValueRef,(uint)i);
-                fieldType.Type.AssignTo(codeGenContext,
-                    new VariableRefItem()
-                    {
-                        ValueRef = toExtract,
-                        Type = fieldType.Type
-                    }, new VariableRefItem()
-                    {
-                        ValueRef = fieldPtrPtr,
-                        Type = fieldType.Type
-                    });
-            }
-
-
-        }
-    
-    }
-
-    public override int GetPrimitivesCompositeCount(CodeGenContext context)
-    {
-       return  Fields.Select(i => (context.GetRefItemFor(i.TypePath) as TypeRefItem).Type.GetPrimitivesCompositeCount(context))
-            .Sum();
-    }
-
 
 
     public override LLVMTypeRef TypeRef { get; protected set; }
@@ -102,43 +47,7 @@ public class Struct : Type
     {
         
     }
-    public unsafe override LLVMValueRef LoadValueForRetOrArg(CodeGenContext context,VariableRefItem variableRef)
-    {
-        
-        if (GetPrimitivesCompositeCount(context) > 0)
-        {
 
-            LLVMValueRef aggr = LLVM.GetUndef(TypeRef);
-            for (int i = 0; i < Fields.Length; i++)
-            {
-                var field = Fields[i];
-                var type = context.GetRefItemFor(field.TypePath) as TypeRefItem;
-                var otherField = context.Builder.BuildStructGEP2(TypeRef, variableRef.ValueRef, (uint)i);
-                var refIt = new VariableRefItem()
-                {
-                    ValueRef = otherField,
-                    Type = type.Type
-                };
-              
-                if (aggr == null)
-                {
-                    aggr = context.Builder.BuildExtractValue(aggr,(uint) i);
-                }
-                else
-                {
-                    aggr = context.Builder.BuildInsertValue(aggr, type.Type.LoadValueForRetOrArg(context,refIt) ,(uint) i);
-                }
-         
-                
-            }
-
-            return aggr;
-        }
-
-        return  LLVM.GetUndef(TypeRef);
-        
-      
-    }
     public LangPath GetTypeIden()
     {
         return new NormalLangPath(null,[..Module.Path, Name]);
@@ -219,4 +128,6 @@ public class Struct : Type
         Name = name;
         Fields = fields.ToImmutableArray();
     }
+
+    public override ImmutableArray<LangPath> ComposedTypes => Fields.Select(i => i.TypePath).ToImmutableArray();
 }

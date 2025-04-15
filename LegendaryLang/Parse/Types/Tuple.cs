@@ -6,25 +6,11 @@ using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse.Types;
 
-public class TupleType : Type
+public class TupleType : CustomType
 {
 
 
-    public override int GetPrimitivesCompositeCount(CodeGenContext context)
-    {
-        return  OtherTypes.Select(i => i.GetPrimitivesCompositeCount(context))
-            .Sum();
-    }
 
-    public override LLVMValueRef LoadValueForRetOrArg(CodeGenContext context, VariableRefItem variableRef)
-    {
-        throw new NotImplementedException();
-    }
-
-    public override void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr)
-    {
-        throw new NotImplementedException();
-    }
 
     public override LLVMTypeRef TypeRef { get; protected set; }
     public override LangPath Ident => new TupleLangPath(OtherTypes.Select(i => i.Ident));
@@ -52,4 +38,5 @@ public class TupleType : Type
     }
 
     public override int Priority { get; }
+    public override ImmutableArray<LangPath> ComposedTypes => OtherTypes.Select(i => i.Ident).ToImmutableArray();
 }

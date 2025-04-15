@@ -6,15 +6,15 @@ struct Nester{
     f: std::primitive::i32,
     dd: something::A
 }
-fn gay(kk : something::A) ->  something::A {
-    kk
+fn gay() -> something::Nester{
+    something::Nester{f= 5, dd = something::A{field = 5}}
 }
 struct B{
     nested: something::A,
     field2: std::primitive::i32,
 }
 fn main() -> std::primitive::i32{
-   let gayed =  something::A{field = 5};
-    gayed.field = 10;
-    gayed.field
+    let nester = gay();
+    4
+
 }
