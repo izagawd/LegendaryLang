@@ -39,16 +39,6 @@ public interface IExpression : ISyntaxNode
             throw new Exception("Expected struct creation expression, found something else");
         }
 
-        if (next is DotToken)
-        {
-            var accessExpr = FieldAccessExpression.Parse(parser,parsedPath);
-            next = parser.Peek();
-            if (next is EqualityToken)
-            {
-                return AssignVariableExpression.Parse(parser, accessExpr);
-            }
-            return accessExpr;
-        }
 
         if (next is LeftParenthesisToken)
         {
@@ -65,26 +55,46 @@ public interface IExpression : ISyntaxNode
     public static IExpression ParsePrimary(Parser parser)
     {
         var token = parser.Peek();
+        IExpression expression;
+        
         switch (token)
         {
             // Block and grouping
             case LeftCurlyBraceToken:
-                return BlockExpression.Parse(parser);
+                expression =  BlockExpression.Parse(parser);
+                break;
             // Literals and identifiers
             case ExclamationMarkToken:
-                return UnaryOperationExpression.Parse(parser); 
+                expression = UnaryOperationExpression.Parse(parser); 
+                break;
             case NumberToken:
-                return NumberExpression.Parse(parser);
+                expression = NumberExpression.Parse(parser);
+                break;
             case LeftParenthesisToken:
-                return BracketExpression.Parse(parser);
+                expression =  BracketExpression.Parse(parser);
+                break;
             case IdentifierToken:
-                return ParsePossibleIdentPossibilities(parser);
+                expression = ParsePossibleIdentPossibilities(parser);
+                break;
             case IBoolToken:
-                return BoolExpression.Parse(parser);
+                expression = BoolExpression.Parse(parser);
+                break;
             // Add more cases as needed,
             default:
                 throw new ExpectedParserException(parser,[ParseType.Fn, ParseType.Let, ParseType.LeftParenthesis, ParseType.Identifier],token);
         }
+        token = parser.Peek();
+        
+        while (token is DotToken)
+        {
+    
+            expression = FieldAccessExpression.Parse(parser,expression);
+            token = parser.Peek();
+
+        
+
+        }
+        return expression;
     }
     public static IExpression Parse(Parser parser, int minPrec= 0)
     {

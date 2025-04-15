@@ -3,7 +3,7 @@ struct A{
 
 }
 fn gay(kk : something::A) ->  something::A {
-    kk2
+    kk
 }
 struct B{
     nested: something::A,
