@@ -7,20 +7,7 @@ namespace LegendaryLang.Parse.Types;
 
 public abstract class Type : IDefinition
 {
-
     
-    public abstract LLVMValueRef AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr);
-    public abstract int GetPrimitivesCompositeCount(CodeGenContext context);
-
-    /// <summary>
-    /// Abstracts away loading a value, so it can be used for parameters and return types. done because if its
-    /// a primitive, simply return its value. if its not, load it from its pointer (since non primitive
-    /// value refs are pointers) then return it
-    /// </summary>
-    /// <param name="context"></param>
-    /// <param name="variableRef"></param>
-    /// <returns></returns>
-    public  abstract LLVMValueRef LoadValueForRetOrArg(CodeGenContext context, VariableRefItem variableRef);
     /// <summary>
     /// 
     /// </summary>
@@ -36,10 +23,31 @@ public abstract class Type : IDefinition
         // if its intended to be an rvalue simply use that pointer
 
         var allocated = context.Builder.BuildAlloca(TypeRef);
-        var loaded = context.Builder.BuildLoad2(TypeRef, dataRefItem.ValueRef);
-        context.Builder.BuildStore(loaded, allocated);
+        AssignTo(context, dataRefItem, new VariableRefItem()
+        {
+            Type = this,
+            ValueClassification = ValueClassification.LValue,
+            ValueRef = allocated
+        });
+        
         return allocated;
     }
+    
+    public abstract void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr);
+    public abstract int GetPrimitivesCompositeCount(CodeGenContext context);
+
+    /// <summary>
+    /// Abstracts away loading a value, so it can be used for parameters and return types. done because if its
+    /// a primitive, simply return its value. if its not, load it from its pointer (since non primitive
+    /// value refs are pointers) then return it
+    /// </summary>
+    /// <param name="context"></param>
+    /// <param name="variableRef"></param>
+    /// <returns></returns>
+    public  abstract LLVMValueRef LoadValueForRetOrArg(CodeGenContext context, VariableRefItem variableRef);
+
+    
+
     public abstract LLVMTypeRef TypeRef { get;  protected set; }
     public bool HasBeenGened { get; set; } = false;
     public abstract LangPath Ident { get; }

@@ -8,29 +8,55 @@ namespace LegendaryLang.Parse.Types;
 
 public class Struct : Type
 {
-    public override LLVMValueRef AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr)
+    
+    public override void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr)
     {
-        foreach (var i in Fields)
+        for (int i = 0; i < Fields.Length; i++)
         {
-            var fieldType = codeGenContext.GetRefItemFor(i.TypePath) as TypeRefItem;
-            var fieldValuePtr = codeGenContext.Builder.BuildStructGEP2(TypeRef,value.ValueRef,
-                GetIndexOfField(i.Name));
-            var fieldPtrPtr = codeGenContext.Builder.BuildStructGEP2(TypeRef,ptr.ValueRef,
-                GetIndexOfField(i.Name));
-            fieldType.Type.AssignTo(codeGenContext, new VariableRefItem()
+            var field = Fields[i];
+            var fieldType = codeGenContext.GetRefItemFor(field.TypePath) as TypeRefItem;
+            LLVMValueRef fieldValuePtr;
+            if (value.ValueRef.TypeOf.Kind == LLVMTypeKind.LLVMPointerTypeKind)
             {
-                ValueRef = fieldValuePtr,
-                ValueClassification = ValueClassification.LValue,
-                Type = fieldType.Type
-            },
-                new VariableRefItem()
-                {
-                    ValueRef = fieldPtrPtr,
-                    ValueClassification = ValueClassification.LValue,
-                    Type = fieldType.Type
-                });
+                fieldValuePtr = codeGenContext.Builder.BuildStructGEP2(TypeRef, value.ValueRef,
+                    GetIndexOfField(field.Name));
+            }
+            else
+            {
+                fieldValuePtr = codeGenContext.Builder.BuildAlloca(fieldType.TypeRef);
+                var toExtract = codeGenContext.Builder.BuildExtractValue(value.ValueRef,(uint)i);
+                fieldType.Type.AssignTo(codeGenContext,
+                    new VariableRefItem()
+                    {
+                        ValueRef = toExtract,
+                        Type = fieldType.Type,
+                        ValueClassification = ValueClassification.RValue
+                    }, new VariableRefItem()
+                    {
+                        ValueRef = fieldValuePtr,
+                        Type = fieldType.Type,
+                        ValueClassification = ValueClassification.LValue
+                    });
+            }
+
+            var fieldPtrPtr = codeGenContext.Builder.BuildStructGEP2(TypeRef,ptr.ValueRef,
+                    GetIndexOfField(field.Name));
+                fieldType.Type.AssignTo(codeGenContext, new VariableRefItem()
+                    {
+                        ValueRef = fieldValuePtr,
+                        ValueClassification = ValueClassification.LValue,
+                        Type = fieldType.Type
+                    },
+                    new VariableRefItem()
+                    {
+                        ValueRef = fieldPtrPtr,
+                        ValueClassification = ValueClassification.LValue,
+                        Type = fieldType.Type
+                    });
+        
+
         }
-        return ptr.ValueRef;
+    
     }
 
     public override int GetPrimitivesCompositeCount(CodeGenContext context)
@@ -38,6 +64,8 @@ public class Struct : Type
        return  Fields.Select(i => (context.GetRefItemFor(i.TypePath) as TypeRefItem).Type.GetPrimitivesCompositeCount(context))
             .Sum();
     }
+
+
 
     public override LLVMTypeRef TypeRef { get; protected set; }
     public NormalLangPath Module { get; set; } = new NormalLangPath(null,["something"]);

@@ -49,15 +49,25 @@ public class  Function: IDefinition
             for (uint i = 0; i < (uint)Arguments.Length; i++)
             {
                 var argument = Arguments[(int)i];
+                var argType = context.GetRefItemFor(argument.TypePath) as TypeRefItem;
+                
                 // Get the function parameter.
                 LLVMValueRef param = LLVM.GetParam(function, i);
                 
                 // Allocate space for the parameter in the entry block.
                 LLVMValueRef alloca = LLVM.BuildAlloca(context.Builder, paramTypes[i],argument.Name.ToCString());
-                
-                // Store the parameter value into the allocated space.
-                 LLVM.BuildStore(context.Builder, param, alloca);
-    
+                argType.Type.AssignTo(context,new VariableRefItem()
+                {
+                    Type = argType.Type,
+                    ValueClassification = ValueClassification.RValue,
+                    ValueRef = param,
+                }, new VariableRefItem()
+                {
+                    Type = argType.Type,
+                    ValueClassification = ValueClassification.LValue,
+                    ValueRef = alloca,
+                });
+
                 
                 // adds the stack ptr to codegen so argument can be referenced by name
                 context.AddToTop(new NormalLangPath(null,[argument.Name]), new VariableRefItem()

@@ -12,9 +12,9 @@ public abstract class PrimitiveType : Type
         return 1;
     }
 
-    public override LLVMValueRef AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr)
+    public override void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr)
     {
-        return codeGenContext.Builder.BuildStore(value.LoadValForRetOrArg(codeGenContext), ptr.ValueRef );
+         codeGenContext.Builder.BuildStore(value.LoadValForRetOrArg(codeGenContext), ptr.ValueRef );
     }
 
     public abstract string Name { get; }

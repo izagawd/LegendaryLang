@@ -54,9 +54,13 @@ public class FunctionCallExpression : IExpression
                 }).ToArray()
             );
         var returnType = (codeGenContext.GetRefItemFor(zaPath.Function.ReturnType) as TypeRefItem).Type;
-        LLVMValueRef stackPtr= codeGenContext.Builder.BuildAlloca(returnType.TypeRef);
-                
-        codeGenContext.Builder.BuildStore(callResult, stackPtr);
+        LLVMValueRef stackPtr= returnType.AssignToStack(codeGenContext,new VariableRefItem()
+        {
+                Type = returnType,
+                ValueClassification = ValueClassification.RValue,
+                ValueRef = callResult
+        });  
+
  
         return new VariableRefItem()
         {

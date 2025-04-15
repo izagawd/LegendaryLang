@@ -21,7 +21,7 @@ public class TupleType : Type
         throw new NotImplementedException();
     }
 
-    public override LLVMValueRef AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr)
+    public override void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr)
     {
         throw new NotImplementedException();
     }
