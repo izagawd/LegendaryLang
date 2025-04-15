@@ -37,10 +37,7 @@ public class BoolExpression : IExpression
 
     public LangPath? BaseLangPath => BoolType.Ident;
 
-    public LLVMTypeRef TypeRefCodeGen(CodeGenContext analyzer)
-    {
-        return BoolType.TypeRef;
-    }
+
 
     public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
