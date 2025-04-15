@@ -23,7 +23,11 @@ public class Struct : CustomType
         TypeRef = LLVM.StructCreateNamed(context.Module.Context, llvmStructName.ToCString());
 
         // 3. Generate LLVM types for the struct fields
-        var fieldTypes = Fields.Select(field => (context.GetRefItemFor(field.TypePath) as TypeRefItem).Type).ToArray();
+        var fieldTypes = Fields.Select(field =>
+        {
+            var idk = context.GetRefItemFor(field.TypePath);
+            return (idk as TypeRefItem).Type;
+        }).ToArray();
 
         fixed (void* ptr = fieldTypes.Select(i => i.TypeRef).ToArray())
         {        

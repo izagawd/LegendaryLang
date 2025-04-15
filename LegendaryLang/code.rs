@@ -1,6 +1,6 @@
 struct Human{
     age: std::primitive::i32,
-    is_gay: bool,
+    is_gay: std::primitive::bool,
 }
 fn main() -> std::primitive::i32{
     let human = something::Human{
