@@ -52,6 +52,35 @@ public interface IExpression : ISyntaxNode
     public LangPath? BaseLangPath { get; }
     public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer);
 
+    public static IExpression ParseBracketOrTuple(Parser parser)
+    {
+        var leftParenthesis = Parenthesis.ParseLeft(parser);
+        var exprs = new List<IExpression>() { IExpression.Parse(parser) };
+        var next = parser.Peek();
+        IExpression expression = null;
+        var doneOnce=true;
+        while (next is CommaToken)
+        {
+            doneOnce = false;
+            parser.Pop();
+            next = parser.Peek();
+            if (next is not RightParenthesisToken)
+            {
+                exprs.Add(IExpression.Parse(parser)); 
+            }
+            else
+            {
+                break;
+            }
+            next = parser.Peek();
+        }
+        Parenthesis.ParseRight(parser);
+        if (doneOnce)
+        {
+            return new BracketExpression(leftParenthesis, exprs.First());
+        }
+        return new TupleCreationExpression(leftParenthesis, exprs);
+    }
     public static IExpression ParsePrimary(Parser parser)
     {
         var token = parser.Peek();
@@ -71,7 +100,7 @@ public interface IExpression : ISyntaxNode
                 expression = NumberExpression.Parse(parser);
                 break;
             case LeftParenthesisToken:
-                expression =  BracketExpression.Parse(parser);
+                expression =  ParseBracketOrTuple(parser);
                 break;
             case IdentifierToken:
                 expression = ParsePossibleIdentPossibilities(parser);
@@ -139,12 +168,11 @@ public interface IExpression : ISyntaxNode
 public class BracketExpression : IExpression
 {
     
-    public static BracketExpression Parse(Parser parser)
+    public static BracketExpression Parse(Parser parser,LeftParenthesisToken leftParenthesisToken,  IExpression expression)
     {
-        var left = Parenthesis.ParseLeft(parser);
-        var expr = IExpression.Parse(parser);
+ 
         Parenthesis.ParseRight(parser);
-        return new BracketExpression(left, expr);
+        return new BracketExpression(leftParenthesisToken, expression);
     }
     public IExpression Expression { get; }
     public LeftParenthesisToken LeftParenthesisToken { get; }
