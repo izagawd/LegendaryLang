@@ -114,6 +114,7 @@ public class Parser
         return new ParseResult()
         {
             Definitions = definitions,
+            File = File
         };
     }
     

@@ -13,7 +13,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="code.rs">
+      <None Update="code\main.rs">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>

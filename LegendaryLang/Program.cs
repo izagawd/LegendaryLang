@@ -11,15 +11,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var lexed = Lexer.Lex(File.ReadAllText("code.rs"), "bitch");
-        
-        
-        var parsed = new Parser(lexed).Parse();
-        var gen = PrimitiveTypeGenerator.Generate();
-       new SemanticAnalyzer([parsed, gen]).Analyze();
-        var count = parsed.Definitions.OfType<Function>().Select(i => i.BlockExpression).SelectMany(i => i.SyntaxNodes)
-            .Where(i => i is LetStatement).Count();
-        new CodeGenContext([parsed, gen]).CodeGen();
+        new Compiler().Compile("code");
     }
     
 }

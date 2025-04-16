@@ -114,7 +114,7 @@ public class CodeGenContext
              
             }
         }
-        var first = definitionsList.OfType<Type>().FirstOrDefault(i => i.Ident == ident);
+        var first = definitionsList.OfType<Type>().FirstOrDefault(i => i.TypePath == ident);
         // generate and store the type if not already, and it is defined
         if (first != null)
         {

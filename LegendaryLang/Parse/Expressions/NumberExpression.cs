@@ -31,7 +31,7 @@ public class NumberExpression : IExpression
         };
     }
 
-    public LangPath? TypePath { get; set; }  =new I32().Ident;
+    public LangPath? TypePath { get; set; }  =new I32().TypePath;
 
 
 

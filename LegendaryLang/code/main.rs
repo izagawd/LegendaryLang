@@ -1,4 +1,4 @@
-struct Human{
+﻿struct Human{
     age: std::primitive::i32,
     is_gay: std::primitive::bool,
 }

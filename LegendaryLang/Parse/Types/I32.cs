@@ -48,7 +48,7 @@ public abstract class PrimitiveType : Type
 
     public override void CodeGen(CodeGenContext context)
     {
-        context.AddToDeepestScope(Ident,new TypeRefItem()
+        context.AddToDeepestScope(TypePath,new TypeRefItem()
         {
             Type = this,
 
@@ -57,7 +57,7 @@ public abstract class PrimitiveType : Type
     
 
     public override int Priority => -1;
-    public override LangPath Ident =>LangPath.PrimitivePath.Append([Name]);
+    public override LangPath TypePath =>LangPath.PrimitivePath.Append([Name]);
 }
 public class I32 : PrimitiveType
 {

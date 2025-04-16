@@ -37,14 +37,14 @@ public class Struct : CustomType
         // 4. Set the body of the opaque struct
 
 
-        context.AddToDeepestScope(Ident,new TypeRefItem()
+        context.AddToDeepestScope(TypePath,new TypeRefItem()
         {
             Type = this
         });
     }
 
     public override int Priority => 1;
-    public override LangPath Ident => GetTypeIden();
+    public override LangPath TypePath => GetTypeIden();
     public override Token LookUpToken { get; }
 
     public override void Analyze(SemanticAnalyzer analyzer)

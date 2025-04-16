@@ -13,7 +13,7 @@ public class TupleType : CustomType
 
 
     public override LLVMTypeRef TypeRef { get; protected set; }
-    public override LangPath Ident => new TupleLangPath(OtherTypes.Select(i => i.Ident));
+    public override LangPath TypePath => new TupleLangPath(OtherTypes.Select(i => i.TypePath));
     public override Token LookUpToken { get; }
     public override void Analyze(SemanticAnalyzer analyzer)
     {
@@ -28,9 +28,9 @@ public class TupleType : CustomType
 
     {
         TypeRef = LLVMTypeRef.CreateStruct(
-            OtherTypes.Select(i => (context.GetRefItemFor(i.Ident) as TypeRefItem).TypeRef).ToArray(),
+            OtherTypes.Select(i => (context.GetRefItemFor(i.TypePath) as TypeRefItem).TypeRef).ToArray(),
             false);
-        context.AddToDeepestScope(new TupleLangPath(OtherTypes.Select(i => i.Ident)),
+        context.AddToDeepestScope(new TupleLangPath(OtherTypes.Select(i => i.TypePath)),
             new TypeRefItem()
             {
                 Type = this,
@@ -38,5 +38,5 @@ public class TupleType : CustomType
     }
 
     public override int Priority { get; }
-    public override ImmutableArray<LangPath> ComposedTypes => OtherTypes.Select(i => i.Ident).ToImmutableArray();
+    public override ImmutableArray<LangPath> ComposedTypes => OtherTypes.Select(i => i.TypePath).ToImmutableArray();
 }

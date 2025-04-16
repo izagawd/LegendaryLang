@@ -34,13 +34,13 @@ public class BoolExpression : IExpression
         };
     }
 
-    public LangPath? TypePath => BoolType.Ident;
+    public LangPath? TypePath => BoolType.TypePath;
 
 
 
     public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
-        return BoolType.Ident;
+        return BoolType.TypePath;
     }
 
 

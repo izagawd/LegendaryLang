@@ -26,7 +26,7 @@ public class PathExpression : IExpression
         if (TypePath is null)
         {
       
-            TypePath = (context.GetRefItemFor(Path) as IHasType).Type.Ident;
+            TypePath = (context.GetRefItemFor(Path) as IHasType).Type.TypePath;
         }
         string pathSuffix = Path.ToString();
         uint* major = null;

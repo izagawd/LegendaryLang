@@ -48,7 +48,7 @@ public abstract class Type : IDefinition
 
     public abstract LLVMTypeRef TypeRef { get;  protected set; }
     public bool HasBeenGened { get; set; } = false;
-    public abstract LangPath Ident { get; }
+    public abstract LangPath TypePath { get; }
     public abstract Token LookUpToken { get; }
     void IDefinition.Analyze(SemanticAnalyzer analyzer)
     {
