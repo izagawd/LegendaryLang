@@ -105,6 +105,10 @@ public class Parser
             {
                 definitions.Add(Struct.Parse(this));
             }
+            else if (gotten is UseToken)
+            {
+                definitions.Add(UseDefinition.Parse(this));
+            }
             else
             {
                 throw new ExpectedParserException(this, [ParseType.Struct,ParseType.Fn], gotten);

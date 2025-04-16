@@ -9,7 +9,7 @@ namespace LegendaryLang;
 
 public class Compiler
 {
-    public Compiler(){}
+
     public const string extension = "rs";
     public void Compile(string codeDirectory)
     {

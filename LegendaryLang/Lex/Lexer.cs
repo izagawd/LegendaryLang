@@ -190,6 +190,9 @@ namespace LegendaryLang.Lex
                             case "struct":
                                 file.AddToken(new StructToken(file, column, line));
                                 break;
+                            case "use":
+                                file.AddToken(new UseToken(file, column, line));
+                                break;
                             case "fn":
                                 file.AddToken(new FnToken(file, column, line));
                                 break;

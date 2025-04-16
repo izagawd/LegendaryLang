@@ -8,11 +8,13 @@ public class SemanticAnalyzer
 {
     public Stack<IDefinition> Definitions = new Stack<IDefinition>();
     
-    private Stack<Dictionary<LangPath, IRefItem>> ScopeItems = new();
+    private Stack<Dictionary<LangPath, LangPath>> ScopeItems = new();
     public SemanticAnalyzer(IEnumerable<ParseResult> parseResults)
     {
         Definitions = new Stack<IDefinition>(parseResults.SelectMany(i => i.Definitions).ToImmutableHashSet());
     }
+
+
 
     public void  AddScope()
     {
@@ -21,7 +23,11 @@ public class SemanticAnalyzer
  
     }
 
-    public Dictionary<LangPath, IRefItem> PopScope()
+    public void AddToDeepestScope(LangPath map, LangPath to)
+    {
+        ScopeItems.Peek().Add(map, to);
+    }
+    public Dictionary<LangPath, LangPath> PopScope()
     {
         return ScopeItems.Pop();
 

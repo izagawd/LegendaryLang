@@ -15,5 +15,6 @@ public enum ParseType
     Operator,
     Dot,
     StructPath,
-    FunctionCall
+    FunctionCall,
+    Use
 }

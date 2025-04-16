@@ -243,7 +243,7 @@ public class CodeGenContext
             SetupVoid();
 
 
-            foreach (var def in definitionsList.OrderBy(i => i.Priority))
+            foreach (var def in definitionsList)
             {
                 CodeGen(def); // Generate LLVM IR for functions, etc.
             }
