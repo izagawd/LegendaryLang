@@ -14,8 +14,21 @@ public class SemanticAnalyzer
         Definitions = new Stack<IDefinition>(parseResults.SelectMany(i => i.Definitions).ToImmutableHashSet());
     }
 
+    public void  AddScope()
+    {
+
+        ScopeItems.Push(new());
+ 
+    }
+
+    public Dictionary<LangPath, IRefItem> PopScope()
+    {
+        return ScopeItems.Pop();
+
+    }
     public void Analyze()
     {
+        AddScope();
         foreach (var definition in Definitions.ToArray())
         {
 
@@ -31,5 +44,6 @@ public class SemanticAnalyzer
     
        
         }
+        PopScope();
     }
 }

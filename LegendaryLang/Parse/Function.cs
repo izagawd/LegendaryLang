@@ -38,12 +38,12 @@ public class  Function: IDefinition
 
             LLVMBasicBlockRef entryBlock = LLVM.AppendBasicBlock(function, "entry".ToCString());
             LLVM.PositionBuilderAtEnd(context.Builder, entryBlock);
-            context.AddToTop(new NormalLangPath(null,[Name]), new FunctionRefItem()
+            context.AddToDeepestScope(new NormalLangPath(null,[Name]), new FunctionRefItem()
             {
                 Function = this,
             });
        
-            context.AddRefScope();
+            context.AddScope();
 
             // 6. For each parameter, allocate space and store the parameter into it.
             for (uint i = 0; i < (uint)Arguments.Length; i++)
@@ -68,7 +68,7 @@ public class  Function: IDefinition
 
                 
                 // adds the stack ptr to codegen so argument can be referenced by name
-                context.AddToTop(new NormalLangPath(null,[argument.Name]), new VariableRefItem()
+                context.AddToDeepestScope(new NormalLangPath(null,[argument.Name]), new VariableRefItem()
                 {
                     Type = (context.GetRefItemFor(argument.TypePath) as TypeRefItem).Type,
                     ValueRef = alloca
@@ -83,7 +83,7 @@ public class  Function: IDefinition
             LLVM.BuildRet(context.Builder, blockValue.LoadValForRetOrArg(context));
             
 
-            context.PopRefs();
+            context.PopScope();
         }
 
     public int Priority => 3;

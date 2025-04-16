@@ -148,20 +148,20 @@ public class CodeGenContext
     }
 
 
-    public void AddToTop(LangPath symb, IRefItem refItem)
+    public void AddToDeepestScope(LangPath symb, IRefItem refItem)
     {
         ScopeItems.Peek().Add(symb, refItem);
     }
 
 
-    public void  AddRefScope()
+    public void  AddScope()
     {
 
         ScopeItems.Push(new());
  
     }
 
-    public Dictionary<LangPath, IRefItem> PopRefs()
+    public Dictionary<LangPath, IRefItem> PopScope()
     {
         return ScopeItems.Pop();
 
@@ -236,7 +236,7 @@ public class CodeGenContext
 
 
 
-            AddRefScope();
+            AddScope();
 
 
             SetupVoid();

@@ -48,7 +48,7 @@ public abstract class PrimitiveType : Type
 
     public override void CodeGen(CodeGenContext context)
     {
-        context.AddToTop(Ident,new TypeRefItem()
+        context.AddToDeepestScope(Ident,new TypeRefItem()
         {
             Type = this,
 

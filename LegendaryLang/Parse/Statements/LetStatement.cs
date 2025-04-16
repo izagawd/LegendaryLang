@@ -72,7 +72,7 @@ public class LetStatement : IStatement
             var genedVal = EqualsTo.DataRefCodeGen(context);
             var stackPtr = genedVal.StackAllocate(context);
 
-            context.AddToTop(new NormalLangPath( null,[Variable.Name]),new VariableRefItem()
+            context.AddToDeepestScope(new NormalLangPath( null,[Variable.Name]),new VariableRefItem()
             {
                 Type = genedVal.Type,
                 ValueRef = stackPtr
@@ -84,7 +84,7 @@ public class LetStatement : IStatement
              
             var stackPtr = context.Builder.BuildAlloca(type.TypeRef, Variable.Name);
 
-            context.AddToTop(new NormalLangPath( null,[Variable.Name]),new VariableRefItem()
+            context.AddToDeepestScope(new NormalLangPath( null,[Variable.Name]),new VariableRefItem()
             {
                 Type = type.Type,
                 ValueRef = stackPtr

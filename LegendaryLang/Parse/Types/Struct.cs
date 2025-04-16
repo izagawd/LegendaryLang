@@ -37,7 +37,7 @@ public class Struct : CustomType
         // 4. Set the body of the opaque struct
 
 
-        context.AddToTop(Ident,new TypeRefItem()
+        context.AddToDeepestScope(Ident,new TypeRefItem()
         {
             Type = this
         });

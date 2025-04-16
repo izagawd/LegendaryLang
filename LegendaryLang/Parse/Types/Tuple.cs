@@ -30,7 +30,7 @@ public class TupleType : CustomType
         TypeRef = LLVMTypeRef.CreateStruct(
             OtherTypes.Select(i => (context.GetRefItemFor(i.Ident) as TypeRefItem).TypeRef).ToArray(),
             false);
-        context.AddToTop(new TupleLangPath(OtherTypes.Select(i => i.Ident)),
+        context.AddToDeepestScope(new TupleLangPath(OtherTypes.Select(i => i.Ident)),
             new TypeRefItem()
             {
                 Type = this,

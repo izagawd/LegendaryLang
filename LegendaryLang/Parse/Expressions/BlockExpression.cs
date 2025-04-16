@@ -85,7 +85,7 @@ public class BlockExpression : IExpression, IStatement
 
         var lastValue = context.GetVoid();
 
-        context.AddRefScope();
+        context.AddScope();
 
         // Iterate over each syntax node in the block.
         foreach (var node in SyntaxNodes)
@@ -103,7 +103,7 @@ public class BlockExpression : IExpression, IStatement
             }
         }
 
-        context.PopRefs();
+        context.PopScope();
 
         if (MustReturn)
         {
@@ -142,7 +142,7 @@ public class BlockExpression : IExpression, IStatement
     public void Analyze(SemanticAnalyzer analyzer)
     {
         
-        // If you do semantic analysis here, iterate through the nodes.
+        
         foreach (var node in SyntaxNodes)
         {
             node.Analyze(analyzer);
