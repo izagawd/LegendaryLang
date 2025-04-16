@@ -2,6 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using LegendaryLang.Lex.Tokens;
+using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse;
 
@@ -77,7 +78,7 @@ public struct PathSegment
 }
 public class NormalLangPath: LangPath
 {
-    public ImmutableArray<PathSegment> Path { get; }
+    public ImmutableArray<PathSegment> Path { get; private set; }
 
     public NormalLangPath Append(params PathSegment[] paths)
     {
@@ -100,6 +101,22 @@ public class NormalLangPath: LangPath
         FirstIdentifierToken = firstIdentToken;
     }
 
+    public override void LoadAsShortCutIfPossible(SemanticAnalyzer analyzer)
+    {
+
+        var full = analyzer.GetFullPathOfShortcut(Path.First());
+        if (full is not null)
+        {
+            foreach (var i in Path.Skip(1))
+            {
+                full = full.Append(i);
+            }
+
+            this.Path = full.Path.ToImmutableArray();
+        }
+
+    }
+
     public override bool Equals(object? obj)
     {
         if (obj is NormalLangPath path)
@@ -111,10 +128,23 @@ public class NormalLangPath: LangPath
 }
 public abstract class LangPath
 {
+    /// <summary>
+    /// MAKES THE COMPILER understand that the i32 is actually 'std::primitive::i32' if the using is declared
+    /// </summary>
+    public virtual void LoadAsShortCutIfPossible(SemanticAnalyzer analyzer){}
     public static NormalLangPath PrimitivePath = new NormalLangPath(null,["std", "primitive"]);
     public static TupleLangPath VoidBaseLangPath { get; } = new TupleLangPath([]);
     public static bool operator ==(LangPath path1, LangPath path2)
     {
+        if (path1 is null && path2 is null)
+        {
+            return true;
+        }
+
+        if (path1 is null)
+        {
+            return false;
+        }
         return path1.Equals(path2);
     }
 

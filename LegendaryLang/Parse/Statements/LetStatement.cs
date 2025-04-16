@@ -111,10 +111,12 @@ public class LetStatement : IStatement
     public Token LookUpToken => LetToken;
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        EqualsTo?.Analyze(analyzer);
+        Variable.TypePath?.LoadAsShortCutIfPossible(analyzer);
         if (TypePath is null)
         {
-            EqualsTo?.Analyze(analyzer);
-            
+      
+
             if (Variable.TypePath is null && EqualsTo is null)
             {
                 throw new SemanticUnableToDetermineTypeOfLetVarException(this);
@@ -137,8 +139,7 @@ public class LetStatement : IStatement
         }
 
         ArgumentNullException.ThrowIfNull(TypePath);
-        
-
+        TypePath.LoadAsShortCutIfPossible(analyzer);
         
     }
 }

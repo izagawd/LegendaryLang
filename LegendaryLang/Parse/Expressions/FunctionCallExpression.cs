@@ -40,7 +40,10 @@ public class FunctionCallExpression : IExpression
     public void Analyze(SemanticAnalyzer analyzer)
     {
 
-        throw new NotImplementedException();
+        foreach (var i in Arguments)
+        {
+            i.Analyze(analyzer);
+        }
     }
 
     public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)

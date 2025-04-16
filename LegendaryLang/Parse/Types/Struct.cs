@@ -102,10 +102,16 @@ public class Struct : CustomType
 
     public class FieldNotFoundException : Exception
     {
+        public string FieldName { get; }
+        public Struct Struc { get; }
+
         public FieldNotFoundException(string fieldName, Struct struc)
         {
-            
+            FieldName = fieldName;
+            Struc = struc;
         }
+
+        public override string Message => $"Field {FieldName} doesn't exist in struct '{(Struc as IDefinition).FullPath}'\n{Struc.StructToken?.GetLocationStringRepresentation()}";
     }
 
     public Variable? GetField(string fieldName)

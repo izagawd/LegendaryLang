@@ -55,6 +55,7 @@ public class PathExpression : IExpression
     /// </summary>
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        Path.LoadAsShortCutIfPossible(analyzer);
         // Resolve the variable (i.e. "bind" the identifier to its declaration).
         // This process may also check for errors like "undefined variable".
         // You can use a method in your SemanticAnalyzer to register or verify the symbol.

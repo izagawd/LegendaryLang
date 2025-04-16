@@ -36,7 +36,7 @@ public class FieldAccessExpression : IExpression
     }
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        throw new NotImplementedException();
+        Caller.Analyze(analyzer);
     }
 
     /// <summary>

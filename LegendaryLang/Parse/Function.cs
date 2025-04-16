@@ -95,6 +95,11 @@ public class  Function: ITopLevel, IDefinition
     public void Analyze(SemanticAnalyzer analyzer)
     {
 
+        ReturnType.LoadAsShortCutIfPossible(analyzer);
+        foreach (var i in Arguments)
+        {
+            i.TypePath?.LoadAsShortCutIfPossible(analyzer);
+        }
         foreach (var i in BlockExpression.SyntaxNodes)
         {
             i.Analyze(analyzer);

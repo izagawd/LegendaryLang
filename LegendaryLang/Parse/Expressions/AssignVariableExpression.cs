@@ -36,6 +36,7 @@ public class AssignVariableExpression : IExpression
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        
         TypePath = LangPath.VoidBaseLangPath;
         Assigner.Analyze(analyzer);
         EqualsTo.Analyze(analyzer);

@@ -247,7 +247,7 @@ public class CodeGenContext
             {
                 CodeGen(def); // Generate LLVM IR for functions, etc.
             }
-
+            Console.WriteLine(FromByte(LLVM.PrintModuleToString(Module)));
             sbyte* idk;
             if (LLVM.VerifyModule(Module, LLVMVerifierFailureAction.LLVMPrintMessageAction, &idk) != 0)
             {
@@ -256,7 +256,6 @@ public class CodeGenContext
                 return;
             }
 
-            Console.WriteLine(FromByte(LLVM.PrintModuleToString(Module)));
 
             LLVMExecutionEngineRef engine;
             sbyte* error;

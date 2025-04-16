@@ -8,7 +8,7 @@ public class SemanticAnalyzer
 {
     public Stack<ParseResult> ParseResults = new Stack<ParseResult>();
     
-    private Stack<Dictionary<string, LangPath>> ScopeItems = new();
+    private Stack<Dictionary<string, NormalLangPath>> ScopeItems = new();
     public SemanticAnalyzer(IEnumerable<ParseResult> parseResults)
     {
         ParseResults = new Stack<ParseResult>(parseResults);
@@ -39,11 +39,25 @@ public class SemanticAnalyzer
  
     }
 
-    public void AddToDeepestScope(string map, LangPath to)
+    public NormalLangPath? GetFullPathOfShortcut(string shortcut)
+    {
+        foreach (var scope in ScopeItems)
+        {
+            if (scope.TryGetValue(shortcut, out var symbol))
+            {
+
+                return symbol;
+                
+             
+            }
+        }
+        return null;
+    }
+    public void AddToDeepestScope(string map, NormalLangPath to)
     {
         ScopeItems.Peek().Add(map, to);
     }
-    public Dictionary<string, LangPath> PopScope()
+    public Dictionary<string, NormalLangPath> PopScope()
     {
         return ScopeItems.Pop();
 

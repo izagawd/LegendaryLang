@@ -15,7 +15,10 @@ public class TupleCreationExpression : IExpression
     public Token LookUpToken { get; }
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        throw new NotImplementedException();
+        foreach (var i in Composites)
+        {
+            i.Analyze(analyzer);
+        }
     }
 
     public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)

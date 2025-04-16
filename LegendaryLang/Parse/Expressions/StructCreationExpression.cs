@@ -57,19 +57,18 @@ public class StructCreationExpression : IExpression
         }
         return new StructCreationExpression(path, variableAssignments );
     }
-    public LangPath StructTypePath { get; }
-
+    
 
     public ImmutableArray<AssignedField> AssignFields { get; }
     public Token LookUpToken { get; }
     public void Analyze( SemanticAnalyzer analyzer)
     {
-
+        TypePath.LoadAsShortCutIfPossible(analyzer);
         foreach (var i in AssignFields)
         {
             i.EqualsTo.Analyze(analyzer);
         }
-        throw new NotImplementedException("not yet complete");
+
     }
 
     public class AssignedField
@@ -77,9 +76,9 @@ public class StructCreationExpression : IExpression
         public IdentifierToken FieldToken { get; init; }
         public IExpression EqualsTo { get; init; }
     }
-    public StructCreationExpression(LangPath structTypePath, IEnumerable<AssignedField> assignVariableExpressions)
+    public StructCreationExpression(LangPath typePath, IEnumerable<AssignedField> assignVariableExpressions)
     {
-        StructTypePath = structTypePath;
+        TypePath = typePath;
         AssignFields = assignVariableExpressions.ToImmutableArray();
         
     }
@@ -87,9 +86,9 @@ public class StructCreationExpression : IExpression
     public unsafe VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
 
-        var typeRef = (codeGenContext.GetRefItemFor(StructTypePath) as TypeRefItem);
+        var typeRef = (codeGenContext.GetRefItemFor(TypePath) as TypeRefItem);
         var structType = typeRef?.Type as Struct;
-        
+
         LLVMValueRef structPtr = codeGenContext.Builder.BuildAlloca(structType.TypeRef);
         
         
@@ -119,5 +118,6 @@ public class StructCreationExpression : IExpression
 
     }
 
-    public LangPath? TypePath { get; }
+    
+    public LangPath TypePath { get; protected set; }
 }

@@ -2,7 +2,7 @@
 
 
 /// <summary>
-/// SYNTAX NODE THAT CAN BE USED OUTSIDE OF A FUNCTION
+/// SYNTAX NODE THAT CAN BE WRITTEN OUTSIDE OF A FUNCTION/BLOCK
 /// </summary>
 public interface ITopLevel : ISyntaxNode
 {
