@@ -91,6 +91,8 @@ public struct Symbol
 }
 public class CodeGenContext
 {
+    public string MainLangModule { get; }
+
     public void CodeGen(IDefinition definition)
     {
         if (!definition.HasBeenGened)
@@ -209,12 +211,11 @@ public class CodeGenContext
         };
     }
     public List<IDefinition> definitionsList { get; } = new List<IDefinition>();
-    public CodeGenContext(IEnumerable<IDefinition> definitions)
+    
+    public CodeGenContext(IEnumerable<IDefinition> definitions, string mainLangModule)
     {
+        MainLangModule = mainLangModule;
         definitionsList = definitions.ToList();
-      
-        
-
     }
 
     public void CodeGen()
@@ -269,8 +270,10 @@ public class CodeGenContext
                 return;
             }
 
+            var mainFnPath = new NormalLangPath(null, [MainLangModule, "main"]).ToString();
+            Console.WriteLine(mainFnPath);
             Console.WriteLine(engine == null);
-            LLVMValueRef mainFn = LLVM.GetNamedFunction(Module, "main".ToCString());
+            LLVMValueRef mainFn = LLVM.GetNamedFunction(Module, mainFnPath.ToCString());
 
             if (mainFn.Handle == IntPtr.Zero)
             {
@@ -278,7 +281,8 @@ public class CodeGenContext
                 return;
             }
 
-            var val = engine.RunFunction(LLVM.GetNamedFunction(Module, "main".ToCString()), []);
+   
+            var val = engine.RunFunction(LLVM.GetNamedFunction(Module,new NormalLangPath(null,[MainLangModule,"main"]).ToString().ToCString()), []);
 
             Console.WriteLine(LLVM.GenericValueToInt(val, 0));
         }
@@ -286,7 +290,7 @@ public class CodeGenContext
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate int MainDelegate();
-    public CodeGenContext( IEnumerable<ParseResult> results) : this(results.SelectMany(i => i.Definitions))
+    public CodeGenContext( IEnumerable<ParseResult> results, string mainLangModule) : this(results.SelectMany(i => i.Definitions), mainLangModule)
     {
     
     }

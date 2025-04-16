@@ -11,7 +11,8 @@ public class Struct : CustomType
 
 
     public override LLVMTypeRef TypeRef { get; protected set; }
-    public NormalLangPath Module { get; set; } = new NormalLangPath(null,["something"]);
+
+
     public unsafe override void CodeGen(CodeGenContext context)
     {
         // 1. Check if the struct is already generated (avoid double-generation)
@@ -19,7 +20,7 @@ public class Struct : CustomType
             return;
 
         // 2. Create an opaque (named but incomplete) LLVM struct first
-        var  llvmStructName = GetTypeIden().ToString(); // e.g., "my.module.MyStruct"
+        var llvmStructName = (this as IDefinition).FullPath.ToString();// e.g., "my.module.MyStruct"
         TypeRef = LLVM.StructCreateNamed(context.Module.Context, llvmStructName.ToCString());
 
         // 3. Generate LLVM types for the struct fields
@@ -44,7 +45,7 @@ public class Struct : CustomType
     }
 
     public override int Priority => 1;
-    public override LangPath TypePath => GetTypeIden();
+    public override LangPath TypePath =>(this as IDefinition).FullPath;
     public override Token LookUpToken { get; }
 
     public override void Analyze(SemanticAnalyzer analyzer)
@@ -52,21 +53,18 @@ public class Struct : CustomType
         
     }
 
-    public LangPath GetTypeIden()
-    {
-        return new NormalLangPath(null,[..Module.Path, Name]);
-    }
+
     public Token Token => StructToken;
 
     public StructToken StructToken { get; }
     public readonly ImmutableArray<Variable> Fields;
-    public readonly string Name;
+
     public static Struct Parse(Parser parser)
     {
         var token = parser.Pop();
         if (token is StructToken structToken)
         {
-            var structName = Identifier.Parse(parser);
+            var structIdentifier = Identifier.Parse(parser);
             CurlyBrace.ParseLeft(parser);
             var next = parser.Peek();
             var fields = new List<Variable>();
@@ -92,7 +90,7 @@ public class Struct : CustomType
             }
             CurlyBrace.Parseight(parser);
 
-            return new Struct(structToken, structName.Identity, fields);
+            return new Struct(structIdentifier.Identity, parser.File.Module, structToken, fields);
             
         }
         else
@@ -126,10 +124,15 @@ public class Struct : CustomType
         }
         throw new FieldNotFoundException(fieldName, this);
     }
-    public Struct(StructToken token, string name, IEnumerable<Variable> fields)
+
+    public override string Name { get; }
+    public override NormalLangPath Module { get; }
+
+    public Struct( string name,NormalLangPath module, StructToken token, IEnumerable<Variable> fields) 
     {
         StructToken = token;
         Name = name;
+        Module = module;
         Fields = fields.ToImmutableArray();
     }
 

@@ -10,12 +10,12 @@ namespace LegendaryLang;
 public class Compiler
 {
     public Compiler(){}
-
+    public const string extension = "rs";
     public void Compile(string codeDirectory)
     {
         string directoryPath = codeDirectory;
-        const string ext = "rs";
-        const string extensionFinder = $"*.{ext}"; // Change this to your desired extension
+
+        const string extensionFinder = $"*.{extension}"; // Change this to your desired extension
         Dictionary<string, string> codeFiles = new();
         if (Directory.Exists(directoryPath))
         {
@@ -34,10 +34,10 @@ public class Compiler
             return;
         }
 
-        var mainFileDir = $"{codeDirectory}\\main.{ext}";
+        var mainFileDir = $"{codeDirectory}\\main.{extension}";
         if (!codeFiles.Any(i => i.Key == mainFileDir))
         {
-            Console.WriteLine($"No main.{ext} file found!!!");
+            Console.WriteLine($"No main.{extension} file found!!!");
         }
         
        var parseResults = codeFiles.Select(
@@ -45,7 +45,7 @@ public class Compiler
         )
            .Append(PrimitiveTypeGenerator.Generate())
            .ToList();
-        var mainFile = parseResults.First(i => i.File!.Path == $"{codeDirectory}\\main.{ext}");
+        var mainFile = parseResults.First(i => i.File!.Path == $"{codeDirectory}\\main.{extension}");
 
         new SemanticAnalyzer(parseResults).Analyze();
         var mainFn = mainFile.Definitions.OfType<Function>().FirstOrDefault(i => i.Name == "main");
@@ -66,6 +66,6 @@ public class Compiler
             Console.WriteLine($"'fn main' arguments are not empty!!!");
             return;
         }
-        new CodeGenContext(parseResults).CodeGen();
+        new CodeGenContext(parseResults,codeDirectory).CodeGen();
     }
 }

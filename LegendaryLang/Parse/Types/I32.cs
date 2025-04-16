@@ -7,6 +7,8 @@ namespace LegendaryLang.Parse.Types;
 
 public abstract class PrimitiveType : Type
 {
+    public override NormalLangPath Module => LangPath.PrimitivePath;
+
     public override int GetPrimitivesCompositeCount(CodeGenContext context)
     {
         return 1;
@@ -17,7 +19,7 @@ public abstract class PrimitiveType : Type
          codeGenContext.Builder.BuildStore(value.LoadValForRetOrArg(codeGenContext), ptr.ValueRef );
     }
 
-    public abstract string Name { get; }
+
 
     public override LLVMValueRef LoadValueForRetOrArg(CodeGenContext context, VariableRefItem variableRef)
     {

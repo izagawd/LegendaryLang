@@ -5,6 +5,9 @@ namespace LegendaryLang.Parse.Types;
 
 public abstract class CustomType : Type
 {
+
+
+
     public override void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr)
     {
         for (int i = 0; i < ComposedTypes.Length; i++)

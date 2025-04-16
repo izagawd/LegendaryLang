@@ -10,6 +10,7 @@ namespace LegendaryLang.Parse;
 
 public class  Function: IDefinition
 {
+    public NormalLangPath Module { get; }
     public bool HasBeenGened { get; set; }
 
     public LLVMTypeRef FunctionType { get; set; }
@@ -32,7 +33,7 @@ public class  Function: IDefinition
                  functionType = LLVM.FunctionType(llvmReturnType,(LLVMSharp.Interop.LLVMOpaqueType**) llvmFunctionType,(uint) paramTypes.Length, 0);
                  FunctionType = functionType;
             }
-            LLVMValueRef function = LLVM.AddFunction(context.Module, Name.ToCString(), functionType);
+            LLVMValueRef function = LLVM.AddFunction(context.Module,(this as IDefinition).FullPath.ToString().ToCString(), functionType);
 
             FunctionValueRef = function;
 
@@ -102,13 +103,14 @@ public class  Function: IDefinition
     public string Name { get; }
     public LangPath ReturnType { get; }
 
-    public Function(string name, IEnumerable<Variable> variables, LangPath returnType, BlockExpression blockExpression, Token? lookUpToken = null)
+    public Function(string name, IEnumerable<Variable> variables, LangPath returnType, BlockExpression blockExpression, NormalLangPath module, Token? lookUpToken = null)
     {
         Arguments = variables.ToImmutableArray();
         Name = name;
         ReturnType = returnType;
         BlockExpression = blockExpression;
         LookUpToken = lookUpToken;
+        Module = module;
     }
 
     public static Function Parse(Parser parser)
@@ -145,7 +147,7 @@ public class  Function: IDefinition
                 parser.Pop();
                 returnTyp = LangPath.Parse(parser);
             }
-            return new Function(name, variables,returnTyp,Expressions.BlockExpression.Parse(parser));
+            return new Function(name, variables,returnTyp,Expressions.BlockExpression.Parse(parser),parser.File.Module);
         } else
         {
             throw new ExpectedParserException(parser,(ParseType.Fn), token);

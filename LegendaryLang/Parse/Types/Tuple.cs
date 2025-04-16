@@ -8,9 +8,8 @@ namespace LegendaryLang.Parse.Types;
 
 public class TupleType : CustomType
 {
-
-
-
+    public override string Name => $"({string.Join(',', OtherTypes.Select(i => i.TypePath))})";
+    public override NormalLangPath Module { get; } = new NormalLangPath(null, []);
 
     public override LLVMTypeRef TypeRef { get; protected set; }
     public override LangPath TypePath => new TupleLangPath(OtherTypes.Select(i => i.TypePath));
@@ -20,7 +19,7 @@ public class TupleType : CustomType
         throw new NotImplementedException();
     }
     public ImmutableArray<Type> OtherTypes { get; }
-    public TupleType(IEnumerable<Type> otherTypes)
+    public TupleType( IEnumerable<Type> otherTypes)
     {
         OtherTypes = otherTypes.ToImmutableArray();
     }

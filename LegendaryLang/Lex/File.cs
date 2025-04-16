@@ -1,10 +1,12 @@
 ﻿using System.Runtime.InteropServices;
 using LegendaryLang.Lex.Tokens;
+using LegendaryLang.Parse;
 
 namespace LegendaryLang.Lex;
 
 public class File
 {
+    public NormalLangPath Module => new NormalLangPath(null, Path.Split("\\").SkipLast(1).Select(i => (PathSegment)i.Replace($".{Compiler.extension}","")));
     public string Path { get; }
 
     public File(string path)
