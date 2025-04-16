@@ -8,7 +8,7 @@ using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse;
 
-public class  Function: IDefinition
+public class  Function: ITopLevel, IDefinition
 {
     public NormalLangPath Module { get; }
     public bool HasBeenGened { get; set; }
@@ -90,9 +90,11 @@ public class  Function: IDefinition
     public int Priority => 3;
 
     public Token? LookUpToken {get; }
-
+    
+    
     public void Analyze(SemanticAnalyzer analyzer)
     {
+
         foreach (var i in BlockExpression.SyntaxNodes)
         {
             i.Analyze(analyzer);

@@ -18,7 +18,7 @@ public class ReassignUnmatchedTypeException : SemanticException
         Analyzer = analyzer;
     }
 
-    public override string Message => $"Cannot assign variable of type {Expression.Assigner.SetTypePath(Analyzer)} to an expression of type {Expression.EqualsTo.TypePath}";
+    public override string Message => $"Cannot assign variable of type {Expression.Assigner.TypePath} to an expression of type {Expression.EqualsTo.TypePath}";
 }
 public class AssignVariableExpression : IExpression
 {
@@ -36,10 +36,10 @@ public class AssignVariableExpression : IExpression
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-
-        var path = Assigner.SetTypePath(analyzer);
-        var oth = EqualsTo.SetTypePath(analyzer);
-        if (EqualsTo.SetTypePath(analyzer) != Assigner.SetTypePath(analyzer))
+        TypePath = LangPath.VoidBaseLangPath;
+        Assigner.Analyze(analyzer);
+        EqualsTo.Analyze(analyzer);
+        if (EqualsTo != Assigner)
         {
             throw new ReassignUnmatchedTypeException(this, analyzer);
         }
@@ -68,11 +68,5 @@ public class AssignVariableExpression : IExpression
         return  codeGenContext.GetVoid();
     }
 
-    public LangPath? TypePath { get; private set; }
-
-    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
-    {
-        TypePath = LangPath.VoidBaseLangPath;
-        return TypePath;
-    }
+    public LangPath? TypePath { get; private set; } 
 }

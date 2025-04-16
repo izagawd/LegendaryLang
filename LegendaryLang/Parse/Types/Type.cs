@@ -5,7 +5,7 @@ using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse.Types;
 
-public abstract class Type : IDefinition
+public abstract class Type : ITopLevel, IDefinition
 {
     
     /// <summary>
@@ -53,10 +53,7 @@ public abstract class Type : IDefinition
     public bool HasBeenGened { get; set; } = false;
     public abstract LangPath TypePath { get; }
     public abstract Token LookUpToken { get; }
-    void IDefinition.Analyze(SemanticAnalyzer analyzer)
-    {
-        throw new NotImplementedException();
-    }
+
 
     public Token Token { get; }
 

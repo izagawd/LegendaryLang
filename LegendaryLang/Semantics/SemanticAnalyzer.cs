@@ -6,15 +6,31 @@ namespace LegendaryLang.Semantics;
 public class SemanticException : Exception;
 public class SemanticAnalyzer 
 {
-    public Stack<IDefinition> Definitions = new Stack<IDefinition>();
+    public Stack<ParseResult> ParseResults = new Stack<ParseResult>();
     
-    private Stack<Dictionary<LangPath, LangPath>> ScopeItems = new();
+    private Stack<Dictionary<string, LangPath>> ScopeItems = new();
     public SemanticAnalyzer(IEnumerable<ParseResult> parseResults)
     {
-        Definitions = new Stack<IDefinition>(parseResults.SelectMany(i => i.Definitions).ToImmutableHashSet());
+        ParseResults = new Stack<ParseResult>(parseResults);
     }
 
+    private Dictionary<LangPath, IDefinition> DefinitionsMap = [];
 
+
+
+    public IDefinition? GetDefinition(LangPath langPath)
+    {
+       if(DefinitionsMap.TryGetValue(langPath, out IDefinition? definition))
+       {
+           return definition;
+       }
+       return null;
+    }
+
+    public void RegisterDefinition(LangPath path, IDefinition definition)
+    {
+        DefinitionsMap[path] = definition;
+    }
 
     public void  AddScope()
     {
@@ -23,33 +39,41 @@ public class SemanticAnalyzer
  
     }
 
-    public void AddToDeepestScope(LangPath map, LangPath to)
+    public void AddToDeepestScope(string map, LangPath to)
     {
         ScopeItems.Peek().Add(map, to);
     }
-    public Dictionary<LangPath, LangPath> PopScope()
+    public Dictionary<string, LangPath> PopScope()
     {
         return ScopeItems.Pop();
 
     }
     public void Analyze()
     {
-        AddScope();
-        foreach (var definition in Definitions.ToArray())
+        
+        // registers path mapping
+        foreach (var i in ParseResults.SelectMany(i => i.TopLevels.OfType<IDefinition>()))
         {
-
-            try
+            RegisterDefinition(i.FullPath,i);
+        }
+        
+        foreach (var result in ParseResults)
+        {
+            AddScope();
+            foreach (var i in result.TopLevels)
             {
-                definition.Analyze(this);
-            }
-            catch(NotImplementedException)
-            {
+                try
+                {
+                    i.Analyze(this);
+                }
+                catch(NotImplementedException)
+                {
  
+                }
             }
-               
-    
+            PopScope();
        
         }
-        PopScope();
+  
     }
 }

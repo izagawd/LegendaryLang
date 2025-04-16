@@ -48,17 +48,11 @@ public interface IExpression : ISyntaxNode
         }
         return parsedPath;
     }
-
-    public LangPath? TypePath { get; }
-    
-    
     /// <summary>
-    /// This is used to get the type path for something, then it should cache it in <see cref="TypePath"/> so it can be used in CodeGen.
-    /// This should be used instead of <see cref="TypePath"/>  in semantic analyzation
+    /// Should not be null after semantic analysis
     /// </summary>
-    /// <param name="semanticAnalyzer"></param>
-    /// <returns></returns>
-    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer);
+    public LangPath? TypePath { get; }
+
 
     public static IExpression ParseBracketOrTuple(Parser parser)
     {
@@ -196,14 +190,9 @@ public class BracketExpression : IExpression
     }
 
 
-    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
-    {
-        return Expression.SetTypePath(semanticAnalyzer);
-    }
-
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        throw new NotImplementedException();
+        Expression.Analyze(analyzer);
     }
 
     public LangPath? TypePath => Expression.TypePath;
@@ -231,11 +220,6 @@ public class BinaryOperationExpression : IExpression
     }
 
     public LangPath? TypePath { get; }
-
-    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
-    {
-        throw new NotImplementedException();
-    }
 
     public void Analyze(SemanticAnalyzer analyzer)
     {

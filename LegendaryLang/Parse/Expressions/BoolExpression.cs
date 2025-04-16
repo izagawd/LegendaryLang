@@ -37,13 +37,6 @@ public class BoolExpression : IExpression
     public LangPath? TypePath => BoolType.TypePath;
 
 
-
-    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
-    {
-        return BoolType.TypePath;
-    }
-
-
     public BoolExpression(IBoolToken token)
     {
         Token = token;

@@ -4,7 +4,7 @@ using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse;
 
-public class UseDefinition : IDefinition
+public class UseDefinition : ITopLevel
 {
     public static UseDefinition Parse(Parser parser)
     {
@@ -14,28 +14,29 @@ public class UseDefinition : IDefinition
             throw new ExpectedParserException(parser, [ParseType.Use], usin);
         }
         var path = NormalLangPath.Parse(parser);
+        SemiColon.Parse(parser);
         return new UseDefinition(path, useToken,parser.File.Module);
     }
-    public NormalLangPath Path { get; }
-    void IDefinition.Analyze(SemanticAnalyzer analyzer)
+    public NormalLangPath PathToUse { get; }
+    public void Analyze(SemanticAnalyzer analyzer)
     {
-        throw new NotImplementedException();
+        analyzer.AddToDeepestScope(PathToUse.Path.Last(),PathToUse);
     }
 
-    Token IDefinition.Token => Token;
+    
 
     public UseToken Token { get; }
 
-    public UseDefinition(NormalLangPath path, UseToken token, NormalLangPath module)
+    public UseDefinition(NormalLangPath pathToUse, UseToken token, NormalLangPath module)
     {
-        Path = path;
+        PathToUse = pathToUse;
         Token = token;
         Module = module;
     }
   
 
     public Token LookUpToken => Token;
-    public string Name => $"using {Path}";
+    public string Name => $"using {PathToUse}";
     /// <summary>
     ///NOTE: This doesnt refer to the module its using. it refers to the module in which the token is located!!!
     /// </summary>
@@ -48,9 +49,5 @@ public class UseDefinition : IDefinition
 
 
 
-    void ISyntaxNode.Analyze(SemanticAnalyzer analyzer)
-    {
-        
 
-    }
 }

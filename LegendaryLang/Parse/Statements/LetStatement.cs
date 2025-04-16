@@ -107,10 +107,14 @@ public class LetStatement : IStatement
     }
     // Would be set after semantic analysis
     private LangPath? TypePath { get;  set; }
-    public LangPath SetTypePath(SemanticAnalyzer analyer)
+
+    public Token LookUpToken => LetToken;
+    public void Analyze(SemanticAnalyzer analyzer)
     {
         if (TypePath is null)
         {
+            EqualsTo?.Analyze(analyzer);
+            
             if (Variable.TypePath is null && EqualsTo is null)
             {
                 throw new SemanticUnableToDetermineTypeOfLetVarException(this);
@@ -118,13 +122,13 @@ public class LetStatement : IStatement
 
             if (Variable.TypePath is null && EqualsTo is not null)
             {
-                TypePath = EqualsTo.SetTypePath(analyer);
+                TypePath = EqualsTo.TypePath;
             } else if (Variable.TypePath is not null && EqualsTo is  null)
             {
                 TypePath = Variable.TypePath;
             } else if (EqualsTo is not null && Variable.TypePath is not null)
             {
-                if (EqualsTo.SetTypePath(analyer) != Variable.TypePath)
+                if (EqualsTo.TypePath != Variable.TypePath)
                 {
                     throw new LetConflictingTypesException(this);
                 }
@@ -133,13 +137,8 @@ public class LetStatement : IStatement
         }
 
         ArgumentNullException.ThrowIfNull(TypePath);
-        return  TypePath;
-    }
+        
 
-    public Token LookUpToken => LetToken;
-    public void Analyze(SemanticAnalyzer analyzer)
-    {
-        SetTypePath(analyzer);
         
     }
 }

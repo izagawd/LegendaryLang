@@ -290,7 +290,7 @@ public class CodeGenContext
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate int MainDelegate();
-    public CodeGenContext( IEnumerable<ParseResult> results, string mainLangModule) : this(results.SelectMany(i => i.Definitions), mainLangModule)
+    public CodeGenContext( IEnumerable<ParseResult> results, string mainLangModule) : this(results.SelectMany(i => i.TopLevels.OfType<IDefinition>()), mainLangModule)
     {
     
     }

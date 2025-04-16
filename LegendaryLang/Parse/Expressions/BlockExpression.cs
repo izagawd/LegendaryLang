@@ -116,37 +116,43 @@ public class BlockExpression : IExpression, IStatement
         }
     }
 
-    public LangPath? TypePath { get; }
+    public LangPath? TypePath { get; private set; }
 
 
-    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
-    {
-        if (MustReturn)
-        {
-            return LangPath.VoidBaseLangPath;
-        }
-
-        if (SyntaxNodes.Length == 0)
-        {
-            return LangPath.VoidBaseLangPath;
-        }
-
-        var last = SyntaxNodes.Last();
-        if (last is IExpression expression)
-        {
-            return expression.SetTypePath(semanticAnalyzer);
-        }
-        return LangPath.VoidBaseLangPath;
-    }
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        
         
         foreach (var node in SyntaxNodes)
         {
             node.Analyze(analyzer);
         }
+        if (MustReturn)
+        {
+            TypePath = LangPath.VoidBaseLangPath;
+        }
+
+        else if (SyntaxNodes.Length == 0)
+        {
+            TypePath= LangPath.VoidBaseLangPath;
+        }
+        else
+        {
+            var last = SyntaxNodes.Last();
+            if (last is IExpression expression)
+            {
+                
+                    TypePath = expression.TypePath;
+       
+            }
+            else
+            {
+                TypePath = LangPath.VoidBaseLangPath;
+            }
+        }
+
+        
+
     }
 
     public Token LookUpToken => LeftCurlyBraceToken;

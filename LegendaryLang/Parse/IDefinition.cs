@@ -19,7 +19,7 @@ public interface IDefinition : ISyntaxNode
     public bool HasBeenGened { get; set; }
     public void CodeGen(CodeGenContext context);
     
-    public void Analyze(SemanticAnalyzer analyzer);
+
     // a token to describe where it could possibly be
-    public Token Token { get; }
+
 }

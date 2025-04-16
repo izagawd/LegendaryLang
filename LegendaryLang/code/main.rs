@@ -1,6 +1,9 @@
-﻿
+﻿use std::dd;
+
 fn main() -> std::primitive::i32{
-   let kk = 5;
-   kk
+   let kk = code::Human{
+       age = 5
+       };
+       kk.age
 }
 

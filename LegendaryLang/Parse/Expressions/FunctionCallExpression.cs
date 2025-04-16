@@ -39,6 +39,7 @@ public class FunctionCallExpression : IExpression
     public Token LookUpToken { get; }
     public void Analyze(SemanticAnalyzer analyzer)
     {
+
         throw new NotImplementedException();
     }
 
@@ -69,8 +70,5 @@ public class FunctionCallExpression : IExpression
     }
 
     public LangPath? TypePath { get; }
-    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
-    {
-        throw new NotImplementedException();
-    }
+
 }

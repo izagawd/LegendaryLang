@@ -43,18 +43,11 @@ public class PathExpression : IExpression
         };
     }
 
+    /// <summary>
+    /// Should be set during semantic analysis
+    /// </summary>
     public LangPath? TypePath { get; set; }
 
-
-    /// <summary>
-    /// Retrieves the semantic type identified during analysis.
-    /// This can be used later for type checking or further code generation.
-    /// </summary>
-    /// <param name="semanticAnalyzer"></param>
-    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
-    {
-            throw new NotImplementedException();
-    }
 
     /// <summary>
     /// During semantic analysis, you would resolve this symbol's definition.

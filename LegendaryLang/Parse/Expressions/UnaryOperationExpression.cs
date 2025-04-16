@@ -31,19 +31,15 @@ public class UnaryOperationExpression : IExpression
         return Expression.DataRefCodeGen(codeGenContext);
     }
 
-    public LangPath? TypePath { get; }
+    public LangPath? TypePath => Expression.TypePath;
 
 
-    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
-    {
-        return Expression.SetTypePath(semanticAnalyzer);
-    }
 
 
 
     public Token LookUpToken =>(OperatorToken as Token)!;
-    void ISyntaxNode.Analyze(SemanticAnalyzer analyzer)
+    public void Analyze(SemanticAnalyzer analyzer)
     {
-        throw new NotImplementedException();
+        Expression.Analyze(analyzer);
     }
 }

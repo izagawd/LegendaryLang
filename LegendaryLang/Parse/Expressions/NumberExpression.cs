@@ -35,10 +35,7 @@ public class NumberExpression : IExpression
 
 
 
-    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
-    {
-        return TypePath!;
-    }
+
 
     public void Analyze(SemanticAnalyzer analyzer)
     {

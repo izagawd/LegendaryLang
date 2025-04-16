@@ -24,8 +24,4 @@ public class TupleCreationExpression : IExpression
     }
 
     public LangPath? TypePath { get; }
-    public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
-    {
-        throw new NotImplementedException();
-    }
 }
