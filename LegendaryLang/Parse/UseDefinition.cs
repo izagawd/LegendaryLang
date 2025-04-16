@@ -15,7 +15,7 @@ public class UseDefinition : ITopLevel
         }
         var path = NormalLangPath.Parse(parser);
         SemiColon.Parse(parser);
-        return new UseDefinition(path, useToken,parser.File.Module);
+        return new UseDefinition(path, useToken);
     }
     public NormalLangPath PathToUse { get; }
     public void Analyze(SemanticAnalyzer analyzer)
@@ -27,25 +27,18 @@ public class UseDefinition : ITopLevel
 
     public UseToken Token { get; }
 
-    public UseDefinition(NormalLangPath pathToUse, UseToken token, NormalLangPath module)
+    public UseDefinition(NormalLangPath pathToUse, UseToken token)
     {
         PathToUse = pathToUse;
         Token = token;
-        Module = module;
+
     }
   
 
     public Token LookUpToken => Token;
-    public string Name => $"using {PathToUse}";
-    /// <summary>
-    ///NOTE: This doesnt refer to the module its using. it refers to the module in which the token is located!!!
-    /// </summary>
-    public NormalLangPath Module { get; }
-    public bool HasBeenGened { get; set; }
-    public void CodeGen(CodeGenContext context)
-    {
 
-    }
+
+
 
 
 
