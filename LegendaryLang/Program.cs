@@ -15,9 +15,11 @@ public class Program
         
         
         var parsed = new Parser(lexed).Parse();
+        var gen = PrimitiveTypeGenerator.Generate();
+       new SemanticAnalyzer([parsed, gen]).Analyze();
         var count = parsed.Definitions.OfType<Function>().Select(i => i.BlockExpression).SelectMany(i => i.SyntaxNodes)
             .Where(i => i is LetStatement).Count();
-        new CodeGenContext([parsed, PrimitiveTypeGenerator.Generate()]);
+        new CodeGenContext([parsed, gen]).CodeGen();
     }
     
 }

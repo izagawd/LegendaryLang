@@ -3,9 +3,8 @@ struct Human{
     is_gay: std::primitive::bool,
 }
 fn main() -> std::primitive::i32{
-    let human = something::Human{
-        age = 10,
-        is_gay = true
-    };
-    3
+    {}
+    let a = 5;
+    a = true;
+    a
 }

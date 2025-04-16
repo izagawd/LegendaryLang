@@ -30,11 +30,11 @@ public class BoolExpression : IExpression
         return new VariableRefItem()
         {
             ValueRef = boolValue,
-            Type = (context.GetRefItemFor(BaseLangPath) as TypeRefItem)?.Type
+            Type = (context.GetRefItemFor(TypePath) as TypeRefItem)?.Type
         };
     }
 
-    public LangPath? BaseLangPath => BoolType.Ident;
+    public LangPath? TypePath => BoolType.Ident;
 
 
 
@@ -51,6 +51,6 @@ public class BoolExpression : IExpression
     public Token LookUpToken =>(Token) Token ;
     void ISyntaxNode.Analyze(SemanticAnalyzer analyzer)
     {
-        throw new NotImplementedException();
+
     }
 }

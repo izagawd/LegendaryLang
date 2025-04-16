@@ -3,11 +3,12 @@ using LegendaryLang.Parse;
 
 namespace LegendaryLang.Semantics;
 
+public class SemanticException : Exception;
 public class SemanticAnalyzer 
 {
     public Stack<IDefinition> Definitions = new Stack<IDefinition>();
     
-    
+    private Stack<Dictionary<LangPath, IRefItem>> ScopeItems = new();
     public SemanticAnalyzer(IEnumerable<ParseResult> parseResults)
     {
         Definitions = new Stack<IDefinition>(parseResults.SelectMany(i => i.Definitions).ToImmutableHashSet());
@@ -17,7 +18,18 @@ public class SemanticAnalyzer
     {
         foreach (var definition in Definitions.ToArray())
         {
-            definition.Analyze(this);
+
+            try
+            {
+                definition.Analyze(this);
+            }
+            catch(NotImplementedException)
+            {
+ 
+            }
+               
+    
+       
         }
     }
 }

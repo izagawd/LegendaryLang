@@ -7,9 +7,22 @@ using Type = LegendaryLang.Parse.Types.Type;
 
 namespace LegendaryLang.Parse.Statements;
 
+
+public class LetConflictingTypesException : SemanticException
+{
+    public LetStatement Statement { get; }
+
+    public LetConflictingTypesException(LetStatement statement)
+    {
+        Statement = statement;
+    }
+
+    public override string Message => $"Conflicting types:\nThe declared type '{Statement.Variable.TypePath}' and assigned expression with type" +
+                                      $" '{Statement.EqualsTo.TypePath}' do not have matching types\n{Statement.LetToken?.GetLocationStringRepresentation()}";
+}
 public class LetStatement : IStatement
 {
-    public class UnknownTypeException : ParseException
+    public class UnknownTypeException : SemanticException
     {
         public LetStatement Statement { get; }
         public UnknownTypeException(LetStatement statement)
@@ -65,6 +78,32 @@ public class LetStatement : IStatement
                 ValueRef = stackPtr
             });
         }
+        else
+        {
+            var type = context.GetRefItemFor(Variable.TypePath) as TypeRefItem;
+             
+            var stackPtr = context.Builder.BuildAlloca(type.TypeRef, Variable.Name);
+
+            context.AddToTop(new NormalLangPath( null,[Variable.Name]),new VariableRefItem()
+            {
+                Type = type.Type,
+                ValueRef = stackPtr
+            });
+        }
+    }
+
+    public class SemanticUnableToDetermineTypeOfLetVarException : SemanticException
+    {
+        public LetStatement Statement { get; }
+
+        public SemanticUnableToDetermineTypeOfLetVarException(LetStatement statement)
+        {
+            Statement = statement;
+        }
+
+        public override string Message =>
+            $"No type was declared and no expression was set for the let statement, so unable to determine the" +
+            $" type of the let\n{Statement.LetToken.GetLocationStringRepresentation()}";
     }
     // Would be set after semantic analysis
     private LangPath? TypePath { get;  set; }
@@ -74,7 +113,7 @@ public class LetStatement : IStatement
         {
             if (Variable.TypePath is null && EqualsTo is null)
             {
-                throw new Exception();
+                throw new SemanticUnableToDetermineTypeOfLetVarException(this);
             }
 
             if (Variable.TypePath is null && EqualsTo is not null)
@@ -83,14 +122,18 @@ public class LetStatement : IStatement
             } else if (Variable.TypePath is not null && EqualsTo is  null)
             {
                 TypePath = Variable.TypePath;
-            } else if (EqualsTo is not null && Variable.TypePath is not null &&
-                       EqualsTo.SetTypePath(analyer) != Variable.TypePath)
+            } else if (EqualsTo is not null && Variable.TypePath is not null)
             {
-                throw new Exception();
+                if (EqualsTo.SetTypePath(analyer) != Variable.TypePath)
+                {
+                    throw new LetConflictingTypesException(this);
+                }
+                TypePath = Variable.TypePath;
             }
         }
 
-        throw new Exception();
+        ArgumentNullException.ThrowIfNull(TypePath);
+        return  TypePath;
     }
 
     public Token LookUpToken => LetToken;

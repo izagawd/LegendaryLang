@@ -49,6 +49,16 @@ public struct PathSegment
         return Text;
     }
 
+    public override bool Equals(object? obj)
+    {
+        return obj is PathSegment segment && Text == segment.Text;
+    }
+
+    public override int GetHashCode()
+    {
+        return Text.GetHashCode();
+    }
+
     public PathSegment(string text)
     {
         Text = text;

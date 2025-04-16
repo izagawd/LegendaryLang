@@ -31,7 +31,7 @@ public class UnaryOperationExpression : IExpression
         return Expression.DataRefCodeGen(codeGenContext);
     }
 
-    public LangPath? BaseLangPath { get; }
+    public LangPath? TypePath { get; }
 
 
     public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)

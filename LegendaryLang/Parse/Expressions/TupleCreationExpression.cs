@@ -23,7 +23,7 @@ public class TupleCreationExpression : IExpression
         throw new NotImplementedException();
     }
 
-    public LangPath? BaseLangPath { get; }
+    public LangPath? TypePath { get; }
     public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
         throw new NotImplementedException();

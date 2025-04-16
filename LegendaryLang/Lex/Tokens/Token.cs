@@ -5,7 +5,7 @@ public abstract class Token
     public string GetLocationStringRepresentation()
     {
         return
-            $"at: '{File.GetLine(Line)}'\nline {Line}, column {Column}.";
+            $"at: '{File.GetLine(Line).Trim()}'\nline {Line}, column {Column}.";
     }
     public int Column {get; }
     public int Line { get; }

@@ -6,6 +6,20 @@ using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse.Expressions;
 
+
+public class ReassignUnmatchedTypeException : SemanticException
+{
+    public AssignVariableExpression Expression { get; }
+    public SemanticAnalyzer Analyzer { get; }
+
+    public ReassignUnmatchedTypeException(AssignVariableExpression expression, SemanticAnalyzer analyzer)
+    {
+        Expression = expression;
+        Analyzer = analyzer;
+    }
+
+    public override string Message => $"Cannot assign variable of type {Expression.Assigner.SetTypePath(Analyzer)} to an expression of type {Expression.EqualsTo.TypePath}";
+}
 public class AssignVariableExpression : IExpression
 {
     public static AssignVariableExpression Parse(Parser parser, IExpression assignerExpression)
@@ -16,12 +30,19 @@ public class AssignVariableExpression : IExpression
     }
     public Token LookUpToken => Assigner.LookUpToken;
     
+    
     public IExpression EqualsTo { get; set; }
     public IExpression Assigner { get; }
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        
+
+        var path = Assigner.SetTypePath(analyzer);
+        var oth = EqualsTo.SetTypePath(analyzer);
+        if (EqualsTo.SetTypePath(analyzer) != Assigner.SetTypePath(analyzer))
+        {
+            throw new ReassignUnmatchedTypeException(this, analyzer);
+        }
     }
 
     public AssignVariableExpression(IExpression assigner,  IExpression equalsTo)
@@ -47,10 +68,11 @@ public class AssignVariableExpression : IExpression
         return  codeGenContext.GetVoid();
     }
 
-    public LangPath? BaseLangPath { get; }
+    public LangPath? TypePath { get; private set; }
 
     public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
-        return LangPath.VoidBaseLangPath;
+        TypePath = LangPath.VoidBaseLangPath;
+        return TypePath;
     }
 }

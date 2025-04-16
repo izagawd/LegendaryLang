@@ -64,7 +64,12 @@ public class StructCreationExpression : IExpression
     public Token LookUpToken { get; }
     public void Analyze( SemanticAnalyzer analyzer)
     {
-        throw new NotImplementedException();
+
+        foreach (var i in AssignFields)
+        {
+            i.EqualsTo.Analyze(analyzer);
+        }
+        throw new NotImplementedException("not yet complete");
     }
 
     public class AssignedField
@@ -114,7 +119,7 @@ public class StructCreationExpression : IExpression
 
     }
 
-    public LangPath? BaseLangPath { get; }
+    public LangPath? TypePath { get; }
     public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
         throw new NotImplementedException();

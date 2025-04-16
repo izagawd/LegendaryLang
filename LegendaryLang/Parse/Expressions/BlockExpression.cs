@@ -75,7 +75,7 @@ public class BlockExpression : IExpression, IStatement
 
     public void CodeGen(CodeGenContext CodeGenContext)
     {
-        throw new NotImplementedException();
+  
     }
 
     public VariableRefItem DataRefCodeGen(CodeGenContext context)
@@ -116,7 +116,7 @@ public class BlockExpression : IExpression, IStatement
         }
     }
 
-    public LangPath? BaseLangPath { get; }
+    public LangPath? TypePath { get; }
 
 
     public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
@@ -141,6 +141,7 @@ public class BlockExpression : IExpression, IStatement
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        
         // If you do semantic analysis here, iterate through the nodes.
         foreach (var node in SyntaxNodes)
         {

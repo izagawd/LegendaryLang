@@ -27,25 +27,22 @@ public class NumberExpression : IExpression
         return new VariableRefItem()
         {
             ValueRef = LLVM.ConstInt(LLVM.Int32Type(), ulong.Parse(Token.Number), 0),
-            Type = (codeGenContext.GetRefItemFor(BaseLangPath) as TypeRefItem).Type
+            Type = (codeGenContext.GetRefItemFor(TypePath) as TypeRefItem).Type
         };
     }
 
-    public LangPath? BaseLangPath => new I32().Ident;
+    public LangPath? TypePath { get; set; }  =new I32().Ident;
 
-    public unsafe LLVMTypeRef TypeRefCodeGen(CodeGenContext analyzer)
-    {
-        return LLVM.Int32Type();
-    }
+
 
     public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
-       return LangPath.PrimitivePath.Append(["i32"]);
+        return TypePath!;
     }
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        throw new NotImplementedException();
+
     }
 
     public Token LookUpToken => Token;

@@ -176,7 +176,7 @@ public class CodeGenContext
     private VariableRefItem Void;
 
     public LLVMBuilderRef Builder { get; set; }  
-    public LLVMModuleRef Module { get; }
+    public LLVMModuleRef Module { get; private set; }
     // Dictionary to map custom BaseLangPath's to LLVMTypeRef's (if needed)
 
     
@@ -211,29 +211,37 @@ public class CodeGenContext
     public List<IDefinition> definitionsList { get; } = new List<IDefinition>();
     public CodeGenContext(IEnumerable<IDefinition> definitions)
     {
+        definitionsList = definitions.ToList();
+      
+        
+
+    }
+
+    public void CodeGen()
+    {
         const string MODULE_NAME = "LEGENDARY_LANGUAGE";
         unsafe
         {
             Module = LLVM.ModuleCreateWithName(MODULE_NAME.ToCString());
- 
+
         }
-        
+
         unsafe
         {
-            
+
             var Context = LLVM.ContextCreate();
-            Builder = LLVM.CreateBuilderInContext(Context); 
-            
-  
-            
-                
-            
+            Builder = LLVM.CreateBuilderInContext(Context);
+
+
+
+
+
             AddRefScope();
 
-       
+
             SetupVoid();
-            definitionsList = definitions.ToList();
-            
+
+
             foreach (var def in definitionsList.OrderBy(i => i.Priority))
             {
                 CodeGen(def); // Generate LLVM IR for functions, etc.
@@ -246,21 +254,22 @@ public class CodeGenContext
                 Console.WriteLine("LLVM Module Verification Failed:\n" + errMsg);
                 return;
             }
-        
+
             Console.WriteLine(FromByte(LLVM.PrintModuleToString(Module)));
-      
+
             LLVMExecutionEngineRef engine;
             sbyte* error;
-            
+
             // Create a pointer to the engine ref
             LLVMExecutionEngineRef* enginePtr = &engine;
-            if ( LLVM.CreateExecutionEngineForModule((LLVMOpaqueExecutionEngine**) enginePtr, Module, &idk) != 0)
+            if (LLVM.CreateExecutionEngineForModule((LLVMOpaqueExecutionEngine**)enginePtr, Module, &idk) != 0)
             {
                 var errMsg = FromByte(idk);
-                Console.WriteLine("Execution engine creation failed: " + errMsg );
+                Console.WriteLine("Execution engine creation failed: " + errMsg);
                 return;
             }
-            Console.WriteLine(engine ==null);
+
+            Console.WriteLine(engine == null);
             LLVMValueRef mainFn = LLVM.GetNamedFunction(Module, "main".ToCString());
 
             if (mainFn.Handle == IntPtr.Zero)
@@ -270,13 +279,11 @@ public class CodeGenContext
             }
 
             var val = engine.RunFunction(LLVM.GetNamedFunction(Module, "main".ToCString()), []);
-            
-            Console.WriteLine( LLVM.GenericValueToInt(val, 0));
-        }
 
+            Console.WriteLine(LLVM.GenericValueToInt(val, 0));
+        }
     }
 
-    struct Idk;
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate int MainDelegate();
     public CodeGenContext( IEnumerable<ParseResult> results) : this(results.SelectMany(i => i.Definitions))

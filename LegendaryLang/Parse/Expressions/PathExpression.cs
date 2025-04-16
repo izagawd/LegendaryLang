@@ -23,10 +23,10 @@ public class PathExpression : IExpression
     public unsafe VariableRefItem DataRefCodeGen(CodeGenContext context)
     {
 
-        if (BaseLangPath is null)
+        if (TypePath is null)
         {
       
-            BaseLangPath = (context.GetRefItemFor(Path) as IHasType).Type.Ident;
+            TypePath = (context.GetRefItemFor(Path) as IHasType).Type.Ident;
         }
         string pathSuffix = Path.ToString();
         uint* major = null;
@@ -43,7 +43,7 @@ public class PathExpression : IExpression
         };
     }
 
-    public LangPath? BaseLangPath { get; set; }
+    public LangPath? TypePath { get; set; }
 
 
     /// <summary>
@@ -53,11 +53,7 @@ public class PathExpression : IExpression
     /// <param name="semanticAnalyzer"></param>
     public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
-        // For example, you could look up the type information for this variable
-        // in a semantic symbol table maintained during the Analyze phase.
-        // Here you might do something like:
-        // return analyzer.LookupType(FirstIdent.Text, Path);
-        throw new NotImplementedException();
+            throw new NotImplementedException();
     }
 
     /// <summary>

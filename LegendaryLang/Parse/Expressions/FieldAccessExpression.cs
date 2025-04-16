@@ -66,7 +66,7 @@ public class FieldAccessExpression : IExpression
  
     }
 
-    public LangPath? BaseLangPath { get; }
+    public LangPath? TypePath { get; }
 
     public LangPath SetTypePath(SemanticAnalyzer semanticAnalyzer)
     {
