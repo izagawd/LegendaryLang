@@ -19,11 +19,11 @@ public class Compiler
         Dictionary<string, string> codeFiles = new();
         if (Directory.Exists(directoryPath))
         {
-            string[] files = Directory.GetFiles(directoryPath, extensionFinder);
+            string[] files = Directory.GetFiles(directoryPath, extensionFinder, SearchOption.AllDirectories);
 
             foreach (string file in files)
             {
-                Console.WriteLine($"Loading file: {file}");
+                Console.WriteLine($"Loading code file: {file}");
                 string content = File.ReadAllText(file);
                 codeFiles.Add(file, content);
             }
@@ -45,7 +45,7 @@ public class Compiler
         )
            .Append(PrimitiveTypeGenerator.Generate())
            .ToList();
-        var mainFile = parseResults.First(i => i.File.Path == $"{codeDirectory}\\main.{ext}");
+        var mainFile = parseResults.First(i => i.File!.Path == $"{codeDirectory}\\main.{ext}");
 
         new SemanticAnalyzer(parseResults).Analyze();
         var mainFn = mainFile.Definitions.OfType<Function>().FirstOrDefault(i => i.Name == "main");
