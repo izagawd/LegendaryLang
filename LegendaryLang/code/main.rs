@@ -1,12 +1,10 @@
-﻿use std::primitive::i32;
+﻿
 use code::Human;
+use code::dark::Nester;
+ use std::primitive::i32;
 
-fn gay(dd: Human) -> i32{
-    dd.age
-    
- }
 fn main() -> i32{
-    
-   gay(Human{age = 5})
+    let a : i32;
+    a
 }
 

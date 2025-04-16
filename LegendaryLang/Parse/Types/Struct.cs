@@ -50,7 +50,10 @@ public class Struct : CustomType
 
     public override void Analyze(SemanticAnalyzer analyzer)
     {
-        
+        foreach (var i in ComposedTypes)
+        {
+            i.LoadAsShortCutIfPossible(analyzer);
+        }
     }
 
 
