@@ -16,7 +16,7 @@ public class LetConflictingTypesException : SemanticException
         Statement = statement;
     }
 
-    public override string Message => $"Conflicting types:\nThe declared type '{Statement.Variable.TypePath}' and assigned expression with type" +
+    public override string Message => $"Conflicting types:\nThe declared type '{Statement.VariableDefinition.TypePath}' and assigned expression with type" +
                                       $" '{Statement.EqualsTo.TypePath}' do not have matching types\n{Statement.LetToken?.GetLocationStringRepresentation()}";
 }
 public class LetStatement : IStatement
@@ -38,7 +38,7 @@ public class LetStatement : IStatement
         {
             throw new ExpectedParserException(parser,[ParseType.Let], gotten);
         }
-        var variable = Variable.Parse(parser);
+        var variable = VariableDefinition.Parse(parser);
         var next = parser.Peek();
         if (next is EqualityToken)
         {
@@ -48,12 +48,12 @@ public class LetStatement : IStatement
         }
         return new LetStatement(letToken, variable, null);
     }
-    public LetStatement(LetToken letToken,  Variable variable,IExpression? equalsTo)
+    public LetStatement(LetToken letToken,  VariableDefinition variableDefinition,IExpression? equalsTo)
     {
         LetToken = letToken;
         EqualsTo = equalsTo;
-        Variable = variable;
-        if (EqualsTo is null && Variable.TypePath is null)
+        VariableDefinition = variableDefinition;
+        if (EqualsTo is null && VariableDefinition.TypePath is null)
         {
             throw new UnknownTypeException(this);
         }
@@ -61,7 +61,7 @@ public class LetStatement : IStatement
 
     public LetToken LetToken { get; }
     public IExpression? EqualsTo { get; }
-    public Variable Variable { get; }
+    public VariableDefinition VariableDefinition { get; }
 
     public unsafe void CodeGen(CodeGenContext context)
     {
@@ -71,7 +71,7 @@ public class LetStatement : IStatement
             var genedVal = EqualsTo.DataRefCodeGen(context);
             var stackPtr = genedVal.StackAllocate(context);
 
-            context.AddToDeepestScope(new NormalLangPath( null,[Variable.Name]),new VariableRefItem()
+            context.AddToDeepestScope(new NormalLangPath( null,[VariableDefinition.Name]),new VariableRefItem()
             {
                 Type = genedVal.Type,
                 ValueRef = stackPtr
@@ -79,11 +79,11 @@ public class LetStatement : IStatement
         }
         else
         {
-            var type = context.GetRefItemFor(Variable.TypePath) as TypeRefItem;
+            var type = context.GetRefItemFor(VariableDefinition.TypePath) as TypeRefItem;
              
-            var stackPtr = context.Builder.BuildAlloca(type.TypeRef, Variable.Name);
+            var stackPtr = context.Builder.BuildAlloca(type.TypeRef, VariableDefinition.Name);
 
-            context.AddToDeepestScope(new NormalLangPath( null,[Variable.Name]),new VariableRefItem()
+            context.AddToDeepestScope(new NormalLangPath( null,[VariableDefinition.Name]),new VariableRefItem()
             {
                 Type = type.Type,
                 ValueRef = stackPtr
@@ -118,29 +118,29 @@ public class LetStatement : IStatement
     public void Analyze(SemanticAnalyzer analyzer)
     {
         EqualsTo?.Analyze(analyzer);
-        Variable.TypePath?.LoadAsShortCutIfPossible(analyzer);
+        VariableDefinition.TypePath?.LoadAsShortCutIfPossible(analyzer);
         if (TypePath is null)
         {
       
 
-            if (Variable.TypePath is null && EqualsTo is null)
+            if (VariableDefinition.TypePath is null && EqualsTo is null)
             {
                 throw new SemanticUnableToDetermineTypeOfLetVarException(this);
             }
 
-            if (Variable.TypePath is null && EqualsTo is not null)
+            if (VariableDefinition.TypePath is null && EqualsTo is not null)
             {
                 TypePath = EqualsTo.TypePath;
-            } else if (Variable.TypePath is not null && EqualsTo is  null)
+            } else if (VariableDefinition.TypePath is not null && EqualsTo is  null)
             {
-                TypePath = Variable.TypePath;
-            } else if (EqualsTo is not null && Variable.TypePath is not null)
+                TypePath = VariableDefinition.TypePath;
+            } else if (EqualsTo is not null && VariableDefinition.TypePath is not null)
             {
-                if (EqualsTo.TypePath != Variable.TypePath)
+                if (EqualsTo.TypePath != VariableDefinition.TypePath)
                 {
                     throw new LetConflictingTypesException(this);
                 }
-                TypePath = Variable.TypePath;
+                TypePath = VariableDefinition.TypePath;
             }
         }
 

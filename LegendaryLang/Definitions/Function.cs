@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Expressions;
 using LegendaryLang.Semantics;
@@ -65,7 +66,7 @@ public class Function : IConcreteDefinition
         LLVMBasicBlockRef entryBlock = LLVM.AppendBasicBlock(function, "entry".ToCString());
         LLVM.PositionBuilderAtEnd(context.Builder, entryBlock);
 
-        var newArguments = new Variable[Definition.Arguments.Length];
+        var argumentsToMonomorphize = new Variable[Definition.Arguments.Length];
 
         // 6. For each parameter, allocate space and store the parameter into it.
         for (uint i = 0; i < (uint)Definition.Arguments.Length; i++)
@@ -87,7 +88,11 @@ public class Function : IConcreteDefinition
                 Type = argType.Type,
                 ValueRef = alloca,
             });
-            newArguments[(int) i] = new Variable(argument.IdentifierToken, argType.Type.TypePath);
+            argumentsToMonomorphize[(int) i] = new Variable()
+            {
+                Name = argument.Name,
+                Type = argType.Type,
+            };
             argument.TypePath = argType.Type.TypePath;
             // adds the stack ptr to codegen so argument can be referenced by name
             context.AddToDeepestScope(new NormalLangPath(null,[argument.Name]), new VariableRefItem()
@@ -98,7 +103,7 @@ public class Function : IConcreteDefinition
 
         }
         // sets arguments post monomorphization (eg converting T to i32)
-        Arguments = newArguments.ToImmutableArray(); 
+        Arguments = argumentsToMonomorphize.ToImmutableArray(); 
 
         var blockValue = BlockExpression.DataRefCodeGen(context);
         

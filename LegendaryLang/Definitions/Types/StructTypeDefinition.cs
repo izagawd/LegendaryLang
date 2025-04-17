@@ -33,7 +33,7 @@ public class StructTypeDefinition : CustomTypeDefinition
     public Token Token => StructToken;
 
     public StructToken StructToken { get; }
-    public readonly ImmutableArray<Variable> Fields;
+    public readonly ImmutableArray<VariableDefinition> Fields;
 
     public static StructTypeDefinition Parse(Parser parser)
     {
@@ -43,10 +43,10 @@ public class StructTypeDefinition : CustomTypeDefinition
             var structIdentifier = Identifier.Parse(parser);
             CurlyBrace.ParseLeft(parser);
             var next = parser.Peek();
-            var fields = new List<Variable>();
+            var fields = new List<VariableDefinition>();
             while (next is not RightCurlyBraceToken)
             {
-                var field = Variable.Parse(parser);
+                var field = VariableDefinition.Parse(parser);
                 if (field.TypePath is null)
                 {
                     throw new ExpectedParserException(parser,(ParseType.BaseLangPath), field.IdentifierToken);
@@ -90,7 +90,7 @@ public class StructTypeDefinition : CustomTypeDefinition
         public override string Message => $"Field {FieldName} doesn't exist in struct '{(Struc as IDefinition).FullPath}'\n{Struc.StructToken?.GetLocationStringRepresentation()}";
     }
 
-    public Variable? GetField(string fieldName)
+    public VariableDefinition? GetField(string fieldName)
     {
         return Fields.FirstOrDefault(f => f.Name == fieldName);
     }
@@ -126,7 +126,7 @@ public class StructTypeDefinition : CustomTypeDefinition
     public override string Name { get; }
     public override NormalLangPath Module { get; }
 
-    public StructTypeDefinition( string name,NormalLangPath module, StructToken token, IEnumerable<Variable> fields) 
+    public StructTypeDefinition( string name,NormalLangPath module, StructToken token, IEnumerable<VariableDefinition> fields) 
     {
         StructToken = token;
         Name = name;

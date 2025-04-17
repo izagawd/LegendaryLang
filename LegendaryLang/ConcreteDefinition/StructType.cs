@@ -7,7 +7,7 @@ namespace LegendaryLang.ConcreteDefinition;
 
 public class StructType : CustomType
 {
-    public Variable? GetField(string fieldName)
+    public VariableDefinition? GetField(string fieldName)
     {
         return StructTypeDefinition.GetField(fieldName);
     }
@@ -16,7 +16,7 @@ public class StructType : CustomType
         return StructTypeDefinition.GetIndexOfField(fieldName);
     }
     public StructTypeDefinition StructTypeDefinition => (StructTypeDefinition) TypeDefinition;
-    public ImmutableArray<Variable> Fields => StructTypeDefinition.Fields;
+    public ImmutableArray<VariableDefinition> Fields => StructTypeDefinition.Fields;
     public override LLVMTypeRef TypeRef { get; protected set; }
     public override LangPath TypePath => TypeDefinition.TypePath;
     public override string Name => TypeDefinition.Name;

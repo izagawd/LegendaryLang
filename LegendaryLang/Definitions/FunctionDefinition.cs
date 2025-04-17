@@ -96,11 +96,11 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
         }
     }
     public BlockExpression BlockExpression { get; }
-    public readonly ImmutableArray<Variable> Arguments;
+    public readonly ImmutableArray<VariableDefinition> Arguments;
     public string Name { get; }
     public LangPath ReturnType { get; }
 
-    public FunctionDefinition(string name, IEnumerable<Variable> variables, LangPath returnType, BlockExpression blockExpression, NormalLangPath module, IEnumerable<GenericParameter> genericParameters, Token? lookUpToken = null)
+    public FunctionDefinition(string name, IEnumerable<VariableDefinition> variables, LangPath returnType, BlockExpression blockExpression, NormalLangPath module, IEnumerable<GenericParameter> genericParameters, Token? lookUpToken = null)
     {
         Arguments = variables.ToImmutableArray();
         Name = name;
@@ -115,7 +115,7 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
     {
         var genericParameters = new List<GenericParameter>();
         var token = parser.Pop();
-        var variables = new List<Variable>();
+        var variables = new List<VariableDefinition>();
         if (token is FnToken)
         {
             var name = Identifier.Parse(parser).Identity;
@@ -149,7 +149,7 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
             {
                 
 
-                var parameter = Variable.Parse(parser);
+                var parameter = VariableDefinition.Parse(parser);
                 nextToken = parser.Peek();
                 if (parameter.TypePath is null)
                 {

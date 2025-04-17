@@ -3,9 +3,9 @@
 
 namespace LegendaryLang.Parse;
 
-public class  Variable
+public class  VariableDefinition
 {
-    public static Variable Parse(Parser parser)
+    public static VariableDefinition Parse(Parser parser)
     {
         var name = Identifier.Parse(parser);
         var nextToken = parser.Peek();
@@ -13,14 +13,14 @@ public class  Variable
         {
             Colon.Parse(parser);
             var typeId = LangPath.Parse(parser);
-            return new Variable(name, typeId);
+            return new VariableDefinition(name, typeId);
         }
-        return new Variable(name);
+        return new VariableDefinition(name);
     }
     public IdentifierToken IdentifierToken {get; }
     public string Name => IdentifierToken.Identity;
     public LangPath? TypePath { get; set; }
-    public Variable(IdentifierToken token, LangPath? typePath = null)
+    public VariableDefinition(IdentifierToken token, LangPath? typePath = null)
     {
         IdentifierToken = token;
         TypePath = typePath;
