@@ -1,4 +1,5 @@
-﻿using LegendaryLang.Lex.Tokens;
+﻿using LegendaryLang.ConcreteDefinition;
+using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Statements;
 
 using LegendaryLang.Parse.Types;
@@ -48,7 +49,7 @@ public class FieldAccessExpression : IExpression
             var variableRef = Caller.DataRefCodeGen(codeGenContext);
             
             
-            var structType = variableRef?.Type as Struct;
+            var structType = variableRef?.Type as StructType;
 
             
             LLVMValueRef fieldPtr = codeGenContext.Builder.BuildStructGEP2(structType.TypeRef, variableRef.ValueRef,

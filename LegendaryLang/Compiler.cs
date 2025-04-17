@@ -55,9 +55,9 @@ public class Compiler
             return;
         }
 
-        if (mainFn.ReturnType != new I32().TypePath)
+        if (mainFn.ReturnType != new I32TypeDefinition().TypePath)
         {
-            Console.WriteLine($"'fn main' return type must be '{new I32().TypePath}', not '{mainFn.ReturnType}'!!!");
+            Console.WriteLine($"'fn main' return type must be '{new I32TypeDefinition().TypePath}', not '{mainFn.ReturnType}'!!!");
             return;
         }
 
@@ -66,6 +66,6 @@ public class Compiler
             Console.WriteLine($"'fn main' arguments are not empty!!!");
             return;
         }
-        new CodeGenContext(parseResults,codeDirectory).CodeGen();
+        new CodeGenContext(parseResults,new NormalLangPath(null,[codeDirectory]) ).CodeGen();
     }
 }

@@ -1,13 +1,13 @@
-﻿using LegendaryLang.Lex.Tokens;
-
-using LegendaryLang.Semantics;
+﻿using LegendaryLang.Parse;
+using LegendaryLang.Parse.Types;
 using LLVMSharp.Interop;
 
-namespace LegendaryLang.Parse.Types;
+namespace LegendaryLang.ConcreteDefinition;
 
 public abstract class PrimitiveType : Type
 {
-    public override NormalLangPath Module => LangPath.PrimitivePath;
+    public PrimitiveType(PrimitiveTypeDefinition definition) : base(definition){}
+
 
     public override int GetPrimitivesCompositeCount(CodeGenContext context)
     {
@@ -16,7 +16,7 @@ public abstract class PrimitiveType : Type
 
     public override void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr)
     {
-         codeGenContext.Builder.BuildStore(value.LoadValForRetOrArg(codeGenContext), ptr.ValueRef );
+        codeGenContext.Builder.BuildStore(value.LoadValForRetOrArg(codeGenContext), ptr.ValueRef );
     }
 
 
@@ -58,27 +58,8 @@ public abstract class PrimitiveType : Type
     }
     
 
-    public override int Priority => -1;
-    public override LangPath TypePath =>LangPath.PrimitivePath.Append([Name]);
+
+    public override LangPath TypePath =>TypeDefinition.TypePath;
+
 }
-public class I32 : PrimitiveType
-{
 
-    
-
-        public override Token LookUpToken { get; }
-        public override void Analyze(SemanticAnalyzer analyzer)
-        {
-            throw new NotImplementedException();
-        }
-        
-
-        public override LLVMTypeRef TypeRef
-        {
-            get => LLVMTypeRef.Int32;
-            protected set => throw new NotImplementedException();
-        }
-
-        public override int Priority => 1;
-        public override string Name => "i32";
-}

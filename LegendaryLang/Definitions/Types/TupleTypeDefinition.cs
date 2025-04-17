@@ -1,17 +1,34 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Lex.Tokens;
 
 using LegendaryLang.Semantics;
 using LLVMSharp.Interop;
+using Type = LegendaryLang.ConcreteDefinition.Type;
 
 namespace LegendaryLang.Parse.Types;
 
-public class TupleType : CustomType
+public class TupleTypeDefinition : CustomTypeDefinition
 {
+    public override Type? Monomorphize(CodeGenContext context, LangPath langPath)
+    {
+        if ((this as IDefinition).FullPath == langPath)
+        {
+            var tup = new TupleType(OtherTypes);
+            tup.CodeGen(context);
+            return tup;
+        }
+        return null;
+    }
+
+    public override ImmutableArray<LangPath>? GetGenericArguments(LangPath langPath)
+    {
+        throw new NotImplementedException();
+    }
+
     public override string Name => $"({string.Join(',', OtherTypes.Select(i => i.TypePath))})";
     public override NormalLangPath Module { get; } = new NormalLangPath(null, []);
 
-    public override LLVMTypeRef TypeRef { get; protected set; }
     public override LangPath TypePath => new TupleLangPath(OtherTypes.Select(i => i.TypePath));
     public override Token LookUpToken { get; }
     public override void Analyze(SemanticAnalyzer analyzer)
@@ -19,7 +36,7 @@ public class TupleType : CustomType
         throw new NotImplementedException();
     }
     public ImmutableArray<Type> OtherTypes { get; }
-    public TupleType( IEnumerable<Type> otherTypes)
+    public TupleTypeDefinition( IEnumerable<Type> otherTypes)
     {
         OtherTypes = otherTypes.ToImmutableArray();
     }
@@ -31,25 +48,13 @@ public class TupleType : CustomType
             List<GenericParameter> genericParameters = new List<GenericParameter>();
             for (int i = 0; i < OtherTypes.Length; i++)
             {
-                genericParameters.Add(new GenericParameter(){Name = i.ToString()});
+                genericParameters.Add(new GenericParameter(i.ToString()));
             }
             return genericParameters.ToImmutableArray();
         }
     }
 
-    public override void CodeGen(CodeGenContext context)
 
-    {
-        TypeRef = LLVMTypeRef.CreateStruct(
-            OtherTypes.Select(i => (context.GetRefItemFor(i.TypePath) as TypeRefItem).TypeRef).ToArray(),
-            false);
-        context.AddToDeepestScope(new TupleLangPath(OtherTypes.Select(i => i.TypePath)),
-            new TypeRefItem()
-            {
-                Type = this,
-            });
-    }
 
-    public override int Priority { get; }
     public override ImmutableArray<LangPath> ComposedTypes => OtherTypes.Select(i => i.TypePath).ToImmutableArray();
 }

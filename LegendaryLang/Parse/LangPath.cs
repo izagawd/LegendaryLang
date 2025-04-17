@@ -43,6 +43,8 @@ public class TupleLangPath : LangPath
         TypePaths = paths.ToImmutableArray();
     }
 
+
+
     public override void LoadAsShortCutIfPossible(SemanticAnalyzer analyzer)
     {
         foreach (var i in TypePaths)
@@ -55,6 +57,7 @@ public class TupleLangPath : LangPath
 
 public abstract class LangPath
 {
+
     /// <summary>
     /// MAKES THE COMPILER understand that the i32 is actually 'std::primitive::i32' if the using is declared
     /// </summary>
@@ -111,14 +114,40 @@ public abstract class LangPath
             return new TupleLangPath(tuplePaths);
         }
         var firstIdent = Identifier.Parse(parser);
-        var idents = new List<IdentifierToken>() { firstIdent };
+        var segments = new List<NormalLangPath.PathSegment>() { firstIdent.Identity };
+        ;
         while (parser.Peek() is DoubleColonToken)
         {
             parser.Pop();
-            idents.Add(Identifier.Parse(parser));
+            if (parser.Peek() is LessThanToken)
+            {
+                parser.Pop();
+                var arguments = new List<LangPath>();
+                while (parser.Peek() is not GreaterThanToken)
+                {
+                    arguments.Add(LangPath.Parse(parser));
+                    if (parser.Peek() is CommaToken)
+                    {
+                        parser.Pop();
+                        
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                Comparator.ParseGreater(parser);
+                var genericsSegment = new NormalLangPath.GenericTypesPathSegment(arguments);
+                segments.Add(genericsSegment);
+            }
+            else
+            {
+                segments.Add(Identifier.Parse(parser).Identity);
+            }
+          
         }
 
-        return new NormalLangPath( firstIdent ,idents.Select(i =>(NormalLangPath.PathSegment) i.Identity))
+        return new NormalLangPath( firstIdent ,segments.Select(i => i))
         {
             FirstIdentifierToken = firstIdent
         };

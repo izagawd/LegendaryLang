@@ -8,85 +8,70 @@ using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse;
 
-public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizableDefinition
+public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
 {
+
+
+    
+    public ImmutableArray<LangPath>? GetGenericArguments(LangPath ident)
+    {
+        var fullPath = (this as IDefinition).FullPath;
+        if (fullPath == ident)
+        {
+            return [];
+        }
+
+        if (ident is NormalLangPath normalLangPath)
+        {
+            var segment = normalLangPath.GetLastPathSegment();
+            if (segment is not NormalLangPath.GenericTypesPathSegment genericTypesPathSegment)
+            {
+                return null;
+            }
+            
+            if (genericTypesPathSegment.TypePaths.Length != GenericParameters.Length)
+            {
+                return null;
+            }
+
+            if (genericTypesPathSegment.TypePaths.Length == GenericParameters.Length)
+            {
+                var popped =normalLangPath.Pop();
+        
+                if (popped is not null && popped == (this as IDefinition).FullPath)
+                {
+                    var last =normalLangPath.GetLastPathSegment() as NormalLangPath.GenericTypesPathSegment;
+                    return last.TypePaths;
+                }
+                return null;
+            }
+        }
+        return null;
+
+    }
+
+    IConcreteDefinition IMonomorphizable. Monomorphize(CodeGenContext context, LangPath langPath)
+    {
+        return Monomorphize(context, langPath);
+    }
+    public Function? Monomorphize(CodeGenContext codeGenContext, LangPath ident)
+    {
+        var genericArguments = GetGenericArguments(ident);
+        if (genericArguments is null)
+        {
+            return null;
+        }
+        var func =new Function(this,genericArguments.Value);
+        func.CodeGen(codeGenContext);
+        return func;
+
+    }
     public ImmutableArray<GenericParameter> GenericParameters {get; }
     public NormalLangPath Module { get; }
     public bool HasBeenGened { get; set; }
 
-    public LLVMTypeRef FunctionType { get; set; }
-    public LLVMValueRef FunctionValueRef { get; set; }
-    public unsafe void CodeGen(CodeGenContext context)
-        {
-            // 1. Determine the LLVM return type.
-            LLVMTypeRef llvmReturnType = (context.GetRefItemFor(ReturnType) as TypeRefItem).TypeRef;
-            // 2. Gather LLVM types for each parameter.
-            var paramTypes = new LLVMTypeRef[Arguments.Length];
-            for (int i = 0; i < Arguments.Length; i++)
-            {
-                paramTypes[i] = (context.GetRefItemFor(Arguments[i].TypePath) as TypeRefItem).TypeRef;
-            }
-
-            LLVMTypeRef functionType;
-            // 3. Create the function type and add the function to the module.
-            fixed (LLVMTypeRef* llvmFunctionType = paramTypes)
-            {
-                 functionType = LLVM.FunctionType(llvmReturnType,(LLVMSharp.Interop.LLVMOpaqueType**) llvmFunctionType,(uint) paramTypes.Length, 0);
-                 FunctionType = functionType;
-            }
-            LLVMValueRef function = LLVM.AddFunction(context.Module,(this as IDefinition).FullPath.ToString().ToCString(), functionType);
-
-            FunctionValueRef = function;
-
-            LLVMBasicBlockRef entryBlock = LLVM.AppendBasicBlock(function, "entry".ToCString());
-            LLVM.PositionBuilderAtEnd(context.Builder, entryBlock);
-            context.AddToDeepestScope(new NormalLangPath(null,[Name]), new FunctionRefItem()
-            {
-                FunctionDefinition = this,
-            });
-       
-            context.AddScope();
-
-            // 6. For each parameter, allocate space and store the parameter into it.
-            for (uint i = 0; i < (uint)Arguments.Length; i++)
-            {
-                var argument = Arguments[(int)i];
-                var argType = context.GetRefItemFor(argument.TypePath) as TypeRefItem;
-                
-                // Get the function parameter.
-                LLVMValueRef param = LLVM.GetParam(function, i);
-                
-                // Allocate space for the parameter in the entry block.
-                LLVMValueRef alloca = LLVM.BuildAlloca(context.Builder, paramTypes[i],argument.Name.ToCString());
-                argType.Type.AssignTo(context,new VariableRefItem()
-                {
-                    Type = argType.Type,
-                    ValueRef = param,
-                }, new VariableRefItem()
-                {
-                    Type = argType.Type,
-                    ValueRef = alloca,
-                });
-
-                
-                // adds the stack ptr to codegen so argument can be referenced by name
-                context.AddToDeepestScope(new NormalLangPath(null,[argument.Name]), new VariableRefItem()
-                {
-                    Type = (context.GetRefItemFor(argument.TypePath) as TypeRefItem).Type,
-                    ValueRef = alloca
-                });
-
-            }
-
-            // 7. Generate code for the function body by codegen'ing the BlockExpression.
-            var blockValue = BlockExpression.DataRefCodeGen(context);
 
 
-            LLVM.BuildRet(context.Builder, blockValue.LoadValForRetOrArg(context));
-            
-
-            context.PopScope();
-        }
 
     public int Priority => 3;
 
@@ -124,13 +109,38 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizableDefini
 
     public static FunctionDefinition Parse(Parser parser)
     {
+        var genericParameters = new List<GenericParameter>();
         var token = parser.Pop();
         var variables = new List<Variable>();
         if (token is FnToken)
         {
             var name = Identifier.Parse(parser).Identity;
-            Parenthesis.ParseLeft(parser);
             var nextToken = parser.Peek();
+            if (nextToken is LessThanToken)
+            {
+                parser.Pop();
+                nextToken = parser.Peek();
+                while (nextToken is not GreaterThanToken)
+                {
+                    var paramIdentifier = Identifier.Parse(parser);
+                    nextToken = parser.Peek();
+                    genericParameters.Add(new GenericParameter(paramIdentifier));
+                    if (nextToken is CommaToken)
+                    {
+                        parser.Pop();
+                        nextToken = parser.Peek();
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                Comparator.ParseGreater(parser);
+
+            }
+            Parenthesis.ParseLeft(parser);
+            nextToken = parser.Peek();
             while (nextToken is not RightParenthesisToken)
             {
                 
@@ -156,7 +166,7 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizableDefini
                 parser.Pop();
                 returnTyp = LangPath.Parse(parser);
             }
-            return new FunctionDefinition(name, variables,returnTyp,Expressions.BlockExpression.Parse(parser),parser.File.Module, []);
+            return new FunctionDefinition(name, variables,returnTyp,Expressions.BlockExpression.Parse(parser),parser.File.Module, genericParameters);
         } else
         {
             throw new ExpectedParserException(parser,(ParseType.Fn), token);

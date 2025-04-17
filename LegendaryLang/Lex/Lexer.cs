@@ -82,10 +82,10 @@ namespace LegendaryLang.Lex
                         file.AddToken(new Star(file, column, line));
                         break;
                     case '<':
-                        file.AddToken(new LessThan(file, column, line));
+                        file.AddToken(new LessThanToken(file, column, line));
                         break;
                     case '>':
-                        file.AddToken(new GreaterThan(file, column, line));
+                        file.AddToken(new GreaterThanToken(file, column, line));
                         break;
                     case '!':
                         file.AddToken(new ExclamationMarkToken(file, column, line));

@@ -16,7 +16,6 @@ public class Program
     public static void Main(string[] args)
     {
 
-        return;
         new Compiler().Compile("code");
     }
     

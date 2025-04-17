@@ -1,10 +1,10 @@
-﻿using System.Reflection;
+﻿
 using System.Runtime.InteropServices;
+using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Parse;
 
 using LegendaryLang.Parse.Types;
 using LLVMSharp.Interop;
-using Type = LegendaryLang.Parse.Types.Type;
 
 namespace LegendaryLang;
 
@@ -31,12 +31,12 @@ public abstract class IRefItem
 
 public interface IHasType
 {
-    Type Type { get; }
+    ConcreteDefinition.Type Type { get; }
 }
 
 public class FunctionRefItem : IRefItem
 {
-    public required  FunctionDefinition FunctionDefinition { get; init; }
+    public required  Function Function { get; init; }
 }
 public class TypeRefItem : IRefItem, IHasType
 {
@@ -46,7 +46,7 @@ public class TypeRefItem : IRefItem, IHasType
   
     }
 
-    public required Type Type {get; init;}
+    public required ConcreteDefinition.Type Type {get; init;}
 }
 /// <summary>
 /// NOTE: DataRefItems that are not primitive 9eg structs, tuples) having a classification RValue doesnt mean its valueref is a value.
@@ -66,7 +66,7 @@ public enum ValueClassification
 
 public class VariableRefItem : IRefItem, IHasType
 {
-    public required Type Type {get; init;}
+    public required ConcreteDefinition.Type Type {get; init;}
     public  required LLVMValueRef ValueRef {get; init; }
 
     /// <summary>
@@ -91,9 +91,9 @@ public struct Symbol
 }
 public class CodeGenContext
 {
-    public string MainLangModule { get; }
+    public NormalLangPath MainLangModule { get; }
 
-    public void CodeGen(IDefinition definition)
+    public void CodeGen(IConcreteDefinition definition)
     {
         if (!definition.HasBeenGened)
         {
@@ -103,6 +103,8 @@ public class CodeGenContext
     }
     private Stack<Dictionary<LangPath, IRefItem>> ScopeItems = new();
 
+
+    
 
     public IRefItem? GetRefItemFor(LangPath ident)
     {
@@ -116,37 +118,46 @@ public class CodeGenContext
              
             }
         }
-        var first = definitionsList.OfType<Type>().FirstOrDefault(i => i.TypePath == ident);
-        // generate and store the type if not already, and it is defined
-        if (first != null)
-        {
-            CodeGen(first);
-            return GetRefItemFor(ident);
-        }
 
-        
-        // if its tuple, first ensure all its types are stored
-        if (ident is TupleLangPath tuplePath)
+
         {
-            var types = new List<Type>();
-            foreach (var i in tuplePath.TypePaths)
+            var first = definitionsList.OfType<IMonomorphizable>().FirstOrDefault(i =>
             {
-                var type = GetRefItemFor(i) as TypeRefItem;
-                if (type != null)
-                {
-                    types.Add(type.Type);
-                }
-
-                return null;
-
-
+                var gotten = i.GetGenericArguments(ident);
+                return i.GetGenericArguments(ident) is not null;
+            });
+            // generate and store the type if not already, and it is defined
+            if (first != null)
+            {
+                first.Monomorphize(this,ident);
+                return GetRefItemFor(ident);
             }
-            var tuple = new TupleType(types);
-            CodeGen(tuple);
-            return GetRefItemFor(ident);
+        }
+        {
+            
+            if (ident is TupleLangPath tuplePath)
+            {
+                var types = new List<ConcreteDefinition. Type>();
+                foreach (var i in tuplePath.TypePaths)
+                {
+                    var type = GetRefItemFor(i) as TypeRefItem;
+                    if (type != null)
+                    {
+                        types.Add(type.Type);
+                    }
+
+                    return null;
+
+
+                }
+                var tuple = new TupleType(types);
+                CodeGen(tuple);
+                return GetRefItemFor(ident);
+            }
+
+            return null;
         }
 
-        return null;
     }
 
 
@@ -154,8 +165,36 @@ public class CodeGenContext
     {
         ScopeItems.Peek().Add(symb, refItem);
     }
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="symb"></param>
+    /// <param name="refItem"></param>
+    /// <param name="scope">NOTE: The index fort the most outerscope would be 1 in this case</param>
+    public void AddToScope(LangPath symb, IRefItem refItem, int scope)
+    {
+        ScopeItems.Reverse().Skip(scope).First().Add(symb, refItem);
+    }
 
-
+    public int? GetScope(LangPath path)
+    {
+        var scope = 0;
+        foreach (var i in ScopeItems.Reverse())
+        {
+            if (i.TryGetValue(path, out var symbol))
+            {
+                return scope;
+            }
+            scope++;
+        }
+        return null;
+    }
+    public void AddToOuterScope(LangPath symb, IRefItem refItem, int scopeOut = 1)
+    {
+        var it = ScopeItems.Skip(scopeOut);
+        var first = ScopeItems.Skip(scopeOut).First();
+        ScopeItems.Skip(scopeOut).First().Add(symb, refItem);
+    }
     public void  AddScope()
     {
 
@@ -182,9 +221,9 @@ public class CodeGenContext
     // Dictionary to map custom BaseLangPath's to LLVMTypeRef's (if needed)
 
     
-    public Dictionary<LangPath, Struct> TypeMap { get; } = new();
+    public Dictionary<LangPath, StructTypeDefinition> TypeMap { get; } = new();
 
-    public Struct GetLangType(LangPath lang)
+    public StructTypeDefinition GetLangType(LangPath lang)
     {
         return TypeMap[lang];
     }
@@ -212,7 +251,7 @@ public class CodeGenContext
     }
     public List<IDefinition> definitionsList { get; } = new List<IDefinition>();
     
-    public CodeGenContext(IEnumerable<IDefinition> definitions, string mainLangModule)
+    public CodeGenContext(IEnumerable<IDefinition> definitions, NormalLangPath mainLangModule)
     {
         MainLangModule = mainLangModule;
         definitionsList = definitions.ToList();
@@ -242,11 +281,12 @@ public class CodeGenContext
 
             SetupVoid();
 
-
-            foreach (var def in definitionsList)
+            var mainDef = definitionsList.OfType<FunctionDefinition>() .First(i =>
             {
-                CodeGen(def); // Generate LLVM IR for functions, etc.
-            }
+                return i.Module == MainLangModule && i.Name == "main";
+            });
+            
+            var mainConc = mainDef.Monomorphize(this,new NormalLangPath(null,[..MainLangModule,"main"]));
             Console.WriteLine(FromByte(LLVM.PrintModuleToString(Module)));
             sbyte* idk;
             if (LLVM.VerifyModule(Module, LLVMVerifierFailureAction.LLVMPrintMessageAction, &idk) != 0)
@@ -269,10 +309,10 @@ public class CodeGenContext
                 return;
             }
 
-            var mainFnPath = new NormalLangPath(null, [MainLangModule, "main"]).ToString();
+            var mainFnPath = (mainConc as IDefinition).FullPath;
             Console.WriteLine(mainFnPath);
             Console.WriteLine(engine == null);
-            LLVMValueRef mainFn = LLVM.GetNamedFunction(Module, mainFnPath.ToCString());
+            LLVMValueRef mainFn = LLVM.GetNamedFunction(Module, mainFnPath.ToString().ToCString());
 
             if (mainFn.Handle == IntPtr.Zero)
             {
@@ -281,7 +321,7 @@ public class CodeGenContext
             }
 
    
-            var val = engine.RunFunction(LLVM.GetNamedFunction(Module,new NormalLangPath(null,[MainLangModule,"main"]).ToString().ToCString()), []);
+            var val = engine.RunFunction(LLVM.GetNamedFunction(Module,mainFnPath.ToString().ToCString()), []);
 
             Console.WriteLine(LLVM.GenericValueToInt(val, 0));
         }
@@ -289,7 +329,7 @@ public class CodeGenContext
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate int MainDelegate();
-    public CodeGenContext( IEnumerable<ParseResult> results, string mainLangModule) : this(results.SelectMany(i => i.TopLevels.OfType<IDefinition>()), mainLangModule)
+    public CodeGenContext( IEnumerable<ParseResult> results, NormalLangPath mainLangModule) : this(results.SelectMany(i => i.TopLevels.OfType<IDefinition>()), mainLangModule)
     {
     
     }

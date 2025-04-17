@@ -1,13 +1,18 @@
 ﻿using LegendaryLang.Lex.Tokens;
-
+using LegendaryLang.Parse;
+using LegendaryLang.Parse.Types;
 using LegendaryLang.Semantics;
 using LLVMSharp.Interop;
 
-namespace LegendaryLang.Parse.Types;
+namespace LegendaryLang.ConcreteDefinition;
 
-public abstract class Type : ITopLevel, IDefinition
+public abstract class Type : IConcreteDefinition
 {
     
+    public Type(TypeDefinition definition)
+    {
+        TypeDefinition = definition;
+    }
     /// <summary>
     /// 
     /// </summary>
@@ -31,36 +36,24 @@ public abstract class Type : ITopLevel, IDefinition
         return allocated;
     }
     
-    public abstract void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr);
-    public abstract int GetPrimitivesCompositeCount(CodeGenContext context);
 
-    /// <summary>
-    /// Abstracts away loading a value, so it can be used for parameters and return types. done because if its
-    /// a primitive, simply return its value. if its not, load it from its pointer (since non primitive
-    /// value refs are pointers) then return it
-    /// </summary>
-    /// <param name="context"></param>
-    /// <param name="variableRef"></param>
-    /// <returns></returns>
+    public abstract int GetPrimitivesCompositeCount(CodeGenContext context);
     public  abstract LLVMValueRef LoadValueForRetOrArg(CodeGenContext context, VariableRefItem variableRef);
 
-    
+    public abstract void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr);
 
     public abstract LLVMTypeRef TypeRef { get;  protected set; }
-    public abstract string Name { get; }
-
-    public abstract NormalLangPath Module { get; }
-    public bool HasBeenGened { get; set; } = false;
+    public  TypeDefinition TypeDefinition { get;  }
+    public Token LookUpToken => TypeDefinition.LookUpToken;
+    public void Analyze(SemanticAnalyzer analyzer)
+    {
+        throw new NotImplementedException();
+    }
     public abstract LangPath TypePath { get; }
-    public abstract Token LookUpToken { get; }
 
-
-    public Token Token { get; }
-
+    public abstract string Name { get; }
+    public  NormalLangPath Module => TypeDefinition.Module;
+    public bool HasBeenGened { get; set; }
     public abstract void CodeGen(CodeGenContext context);
 
-
-    public abstract int Priority { get; }
-
-    public abstract void Analyze(SemanticAnalyzer analyzer);
 }

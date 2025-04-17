@@ -5,6 +5,7 @@ using LegendaryLang.Parse.Types;
 using LegendaryLang.Semantics;
 using LLVMSharp;
 using LLVMSharp.Interop;
+using StructType = LegendaryLang.ConcreteDefinition.StructType;
 
 namespace LegendaryLang.Parse.Expressions;
 
@@ -87,7 +88,7 @@ public class StructCreationExpression : IExpression
     {
 
         var typeRef = (codeGenContext.GetRefItemFor(TypePath) as TypeRefItem);
-        var structType = typeRef?.Type as Struct;
+        var structType = typeRef?.Type as StructType;
 
         LLVMValueRef structPtr = codeGenContext.Builder.BuildAlloca(structType.TypeRef);
         

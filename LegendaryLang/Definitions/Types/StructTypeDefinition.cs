@@ -1,50 +1,23 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Lex.Tokens;
 
 using LegendaryLang.Semantics;
 using LLVMSharp.Interop;
+using Type = LegendaryLang.ConcreteDefinition.Type;
 
 namespace LegendaryLang.Parse.Types;
 
-public class Struct : CustomType, IMonomorphizableDefinition
+public class StructTypeDefinition : CustomTypeDefinition
 {
 
 
-    public override LLVMTypeRef TypeRef { get; protected set; }
 
 
-    public unsafe override void CodeGen(CodeGenContext context)
-    {
-        // 1. Check if the struct is already generated (avoid double-generation)
-        if (TypeRef.Handle != IntPtr.Zero)
-            return;
-
-        // 2. Create an opaque (named but incomplete) LLVM struct first
-        var llvmStructName = (this as IDefinition).FullPath.ToString();// e.g., "my.module.MyStruct"
-        TypeRef = LLVM.StructCreateNamed(context.Module.Context, llvmStructName.ToCString());
-
-        // 3. Generate LLVM types for the struct fields
-        var fieldTypes = Fields.Select(field =>
-        {
-            var idk = context.GetRefItemFor(field.TypePath);
-            return (idk as TypeRefItem).Type;
-        }).ToArray();
-
-        fixed (void* ptr = fieldTypes.Select(i => i.TypeRef).ToArray())
-        {        
-            LLVM.StructSetBody(TypeRef,(LLVMSharp.Interop.LLVMOpaqueType**) ptr,(uint) fieldTypes.Length, 0);
-            
-        }
-        // 4. Set the body of the opaque struct
 
 
-        context.AddToDeepestScope(TypePath,new TypeRefItem()
-        {
-            Type = this
-        });
-    }
 
-    public override int Priority => 1;
+
     public override LangPath TypePath =>(this as IDefinition).FullPath;
     public override Token LookUpToken { get; }
 
@@ -62,7 +35,7 @@ public class Struct : CustomType, IMonomorphizableDefinition
     public StructToken StructToken { get; }
     public readonly ImmutableArray<Variable> Fields;
 
-    public static Struct Parse(Parser parser)
+    public static StructTypeDefinition Parse(Parser parser)
     {
         var token = parser.Pop();
         if (token is StructToken structToken)
@@ -93,7 +66,7 @@ public class Struct : CustomType, IMonomorphizableDefinition
             }
             CurlyBrace.Parseight(parser);
 
-            return new Struct(structIdentifier.Identity, parser.File.Module, structToken, fields);
+            return new StructTypeDefinition(structIdentifier.Identity, parser.File.Module, structToken, fields);
             
         }
         else
@@ -106,9 +79,9 @@ public class Struct : CustomType, IMonomorphizableDefinition
     public class FieldNotFoundException : Exception
     {
         public string FieldName { get; }
-        public Struct Struc { get; }
+        public StructTypeDefinition Struc { get; }
 
-        public FieldNotFoundException(string fieldName, Struct struc)
+        public FieldNotFoundException(string fieldName, StructTypeDefinition struc)
         {
             FieldName = fieldName;
             Struc = struc;
@@ -134,10 +107,31 @@ public class Struct : CustomType, IMonomorphizableDefinition
         throw new FieldNotFoundException(fieldName, this);
     }
 
+    public override Type? Monomorphize(CodeGenContext context, LangPath langPath)
+    {
+        if (GetGenericArguments(langPath) is not null)
+        {
+            var str = new StructType(this);
+            str.CodeGen(context);
+                return str;
+        }
+        return null;
+    }
+
+    public override ImmutableArray<LangPath>? GetGenericArguments(LangPath langPath)
+    {
+        if (langPath != (this as IDefinition).FullPath)
+        {
+            return null;
+        }
+
+        return [];
+    }
+
     public override string Name { get; }
     public override NormalLangPath Module { get; }
 
-    public Struct( string name,NormalLangPath module, StructToken token, IEnumerable<Variable> fields) 
+    public StructTypeDefinition( string name,NormalLangPath module, StructToken token, IEnumerable<Variable> fields) 
     {
         StructToken = token;
         Name = name;
@@ -146,5 +140,10 @@ public class Struct : CustomType, IMonomorphizableDefinition
     }
 
     public override ImmutableArray<LangPath> ComposedTypes => Fields.Select(i => i.TypePath).ToImmutableArray();
+    public IConcreteDefinition Monomorphize(CodeGenContext context)
+    {
+        throw new NotImplementedException();
+    }
+
     public ImmutableArray<GenericParameter> GenericParameters { get; init; }
 }

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Lex.Tokens;
 
 namespace LegendaryLang.Parse;
 
@@ -6,11 +7,18 @@ namespace LegendaryLang.Parse;
 
 public class GenericParameter
 {
-    public string Name;
-    
-}
-public interface IMonomorphizableDefinition
-{
-    
-    public ImmutableArray<GenericParameter> GenericParameters {get; }
+    public readonly string Name;
+    public readonly IdentifierToken? Identifier;
+
+    public GenericParameter(string name)
+    {
+        Name = name;
+
+    }
+
+    public GenericParameter( IdentifierToken identifier )
+    {
+        Identifier = identifier;
+        Name = identifier.Identity;
+    }
 }

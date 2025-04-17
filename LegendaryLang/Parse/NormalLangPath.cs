@@ -1,21 +1,32 @@
-﻿using System.Collections.Immutable;
+﻿using System.Collections;
+using System.Collections.Immutable;
 using System.Net.Mime;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse;
 
-public class NormalLangPath : LangPath
+public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
 {
     public override void LoadAsShortCutIfPossible(SemanticAnalyzer analyzer)
     {
         
     }
 
+    public PathSegment GetLastPathSegment()
+    {
+        return PathSegments.Last();
+    }
     public override string ToString()
     {
         return string.Join("::", PathSegments);
     }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
+
 
     public abstract class PathSegment
     {
@@ -105,6 +116,15 @@ public class NormalLangPath : LangPath
         {
             return segment.Text;
         }
+    }
+    public NormalLangPath? Pop()
+    {
+        return new NormalLangPath(FirstIdentifierToken,PathSegments.SkipLast(1));
+    }
+
+    public IEnumerator<PathSegment> GetEnumerator()
+    {
+        return PathSegments.AsEnumerable().GetEnumerator();
     }
 
     public override bool Equals(object? obj)

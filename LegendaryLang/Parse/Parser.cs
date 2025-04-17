@@ -103,7 +103,7 @@ public class Parser
                 topLevels.Add(FunctionDefinition.Parse(this));
             } else if (gotten is StructToken)
             {
-                topLevels.Add(Struct.Parse(this));
+                topLevels.Add(StructTypeDefinition.Parse(this));
             }
             else if (gotten is UseToken)
             {

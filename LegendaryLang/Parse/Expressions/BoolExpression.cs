@@ -1,4 +1,5 @@
-﻿using LegendaryLang.Lex.Tokens;
+﻿using LegendaryLang.ConcreteDefinition;
+using LegendaryLang.Lex.Tokens;
 
 using LegendaryLang.Parse.Types;
 using LegendaryLang.Semantics;
@@ -20,7 +21,7 @@ public class BoolExpression : IExpression
     }
     public IBoolToken Token { get; }
 
-    public static BoolType BoolType { get; } = new BoolType();
+    public static BoolType BoolType { get; } = new(new BoolTypeDefinition());
     public unsafe VariableRefItem DataRefCodeGen(CodeGenContext context)
     {
         // Assume IBoolToken has a property "Value" that holds a Boolean.

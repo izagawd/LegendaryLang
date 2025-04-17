@@ -16,5 +16,7 @@ public enum ParseType
     Dot,
     StructPath,
     FunctionCall,
-    Use
+    Use,
+    LessThan,
+    GreaterThan
 }

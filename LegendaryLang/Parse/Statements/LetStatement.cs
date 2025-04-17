@@ -3,7 +3,6 @@ using LegendaryLang.Parse.Expressions;
 
 using LegendaryLang.Semantics;
 using LLVMSharp.Interop;
-using Type = LegendaryLang.Parse.Types.Type;
 
 namespace LegendaryLang.Parse.Statements;
 

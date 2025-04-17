@@ -1,13 +1,15 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Parse;
+using LegendaryLang.Parse.Types;
 using LLVMSharp.Interop;
 
-namespace LegendaryLang.Parse.Types;
+namespace LegendaryLang.ConcreteDefinition;
 
 public abstract class CustomType : Type
 {
+    
 
-
-
+    public ImmutableArray<LangPath> ComposedTypes =>((CustomTypeDefinition) TypeDefinition).ComposedTypes;
     public override void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr)
     {
         for (int i = 0; i < ComposedTypes.Length; i++)
@@ -99,5 +101,7 @@ public abstract class CustomType : Type
         
       
     }
-    public abstract ImmutableArray<LangPath> ComposedTypes { get; }
+    public CustomType(CustomTypeDefinition definition) : base(definition)
+    {
+    }
 }
