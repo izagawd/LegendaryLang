@@ -30,6 +30,7 @@ public class Function : IConcreteDefinition
         for (int i = 0; i < GenericArguments.Length; i++)
         {
             var argument = GenericArguments[i];
+            var kk3 = context.GetRefItemFor(argument);
             var kk = (context.GetRefItemFor(argument) as TypeRefItem);
             context.AddToDeepestScope(new NormalLangPath(null,
                 [Definition.GenericParameters[i].Name]) , new TypeRefItem()

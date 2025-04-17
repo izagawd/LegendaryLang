@@ -14,7 +14,7 @@ public class StructTypeDefinition : CustomTypeDefinition
 
 
 
-
+    
 
 
 
@@ -138,10 +138,7 @@ public class StructTypeDefinition : CustomTypeDefinition
     }
 
     public override ImmutableArray<LangPath> ComposedTypes => Fields.Select(i => i.TypePath).ToImmutableArray();
-    public IConcreteDefinition Monomorphize(CodeGenContext context)
-    {
-        throw new NotImplementedException();
-    }
+    
 
     public ImmutableArray<GenericParameter> GenericParameters { get; init; }
 }
