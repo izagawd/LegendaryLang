@@ -1,6 +1,7 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Parse;
 
-namespace LegendaryLang.Parse;
+namespace LegendaryLang.Definitions;
 
 public interface IMonomorphizable : IDefinition
 {

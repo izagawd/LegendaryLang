@@ -1,7 +1,8 @@
 ﻿using System.Collections.Immutable;
 using System.Text.RegularExpressions;
+using LegendaryLang.Definitions;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex.Tokens;
-using LegendaryLang.Parse.Types;
 using File = LegendaryLang.Lex.File;
 
 namespace LegendaryLang.Parse;

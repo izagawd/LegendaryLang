@@ -1,4 +1,6 @@
-﻿namespace LegendaryLang.Parse;
+﻿using LegendaryLang.Parse;
+
+namespace LegendaryLang.Definitions;
 
 
 

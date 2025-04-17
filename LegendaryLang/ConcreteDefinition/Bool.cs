@@ -1,4 +1,4 @@
-﻿using LegendaryLang.Parse.Types;
+﻿using LegendaryLang.Definitions.Types;
 using LLVMSharp.Interop;
 
 namespace LegendaryLang.ConcreteDefinition;

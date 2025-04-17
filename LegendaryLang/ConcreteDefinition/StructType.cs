@@ -1,6 +1,6 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Parse;
-using LegendaryLang.Parse.Types;
 using LLVMSharp.Interop;
 
 namespace LegendaryLang.ConcreteDefinition;

@@ -1,7 +1,8 @@
-﻿using LegendaryLang.Lex;
+﻿using LegendaryLang.Definitions;
+using LegendaryLang.Definitions.Types;
+using LegendaryLang.Lex;
 using LegendaryLang.Parse;
 using LegendaryLang.Parse.Statements;
-using LegendaryLang.Parse.Types;
 using LegendaryLang.Semantics;
 using File = System.IO.File;
 

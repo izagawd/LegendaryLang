@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Parse;
-using LegendaryLang.Parse.Types;
 
 namespace LegendaryLang;
 

@@ -1,7 +1,7 @@
 ﻿using System.Collections.Immutable;
-using LLVMSharp.Interop;
+using LegendaryLang.Parse;
 
-namespace LegendaryLang.Parse.Types;
+namespace LegendaryLang.Definitions.Types;
 
 public abstract class CustomTypeDefinition : TypeDefinition
 {

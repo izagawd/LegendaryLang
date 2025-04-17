@@ -1,5 +1,5 @@
-﻿using LegendaryLang.Parse;
-using LegendaryLang.Parse.Types;
+﻿using LegendaryLang.Definitions.Types;
+using LegendaryLang.Parse;
 using LLVMSharp.Interop;
 
 namespace LegendaryLang.ConcreteDefinition;

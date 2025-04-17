@@ -1,9 +1,9 @@
 ﻿
 using System.Runtime.InteropServices;
 using LegendaryLang.ConcreteDefinition;
+using LegendaryLang.Definitions;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Parse;
-
-using LegendaryLang.Parse.Types;
 using LLVMSharp.Interop;
 using Type = System.Type;
 

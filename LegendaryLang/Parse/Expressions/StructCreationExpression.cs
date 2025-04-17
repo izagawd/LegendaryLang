@@ -1,7 +1,5 @@
 ﻿using System.Collections.Immutable;
 using LegendaryLang.Lex.Tokens;
-
-using LegendaryLang.Parse.Types;
 using LegendaryLang.Semantics;
 using LLVMSharp;
 using LLVMSharp.Interop;

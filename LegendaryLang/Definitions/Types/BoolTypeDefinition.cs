@@ -1,11 +1,10 @@
 ﻿using System.Collections.Immutable;
 using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Lex.Tokens;
+using LegendaryLang.Parse;
 using LegendaryLang.Semantics;
-using LLVMSharp.Interop;
-using Type = System.Type;
 
-namespace LegendaryLang.Parse.Types;
+namespace LegendaryLang.Definitions.Types;
 
 public class BoolTypeDefinition : PrimitiveTypeDefinition
 {

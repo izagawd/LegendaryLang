@@ -1,8 +1,6 @@
 ﻿using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Statements;
-
-using LegendaryLang.Parse.Types;
 using LegendaryLang.Semantics;
 using LLVMSharp.Interop;
 

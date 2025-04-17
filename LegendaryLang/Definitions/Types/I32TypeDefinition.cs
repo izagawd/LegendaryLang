@@ -1,12 +1,11 @@
 ﻿using System.Collections.Immutable;
 using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Lex.Tokens;
-
+using LegendaryLang.Parse;
 using LegendaryLang.Semantics;
-using LLVMSharp.Interop;
 using Type = LegendaryLang.ConcreteDefinition.Type;
 
-namespace LegendaryLang.Parse.Types;
+namespace LegendaryLang.Definitions.Types;
 
 public abstract class PrimitiveTypeDefinition : TypeDefinition
 {
