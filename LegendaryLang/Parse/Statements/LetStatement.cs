@@ -118,7 +118,7 @@ public class LetStatement : IStatement
     public void Analyze(SemanticAnalyzer analyzer)
     {
         EqualsTo?.Analyze(analyzer);
-        VariableDefinition.TypePath?.LoadAsShortCutIfPossible(analyzer);
+       VariableDefinition.TypePath =  VariableDefinition.TypePath?.GetAsShortCutIfPossible(analyzer);
         if (TypePath is null)
         {
       
@@ -145,7 +145,7 @@ public class LetStatement : IStatement
         }
 
         ArgumentNullException.ThrowIfNull(TypePath);
-        TypePath.LoadAsShortCutIfPossible(analyzer);
+        TypePath = TypePath.GetAsShortCutIfPossible(analyzer);
         
     }
 }

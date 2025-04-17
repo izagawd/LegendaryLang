@@ -1,5 +1,6 @@
 ﻿using LegendaryLang.Parse;
 using NUnit.Framework;
+// ReSharper disable EqualExpressionComparison
 
 namespace Tests;
 
@@ -39,7 +40,7 @@ public class LangPathTests
                           != new NormalLangPath(null,["hello",
                               new NormalLangPath.GenericTypesPathSegment([new NormalLangPath(null,
                                   ["dd"])])
-                              , "world"]),"");
+                              , "world"]));
         Assert.That(      new NormalLangPath(null, ["hello", 
                               new NormalLangPath.GenericTypesPathSegment(
                        [
@@ -50,7 +51,7 @@ public class LangPathTests
                               new NormalLangPath.GenericTypesPathSegment(
                               [new NormalLangPath(null,
                                   ["d"])])
-                              , "world"]),"");
+                              , "world"]));
     }
 
 

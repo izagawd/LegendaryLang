@@ -1,4 +1,5 @@
-﻿struct Human{
-    age: std::primitive::i32,
+﻿use std::primitive::i32;
+struct Human{
+    age: i32,
 
 }

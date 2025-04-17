@@ -11,7 +11,7 @@ fn hello<T,U>(dd: T) -> T{
         code::bruh::<T,U>(dd)
     }
 fn main() -> i32{
-    code::hello::<std::primitive::i32, std::primitive::i32>(100)
+    code::hello::<i32, i32>(100)
 
 }
 

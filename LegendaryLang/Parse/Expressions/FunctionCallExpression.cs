@@ -43,7 +43,7 @@ public class FunctionCallExpression : IExpression
         }
     }
 
-    public NormalLangPath FunctionPath { get; }
+    public NormalLangPath FunctionPath { get; set; }
     public FunctionCallExpression(NormalLangPath path, IEnumerable<IExpression> arguments)
     {
         Arguments = arguments.ToImmutableArray();
@@ -52,7 +52,7 @@ public class FunctionCallExpression : IExpression
     public Token LookUpToken { get; }
     public void Analyze(SemanticAnalyzer analyzer)
     {
-
+        FunctionPath=(NormalLangPath) FunctionPath.GetAsShortCutIfPossible(analyzer);
         foreach (var i in Arguments)
         {
             i.Analyze(analyzer);

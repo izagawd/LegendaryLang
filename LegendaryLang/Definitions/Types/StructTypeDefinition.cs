@@ -23,17 +23,20 @@ public class StructTypeDefinition : CustomTypeDefinition
 
     public override void Analyze(SemanticAnalyzer analyzer)
     {
-        foreach (var i in ComposedTypes)
+        var list = new List<VariableDefinition>();
+        foreach (var i in Fields)
         {
-            i.LoadAsShortCutIfPossible(analyzer);
+            list.Add(new VariableDefinition(i.IdentifierToken, i.TypePath.GetAsShortCutIfPossible(analyzer) ));
         }
+
+        Fields = list.ToImmutableArray();
     }
 
 
     public Token Token => StructToken;
 
     public StructToken StructToken { get; }
-    public readonly ImmutableArray<VariableDefinition> Fields;
+    public  ImmutableArray<VariableDefinition> Fields { get; protected set; }
 
     public static StructTypeDefinition Parse(Parser parser)
     {

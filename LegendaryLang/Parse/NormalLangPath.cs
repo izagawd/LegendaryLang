@@ -33,9 +33,31 @@ public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
         }
         return new NormalLangPath(FirstIdentifierToken,newSegments);
     }
-    public override void LoadAsShortCutIfPossible(SemanticAnalyzer analyzer)
+    public override LangPath GetAsShortCutIfPossible(SemanticAnalyzer analyzer)
     {
-        
+      IEnumerable<PathSegment>? toWorkWith =  analyzer.GetFullPathOfShortcut(PathSegments.First().ToString())?.PathSegments;
+      if (toWorkWith is null)
+      {
+          toWorkWith = this.PathSegments;
+      }
+      else
+      {
+          toWorkWith = toWorkWith.Concat(PathSegments.Skip(1));
+      }
+      var newSegments = new List<PathSegment>();
+      foreach (var i in toWorkWith)
+      {
+          if (i is GenericTypesPathSegment genericTypesPathSegment)
+          {
+              var shortcutted = genericTypesPathSegment.TypePaths.Select(j => j.GetAsShortCutIfPossible(analyzer));
+              newSegments.Add(new GenericTypesPathSegment(shortcutted));
+          }
+          else
+          {
+              newSegments.Add(i);
+          }
+      }
+      return new NormalLangPath(FirstIdentifierToken, newSegments);
     }
 
     public PathSegment GetLastPathSegment()

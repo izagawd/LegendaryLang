@@ -1,4 +1,4 @@
 ﻿use code::Human;
 struct Nester{
-    humanNested : code::Human
+    humanNested : Human
 }

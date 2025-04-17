@@ -85,11 +85,13 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
     public void Analyze(SemanticAnalyzer analyzer)
     {
 
-        ReturnTypePath.LoadAsShortCutIfPossible(analyzer);
+        ReturnTypePath = ReturnTypePath.GetAsShortCutIfPossible(analyzer);
         foreach (var i in Arguments)
         {
-            i.TypePath?.LoadAsShortCutIfPossible(analyzer);
+           i.TypePath = i.TypePath?.GetAsShortCutIfPossible(analyzer);
         }
+
+ 
         foreach (var i in BlockExpression.SyntaxNodes)
         {
             i.Analyze(analyzer);
@@ -98,7 +100,7 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
     public BlockExpression BlockExpression { get; }
     public readonly ImmutableArray<VariableDefinition> Arguments;
     public string Name { get; }
-    public LangPath ReturnTypePath { get; }
+    public LangPath ReturnTypePath { get; protected set; }
 
     public FunctionDefinition(string name, IEnumerable<VariableDefinition> variables, LangPath returnTypePath, BlockExpression blockExpression, NormalLangPath module, IEnumerable<GenericParameter> genericParameters, Token? lookUpToken = null)
     {

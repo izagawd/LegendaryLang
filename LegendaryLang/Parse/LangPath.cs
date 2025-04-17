@@ -46,27 +46,28 @@ public class TupleLangPath : LangPath
         TypePaths = paths.ToImmutableArray();
     }
 
-    
 
-    public override void LoadAsShortCutIfPossible(SemanticAnalyzer analyzer)
+
+    public override LangPath GetAsShortCutIfPossible(SemanticAnalyzer analyzer)
     {
-        foreach (var i in TypePaths)
-        {
-            i.LoadAsShortCutIfPossible(analyzer);
-        }
+        return new TupleLangPath(TypePaths.Select(i => i.GetAsShortCutIfPossible(analyzer)));
+     
     }
 }
 
 
 public abstract class LangPath
 {
-
+    public static implicit operator LangPath(ImmutableArray<NormalLangPath.PathSegment> segments)
+    {
+        return new NormalLangPath(null,segments);
+    }
     /// <summary>
     /// MAKES THE COMPILER understand that the i32 is actually 'std::primitive::i32' if
     /// use std::primitive::i32;
-    /// is declared
+    /// is declared. provide it with i32, and its should return std::primitive::i32
     /// </summary>
-    public abstract void LoadAsShortCutIfPossible(SemanticAnalyzer analyzer);
+    public abstract LangPath GetAsShortCutIfPossible(SemanticAnalyzer analyzer);
     public static NormalLangPath PrimitivePath = new NormalLangPath(null,["std", "primitive"]);
     public static TupleLangPath VoidBaseLangPath { get; } = new TupleLangPath([]);
     public static bool operator ==(LangPath path1, LangPath path2)
