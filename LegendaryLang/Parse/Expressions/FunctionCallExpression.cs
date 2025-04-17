@@ -73,8 +73,8 @@ public class FunctionCallExpression : IExpression
                     return gened.Type.LoadValueForRetOrArg(codeGenContext,gened);
                 }).ToArray()
             );
-        var bro = codeGenContext.GetRefItemFor(zaPath.Function.ReturnType);
-        var returnType = (codeGenContext.GetRefItemFor(zaPath.Function.ReturnType) as TypeRefItem).Type;
+
+        var returnType = zaPath.Function.ReturnType;
         LLVMValueRef stackPtr= returnType.AssignToStack(codeGenContext,new VariableRefItem()
         {
                 Type = returnType,

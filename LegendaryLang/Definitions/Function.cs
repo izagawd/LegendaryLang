@@ -3,6 +3,7 @@ using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Expressions;
 using LegendaryLang.Semantics;
 using LLVMSharp.Interop;
+using Type = LegendaryLang.ConcreteDefinition.Type;
 
 namespace LegendaryLang.Parse;
 
@@ -10,7 +11,7 @@ public class Function : IConcreteDefinition
 {
     public FunctionDefinition Definition { get; }
     IDefinition? IConcreteDefinition.Definition => Definition;
-    public LangPath ReturnType { get; set; }
+    public Type ReturnType { get; set; }
 
     public ImmutableArray<Variable> Arguments { get; set; }
     
@@ -103,7 +104,7 @@ public class Function : IConcreteDefinition
         
         
         // sets return type post monomorphization (eg converting T to i32)
-        ReturnType = blockValue.Type.TypePath;
+        ReturnType = blockValue.Type;
         var returnVal = LLVM.BuildRet(context.Builder, blockValue.LoadValForRetOrArg(context));
         
 
