@@ -8,8 +8,9 @@ using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse;
 
-public class  Function: ITopLevel, IDefinition
+public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizableDefinition
 {
+    public ImmutableArray<GenericParameter> GenericParameters {get; }
     public NormalLangPath Module { get; }
     public bool HasBeenGened { get; set; }
 
@@ -41,7 +42,7 @@ public class  Function: ITopLevel, IDefinition
             LLVM.PositionBuilderAtEnd(context.Builder, entryBlock);
             context.AddToDeepestScope(new NormalLangPath(null,[Name]), new FunctionRefItem()
             {
-                Function = this,
+                FunctionDefinition = this,
             });
        
             context.AddScope();
@@ -110,7 +111,7 @@ public class  Function: ITopLevel, IDefinition
     public string Name { get; }
     public LangPath ReturnType { get; }
 
-    public Function(string name, IEnumerable<Variable> variables, LangPath returnType, BlockExpression blockExpression, NormalLangPath module, Token? lookUpToken = null)
+    public FunctionDefinition(string name, IEnumerable<Variable> variables, LangPath returnType, BlockExpression blockExpression, NormalLangPath module, IEnumerable<GenericParameter> genericParameters, Token? lookUpToken = null)
     {
         Arguments = variables.ToImmutableArray();
         Name = name;
@@ -118,9 +119,10 @@ public class  Function: ITopLevel, IDefinition
         BlockExpression = blockExpression;
         LookUpToken = lookUpToken;
         Module = module;
+        GenericParameters = genericParameters.ToImmutableArray();
     }
 
-    public static Function Parse(Parser parser)
+    public static FunctionDefinition Parse(Parser parser)
     {
         var token = parser.Pop();
         var variables = new List<Variable>();
@@ -154,7 +156,7 @@ public class  Function: ITopLevel, IDefinition
                 parser.Pop();
                 returnTyp = LangPath.Parse(parser);
             }
-            return new Function(name, variables,returnTyp,Expressions.BlockExpression.Parse(parser),parser.File.Module);
+            return new FunctionDefinition(name, variables,returnTyp,Expressions.BlockExpression.Parse(parser),parser.File.Module, []);
         } else
         {
             throw new ExpectedParserException(parser,(ParseType.Fn), token);

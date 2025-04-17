@@ -48,7 +48,7 @@ public class Compiler
         var mainFile = parseResults.First(i => i.File!.Path == $"{codeDirectory}\\main.{extension}");
 
         new SemanticAnalyzer(parseResults).Analyze();
-        var mainFn = mainFile.TopLevels.OfType<Function>().FirstOrDefault(i => i.Name == "main");
+        var mainFn = mainFile.TopLevels.OfType<FunctionDefinition>().FirstOrDefault(i => i.Name == "main");
         if (mainFn == null)
         {
             Console.WriteLine($"'fn main' function not found in {mainFileDir}!!!");

@@ -14,13 +14,23 @@ public class UseDefinition : ITopLevel
             throw new ExpectedParserException(parser, [ParseType.Use], usin);
         }
         var path = NormalLangPath.Parse(parser);
+        if (path is not NormalLangPath normalPath)
+        {
+            throw new Exception("d");
+        }
+
+        if (normalPath.PathSegments.Any(i => i is NormalLangPath.GenericTypesPathSegment))
+        {
+            throw new Exception("d");
+        }
+        
         SemiColon.Parse(parser);
-        return new UseDefinition(path, useToken);
+        return new UseDefinition(normalPath, useToken);
     }
     public NormalLangPath PathToUse { get; }
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        analyzer.AddToDeepestScope(PathToUse.Path.Last(),PathToUse);
+        analyzer.AddToDeepestScope(PathToUse.PathSegments.Last(),PathToUse);
     }
 
     

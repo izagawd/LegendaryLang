@@ -26,6 +26,8 @@ public class TupleLangPath : LangPath
 
     public ImmutableArray<LangPath> TypePaths { get; }
 
+
+
     public override bool Equals(object? obj)
     {
         if (obj is TupleLangPath tupleLangPath)
@@ -35,103 +37,28 @@ public class TupleLangPath : LangPath
         return false;
     }
 
-    public TupleLangPath(IEnumerable<LangPath> paths)
+    public TupleLangPath(IEnumerable<LangPath> paths, IdentifierToken? firstIdentifierToken = null)
     {
+        FirstIdentifierToken = firstIdentifierToken;
         TypePaths = paths.ToImmutableArray();
-    }
-}
-
-public struct PathSegment
-{
-    public string Text;
-
-    public override string ToString()
-    {
-        return Text;
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return obj is PathSegment segment && Text == segment.Text;
-    }
-
-    public override int GetHashCode()
-    {
-        return Text.GetHashCode();
-    }
-
-    public PathSegment(string text)
-    {
-        Text = text;
-    }
-    // Implicit conversion from string to PathSegment
-    public static implicit operator PathSegment(string text)
-    {
-        return new PathSegment(text);
-    }
-
-    // Optional: implicit conversion back to string
-    public static implicit operator string(PathSegment segment)
-    {
-        return segment.Text;
-    }
-}
-public class NormalLangPath: LangPath
-{
-    public ImmutableArray<PathSegment> Path { get; private set; }
-
-    public NormalLangPath Append(params PathSegment[] paths)
-    {
-        var toList = Path.ToList();
-        toList.AddRange(paths);
-        return new NormalLangPath(FirstIdentifierToken, toList);
-    }
-
-    public override string ToString()
-    {
-        return string.Join("::", Path);
-    }
-
-
-
-
-    public NormalLangPath(IdentifierToken? firstIdentToken, IEnumerable<PathSegment> ident)
-    {
-        Path = ident.ToImmutableArray();
-        FirstIdentifierToken = firstIdentToken;
     }
 
     public override void LoadAsShortCutIfPossible(SemanticAnalyzer analyzer)
     {
-
-        var full = analyzer.GetFullPathOfShortcut(Path.First());
-        if (full is not null)
+        foreach (var i in TypePaths)
         {
-            foreach (var i in Path.Skip(1))
-            {
-                full = full.Append(i);
-            }
-
-            this.Path = full.Path.ToImmutableArray();
+            i.LoadAsShortCutIfPossible(analyzer);
         }
-
-    }
-
-    public override bool Equals(object? obj)
-    {
-        if (obj is NormalLangPath path)
-        {
-            return Path.SequenceEqual(path.Path);
-        }
-        return false;
     }
 }
+
+
 public abstract class LangPath
 {
     /// <summary>
     /// MAKES THE COMPILER understand that the i32 is actually 'std::primitive::i32' if the using is declared
     /// </summary>
-    public virtual void LoadAsShortCutIfPossible(SemanticAnalyzer analyzer){}
+    public abstract void LoadAsShortCutIfPossible(SemanticAnalyzer analyzer);
     public static NormalLangPath PrimitivePath = new NormalLangPath(null,["std", "primitive"]);
     public static TupleLangPath VoidBaseLangPath { get; } = new TupleLangPath([]);
     public static bool operator ==(LangPath path1, LangPath path2)
@@ -159,8 +86,30 @@ public abstract class LangPath
         return GetType().GetHashCode();
     }
 
-    public static  NormalLangPath  Parse(Parser parser)
+    public static  LangPath  Parse(Parser parser)
     {
+        var next = parser.Peek();
+        if (next is LeftParenthesisToken)
+        {
+            Parenthesis.ParseLeft(parser);
+            
+            List<LangPath> tuplePaths = new List<LangPath>();
+
+            while (parser.Peek() is not RightParenthesisToken)
+            {
+                tuplePaths.Add(Parse(parser));
+                if (parser.Peek() is CommaToken)
+                {
+                    parser.Pop();
+                }
+                else
+                {
+                    break;
+                }
+            }
+            Parenthesis.ParseRight(parser);
+            return new TupleLangPath(tuplePaths);
+        }
         var firstIdent = Identifier.Parse(parser);
         var idents = new List<IdentifierToken>() { firstIdent };
         while (parser.Peek() is DoubleColonToken)
@@ -169,11 +118,12 @@ public abstract class LangPath
             idents.Add(Identifier.Parse(parser));
         }
 
-        return new NormalLangPath( firstIdent ,idents.Select(i =>(PathSegment) i.Identity))
+        return new NormalLangPath( firstIdent ,idents.Select(i =>(NormalLangPath.PathSegment) i.Identity))
         {
             FirstIdentifierToken = firstIdent
         };
     }
     public  override abstract bool Equals(object? obj);
+    public  override abstract string ToString();
 
 }

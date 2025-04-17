@@ -23,6 +23,20 @@ public class TupleType : CustomType
     {
         OtherTypes = otherTypes.ToImmutableArray();
     }
+
+    public ImmutableArray<GenericParameter> GenericParameters
+    {
+        get
+        {
+            List<GenericParameter> genericParameters = new List<GenericParameter>();
+            for (int i = 0; i < OtherTypes.Length; i++)
+            {
+                genericParameters.Add(new GenericParameter(){Name = i.ToString()});
+            }
+            return genericParameters.ToImmutableArray();
+        }
+    }
+
     public override void CodeGen(CodeGenContext context)
 
     {

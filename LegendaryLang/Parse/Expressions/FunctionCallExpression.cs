@@ -49,7 +49,7 @@ public class FunctionCallExpression : IExpression
     public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         var zaPath = codeGenContext.GetRefItemFor(FunctionPath) as FunctionRefItem;
-        var callResult =  codeGenContext.Builder.BuildCall2(zaPath.Function.FunctionType, zaPath.Function.FunctionValueRef,
+        var callResult =  codeGenContext.Builder.BuildCall2(zaPath.FunctionDefinition.FunctionType, zaPath.FunctionDefinition.FunctionValueRef,
             Arguments.Select(
                 i =>
                 {
@@ -57,7 +57,7 @@ public class FunctionCallExpression : IExpression
                     return gened.Type.LoadValueForRetOrArg(codeGenContext,gened);
                 }).ToArray()
             );
-        var returnType = (codeGenContext.GetRefItemFor(zaPath.Function.ReturnType) as TypeRefItem).Type;
+        var returnType = (codeGenContext.GetRefItemFor(zaPath.FunctionDefinition.ReturnType) as TypeRefItem).Type;
         LLVMValueRef stackPtr= returnType.AssignToStack(codeGenContext,new VariableRefItem()
         {
                 Type = returnType,

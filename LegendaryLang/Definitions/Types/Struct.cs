@@ -6,7 +6,7 @@ using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse.Types;
 
-public class Struct : CustomType
+public class Struct : CustomType, IMonomorphizableDefinition
 {
 
 
@@ -146,4 +146,5 @@ public class Struct : CustomType
     }
 
     public override ImmutableArray<LangPath> ComposedTypes => Fields.Select(i => i.TypePath).ToImmutableArray();
+    public ImmutableArray<GenericParameter> GenericParameters { get; init; }
 }

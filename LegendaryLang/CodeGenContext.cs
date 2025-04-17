@@ -36,7 +36,7 @@ public interface IHasType
 
 public class FunctionRefItem : IRefItem
 {
-    public required  Function Function { get; init; }
+    public required  FunctionDefinition FunctionDefinition { get; init; }
 }
 public class TypeRefItem : IRefItem, IHasType
 {

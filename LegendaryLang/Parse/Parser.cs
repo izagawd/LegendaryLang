@@ -100,7 +100,7 @@ public class Parser
             var gotten = Peek();
             if (gotten is FnToken)
             {
-                topLevels.Add(Function.Parse(this));
+                topLevels.Add(FunctionDefinition.Parse(this));
             } else if (gotten is StructToken)
             {
                 topLevels.Add(Struct.Parse(this));
