@@ -5,6 +5,8 @@ namespace LegendaryLang.Parse;
 
 public interface ISyntaxNode
 {
+
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed();
     public  Token LookUpToken { get; }
     public void Analyze(SemanticAnalyzer analyzer);
 }

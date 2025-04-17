@@ -9,9 +9,10 @@ namespace LegendaryLang.Parse;
 public class Function : IConcreteDefinition
 {
     public FunctionDefinition Definition { get; }
+    IDefinition? IConcreteDefinition.Definition => Definition;
+    public LangPath ReturnType { get; set; }
 
-    public LangPath ReturnType => Definition.ReturnType;
-    public ImmutableArray<Variable> Arguments => Definition.Arguments;
+    public ImmutableArray<Variable> Arguments { get; set; }
     
     public BlockExpression BlockExpression => Definition.BlockExpression;
     public LLVMTypeRef FunctionType {get; set;}
@@ -27,29 +28,25 @@ public class Function : IConcreteDefinition
         for (int i = 0; i < GenericArguments.Length; i++)
         {
             var argument = GenericArguments[i];
+            var kk = (context.GetRefItemFor(argument) as TypeRefItem);
             context.AddToDeepestScope(new NormalLangPath(null,
                 [Definition.GenericParameters[i].Name]) , new TypeRefItem()
             {
-                Type = (context.GetRefItemFor(argument) as TypeRefItem).Type,
+                Type = (context.GetRefItemFor(argument) as TypeRefItem).Type ?? throw new NullReferenceException(),
             });
         }
         FullPath = Module.Append([
             Name, new NormalLangPath.GenericTypesPathSegment(
-                Arguments.Select(i => (context.GetRefItemFor(i.TypePath) as TypeRefItem).Type.TypePath))
+                Definition.Arguments.Select(i => (context.GetRefItemFor(i.TypePath) as TypeRefItem).Type.TypePath))
         ]);
-          
-        context.AddToOuterScope(new NormalLangPath(null,(this as IDefinition).FullPath), new FunctionRefItem()
-        {
-            Function = this,
-        });
 
         // 1. Determine the LLVM return type.
-        LLVMTypeRef llvmReturnType = (context.GetRefItemFor(ReturnType) as TypeRefItem).TypeRef;
+        LLVMTypeRef llvmReturnType = (context.GetRefItemFor(Definition.ReturnType) as TypeRefItem).TypeRef;
         // 2. Gather LLVM types for each parameter.
-        var paramTypes = new LLVMTypeRef[Arguments.Length];
-        for (int i = 0; i < Arguments.Length; i++)
+        var paramTypes = new LLVMTypeRef[Definition.Arguments.Length];
+        for (int i = 0; i < Definition.Arguments.Length; i++)
         {
-            paramTypes[i] = (context.GetRefItemFor(Arguments[i].TypePath) as TypeRefItem).TypeRef;
+            paramTypes[i] = (context.GetRefItemFor(Definition.Arguments[i].TypePath) as TypeRefItem).TypeRef;
         }
 
         LLVMTypeRef functionType;
@@ -66,11 +63,12 @@ public class Function : IConcreteDefinition
         LLVMBasicBlockRef entryBlock = LLVM.AppendBasicBlock(function, "entry".ToCString());
         LLVM.PositionBuilderAtEnd(context.Builder, entryBlock);
 
+        var newArguments = new Variable[Definition.Arguments.Length];
 
         // 6. For each parameter, allocate space and store the parameter into it.
-        for (uint i = 0; i < (uint)Arguments.Length; i++)
+        for (uint i = 0; i < (uint)Definition.Arguments.Length; i++)
         {
-            var argument = Arguments[(int)i];
+            var argument = Definition.Arguments[(int)i];
             var argType = context.GetRefItemFor(argument.TypePath) as TypeRefItem;
             
             // Get the function parameter.
@@ -87,8 +85,8 @@ public class Function : IConcreteDefinition
                 Type = argType.Type,
                 ValueRef = alloca,
             });
-
-            
+            newArguments[(int) i] = new Variable(argument.IdentifierToken, argType.Type.TypePath);
+            argument.TypePath = argType.Type.TypePath;
             // adds the stack ptr to codegen so argument can be referenced by name
             context.AddToDeepestScope(new NormalLangPath(null,[argument.Name]), new VariableRefItem()
             {
@@ -97,12 +95,16 @@ public class Function : IConcreteDefinition
             });
 
         }
+        // sets arguments post monomorphization (eg converting T to i32)
+        Arguments = newArguments.ToImmutableArray(); 
 
-        // 7. Generate code for the function body by codegen'ing the BlockExpression.
         var blockValue = BlockExpression.DataRefCodeGen(context);
-
-
-        LLVM.BuildRet(context.Builder, blockValue.LoadValForRetOrArg(context));
+        
+        // codegenning block may have changed position of builder, this is to readjust it
+        LLVM.PositionBuilderAtEnd(context.Builder, entryBlock);
+        // sets return type post monomorphization (eg converting T to i32)
+        ReturnType = blockValue.Type.TypePath;
+        var returnVal = LLVM.BuildRet(context.Builder, blockValue.LoadValForRetOrArg(context));
         
 
         context.PopScope();
@@ -116,6 +118,11 @@ public class Function : IConcreteDefinition
 
 
     public ImmutableArray<LangPath> GenericArguments { get; }
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return BlockExpression.GetAllFunctionsUsed();
+    }
+
     public Token? LookUpToken => Definition.LookUpToken;
     public void Analyze(SemanticAnalyzer analyzer)
     {

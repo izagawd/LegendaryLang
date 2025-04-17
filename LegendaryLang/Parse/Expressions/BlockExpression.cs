@@ -10,6 +10,12 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class BlockExpression : IExpression, IStatement
 {
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+
+        return SyntaxNodes.SelectMany(i => i.GetAllFunctionsUsed());
+   
+    }
     public bool MustReturn { get; }
     public LeftCurlyBraceToken LeftCurlyBraceToken { get; }
     public RightCurlyBraceToken RightCurlyBraceToken { get; }

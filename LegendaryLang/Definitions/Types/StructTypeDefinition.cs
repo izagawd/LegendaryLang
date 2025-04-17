@@ -107,15 +107,10 @@ public class StructTypeDefinition : CustomTypeDefinition
         throw new FieldNotFoundException(fieldName, this);
     }
 
-    public override Type? Monomorphize(CodeGenContext context, LangPath langPath)
+
+    public override Type GenerateIncompleteMono(CodeGenContext context, LangPath langPath)
     {
-        if (GetGenericArguments(langPath) is not null)
-        {
-            var str = new StructType(this);
-            str.CodeGen(context);
-                return str;
-        }
-        return null;
+        return new StructType(this);
     }
 
     public override ImmutableArray<LangPath>? GetGenericArguments(LangPath langPath)

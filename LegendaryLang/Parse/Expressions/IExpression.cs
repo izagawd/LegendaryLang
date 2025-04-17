@@ -9,6 +9,8 @@ namespace LegendaryLang.Parse.Expressions;
 
 public interface IExpression : ISyntaxNode
 {
+
+
     /// <summary>
     /// SHOULD ONLY BE CALLED ONCE PER OBJECT
     /// </summary>
@@ -184,6 +186,11 @@ public class BracketExpression : IExpression
         Expression = expression;
     }
 
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return Expression.GetAllFunctionsUsed();
+    }
+
     public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         return Expression.DataRefCodeGen(codeGenContext);
@@ -213,6 +220,11 @@ public class BinaryOperationExpression : IExpression
         OperatorToken = @operatorToken;
     }
 
+
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return Left.GetAllFunctionsUsed().Union(Right.GetAllFunctionsUsed());
+    }
 
     public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {

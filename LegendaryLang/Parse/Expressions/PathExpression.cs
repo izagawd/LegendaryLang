@@ -8,12 +8,17 @@ namespace LegendaryLang.Parse.Expressions;
 public class PathExpression : IExpression
 {
  
-    public LangPath Path { get; }
+    public LangPath Path { get; set; }
 
     public PathExpression(LangPath path)
     {
      
         Path = path;
+    }
+
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return [];
     }
 
     /// <summary>
@@ -23,11 +28,20 @@ public class PathExpression : IExpression
     public unsafe VariableRefItem DataRefCodeGen(CodeGenContext context)
     {
 
+        var gottenRefItem = context.GetRefItemFor(Path);
+        if (gottenRefItem is TypeRefItem typeRefItem)
+        {
+            Path = typeRefItem.Type.TypePath;
+        } else if (gottenRefItem is FunctionRefItem variableRefItem)
+        {
+            Path = variableRefItem.Function.FullPath;
+        }
         if (TypePath is null)
         {
       
             TypePath = (context.GetRefItemFor(Path) as IHasType).Type.TypePath;
         }
+        
         string pathSuffix = Path.ToString();
         uint* major = null;
         uint* other = null;

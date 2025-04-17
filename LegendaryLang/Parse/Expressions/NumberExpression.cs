@@ -22,6 +22,11 @@ public class NumberExpression : IExpression
         return new NumberExpression(NumberExpression.ParseToken(parser));
     }
     public NumberToken Token { get; }
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return [];
+    }
+
     public unsafe VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         return new VariableRefItem()

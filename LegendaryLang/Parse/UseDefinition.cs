@@ -43,7 +43,12 @@ public class UseDefinition : ITopLevel
         Token = token;
 
     }
-  
+
+
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return [];
+    }
 
     public Token LookUpToken => Token;
 

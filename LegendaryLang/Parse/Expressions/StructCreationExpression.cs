@@ -84,6 +84,16 @@ public class StructCreationExpression : IExpression
         
     }
     private VariableRefItem? GeneratedDataRef { get; set; }
+    public IEnumerable<LangPath> GetAllTypesUsed(MonomorphizationHelper helper)
+    {
+        throw new NotImplementedException();
+    }
+
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return AssignFields.SelectMany(i => i.EqualsTo?.GetAllFunctionsUsed());
+    }
+
     public unsafe VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
 

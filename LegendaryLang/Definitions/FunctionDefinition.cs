@@ -62,7 +62,6 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
             return null;
         }
         var func =new Function(this,genericArguments.Value);
-        func.CodeGen(codeGenContext);
         return func;
 
     }
@@ -74,6 +73,11 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
 
 
     public int Priority => 3;
+
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return BlockExpression.GetAllFunctionsUsed();
+    }
 
     public Token? LookUpToken {get; }
     

@@ -8,5 +8,6 @@
 /// </summary>
 public interface IConcreteDefinition : IDefinition
 {
+    public IDefinition? Definition { get; }
     public void CodeGen(CodeGenContext context);
 }

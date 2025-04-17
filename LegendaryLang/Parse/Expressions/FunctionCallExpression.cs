@@ -8,6 +8,11 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class FunctionCallExpression : IExpression
 {
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return [FunctionPath];
+    }
+
     public ImmutableArray<IExpression> Arguments { get; }
     public static FunctionCallExpression ParseFunctionCallExpression(Parser parser,
         NormalLangPath normalLangPath)
@@ -30,6 +35,14 @@ public class FunctionCallExpression : IExpression
         return new FunctionCallExpression(normalLangPath, expressions);
     }
 
+    public ImmutableArray<LangPath> GenericArguments
+    {
+        get
+        {
+            return (FunctionPath?.GetLastPathSegment() as NormalLangPath.GenericTypesPathSegment)?.TypePaths ?? [];
+        }
+    }
+
     public NormalLangPath FunctionPath { get; }
     public FunctionCallExpression(NormalLangPath path, IEnumerable<IExpression> arguments)
     {
@@ -48,7 +61,9 @@ public class FunctionCallExpression : IExpression
 
     public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
-        var kk = codeGenContext.GetRefItemFor(FunctionPath);
+
+
+ 
         var zaPath = codeGenContext.GetRefItemFor(FunctionPath) as FunctionRefItem;
         var callResult =  codeGenContext.Builder.BuildCall2(zaPath.Function.FunctionType, zaPath.Function.FunctionValueRef,
             Arguments.Select(
@@ -58,6 +73,7 @@ public class FunctionCallExpression : IExpression
                     return gened.Type.LoadValueForRetOrArg(codeGenContext,gened);
                 }).ToArray()
             );
+        var bro = codeGenContext.GetRefItemFor(zaPath.Function.ReturnType);
         var returnType = (codeGenContext.GetRefItemFor(zaPath.Function.ReturnType) as TypeRefItem).Type;
         LLVMValueRef stackPtr= returnType.AssignToStack(codeGenContext,new VariableRefItem()
         {

@@ -1,8 +1,10 @@
 ﻿using System.Collections.Immutable;
+using System.Reflection.Metadata;
 using LegendaryLang.Lex.Tokens;
 
 using LegendaryLang.Semantics;
 using LLVMSharp.Interop;
+using Type = LegendaryLang.ConcreteDefinition.Type;
 
 namespace LegendaryLang.Parse.Types;
 
@@ -14,8 +16,19 @@ public abstract class TypeDefinition : ITopLevel, IDefinition, IMonomorphizable
     /// <param name="context"></param>
     /// <param name="langPath"></param>
     /// <returns></returns>
-    public abstract ConcreteDefinition. Type? Monomorphize(CodeGenContext context, LangPath langPath);
+    public  Type? Monomorphize(CodeGenContext context, LangPath langPath)
+    {
+        if (GetGenericArguments(langPath) is not null)
+        {
 
+   
+            var str = GenerateIncompleteMono(context, langPath);
+   
+            return str;
+        }
+        return null;
+    }
+    public abstract Type GenerateIncompleteMono(CodeGenContext context, LangPath langPath);
     IConcreteDefinition? IMonomorphizable.Monomorphize(CodeGenContext context, LangPath langPath)
     {
         return Monomorphize(context, langPath);
@@ -36,6 +49,11 @@ public abstract class TypeDefinition : ITopLevel, IDefinition, IMonomorphizable
     public abstract NormalLangPath Module { get; }
     public bool HasBeenGened { get; set; } = false;
     public abstract LangPath TypePath { get; }
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return [];
+    }
+
     public abstract Token LookUpToken { get; }
 
 

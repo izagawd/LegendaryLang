@@ -40,11 +40,17 @@ public class FieldAccessExpression : IExpression
         Caller.Analyze(analyzer);
     }
 
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return Caller.GetAllFunctionsUsed();
+    }
+
     /// <summary>
     /// Returns the pointer to the accessed field
     /// </summary>
     public unsafe VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
+        
  
             var variableRef = Caller.DataRefCodeGen(codeGenContext);
             

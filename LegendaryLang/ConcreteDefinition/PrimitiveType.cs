@@ -50,11 +50,7 @@ public abstract class PrimitiveType : Type
 
     public override void CodeGen(CodeGenContext context)
     {
-        context.AddToDeepestScope(TypePath,new TypeRefItem()
-        {
-            Type = this,
 
-        });
     }
     
 

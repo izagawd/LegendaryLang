@@ -5,6 +5,7 @@ using LegendaryLang.Parse;
 
 using LegendaryLang.Parse.Types;
 using LLVMSharp.Interop;
+using Type = System.Type;
 
 namespace LegendaryLang;
 
@@ -29,6 +30,35 @@ public abstract class IRefItem
     
 }
 
+public class MonomorphizationHelper
+{
+    public Stack<IDictionary<LangPath, LangPath>> MonomorphizationStack { get; set; } = [];
+
+    public void PopStack()
+    {
+         MonomorphizationStack.Pop();
+    }
+
+    public LangPath? Get(LangPath langPath)
+    {
+        foreach (var i in MonomorphizationStack)
+        {
+            if (i.TryGetValue(langPath, out var value))
+            {
+                return value;
+            }
+        }
+        return null;
+    }
+    public void AddToDeepestStack(LangPath langPath, LangPath refItem)
+    {
+        MonomorphizationStack.First().Add(langPath, refItem);
+    }
+    public void PushStack()
+    {
+        MonomorphizationStack.Push(new Dictionary<LangPath, LangPath>());
+    }
+}
 public interface IHasType
 {
     ConcreteDefinition.Type Type { get; }
@@ -103,11 +133,35 @@ public class CodeGenContext
     }
     private Stack<Dictionary<LangPath, IRefItem>> ScopeItems = new();
 
-
-    
-
-    public IRefItem? GetRefItemFor(LangPath ident)
+    public int GetScope(IDefinition definition)
     {
+        return 0;
+    }
+
+
+
+    public bool HasIdent(LangPath langPath)
+    {
+          
+        foreach (var scope in ScopeItems)
+        {
+            if (scope.TryGetValue(langPath, out var symbol))
+            {
+
+                return true;
+
+
+            }
+        }
+        return false;
+    }
+    public IRefItem? GetRefItemFor(LangPath ident, bool monomorphizePath = true)
+    {
+        if (monomorphizePath)
+        {
+            ident = (ident as NormalLangPath)?.PostMonomorphize(this) ?? ident;
+        }
+  
         foreach (var scope in ScopeItems)
         {
             if (scope.TryGetValue(ident, out var symbol))
@@ -119,7 +173,6 @@ public class CodeGenContext
             }
         }
 
-
         {
             var first = definitionsList.OfType<IMonomorphizable>().FirstOrDefault(i =>
             {
@@ -129,10 +182,33 @@ public class CodeGenContext
             // generate and store the type if not already, and it is defined
             if (first != null)
             {
-                first.Monomorphize(this,ident);
+                var monod =first.Monomorphize(this,ident);
+                if (monod is Function function)
+                {
+                    AddToScope(ident, new FunctionRefItem()
+                    {
+                        Function = function,
+                    },GetScope(function.Definition));
+                } else if (monod is ConcreteDefinition.Type type)
+                {
+                    AddToScope(ident, new TypeRefItem()
+                    {
+                        Type = type,
+                    },GetScope(type.TypeDefinition));
+                }
+                
+                // codegen may change the insert block. this is to preserve and set it back
+                var prevBuilder = Builder.InsertBlock;
+                monod.CodeGen(this);
+                unsafe
+                {
+                    LLVM.PositionBuilderAtEnd(Builder, prevBuilder);
+                }
+
                 return GetRefItemFor(ident);
             }
         }
+
         {
             
             if (ident is TupleLangPath tuplePath)
@@ -151,7 +227,14 @@ public class CodeGenContext
 
                 }
                 var tuple = new TupleType(types);
+                // codegen may change the insert block. this is to preserve and set it back
+                var prevBuilder = Builder.InsertBlock;
                 CodeGen(tuple);
+                unsafe
+                {
+                    LLVM.PositionBuilderAtEnd(Builder, prevBuilder);
+                }
+            
                 return GetRefItemFor(ident);
             }
 
@@ -249,6 +332,8 @@ public class CodeGenContext
             Type =emptyTuple
         };
     }
+
+
     public List<IDefinition> definitionsList { get; } = new List<IDefinition>();
     
     public CodeGenContext(IEnumerable<IDefinition> definitions, NormalLangPath mainLangModule)
@@ -257,6 +342,65 @@ public class CodeGenContext
         definitionsList = definitions.ToList();
     }
 
+   
+    public IEnumerable<NormalLangPath> MonomorphizeFunctions(Function function)
+    {
+
+  
+        var used = function.GetAllFunctionsUsed();
+        foreach (var i in used.ToArray())
+        {
+            var definition =definitionsList.OfType<FunctionDefinition>().First(j =>  (j as IDefinition).FullPath.Contains(i.PopGenerics()));
+            var monomorphized =  definition.Monomorphize(this, i);
+           MonomorphizeFunctions(monomorphized);
+        }
+        return used;
+    }
+    public IEnumerable<NormalLangPath> MonomorphizeFunctions(FunctionDefinition function)
+    {
+
+
+        var used = function.GetAllFunctionsUsed().ToArray();
+        foreach (var i in used.ToArray())
+        {
+
+            var definition =definitionsList.OfType<FunctionDefinition>().First(j =>  (j as IDefinition).FullPath.Contains(i.PopGenerics()));
+            var monomorphized =  definition.Monomorphize(this, i);
+            monomorphized.CodeGen(this);
+            AddToDeepestScope(monomorphized.FullPath, new FunctionRefItem()
+            {
+                Function = monomorphized,
+            });
+            monomorphized.CodeGen(this);
+            MonomorphizeFunctions(monomorphized);
+        }
+
+
+        return used;
+    }
+
+    
+    void MonoTypes()
+    {
+        var added = new List<IConcreteDefinition>();
+        foreach (var i in definitionsList.OfType<TypeDefinition>())
+        {
+
+            var monod = i.Monomorphize(this, i.TypePath) ?? throw new InvalidOperationException();
+            added.Add(monod);
+            AddToDeepestScope(i.TypePath, new TypeRefItem()
+            {
+                Type = monod,
+            });
+                
+        
+        }
+
+        foreach (var i in added)
+        {
+            i.CodeGen(this);
+        }
+    }
     public void CodeGen()
     {
         const string MODULE_NAME = "LEGENDARY_LANGUAGE";
@@ -285,8 +429,14 @@ public class CodeGenContext
             {
                 return i.Module == MainLangModule && i.Name == "main";
             });
-            
+
             var mainConc = mainDef.Monomorphize(this,new NormalLangPath(null,[..MainLangModule,"main"]));
+            AddToDeepestScope(new NormalLangPath(null,[..MainLangModule,"main"]), new FunctionRefItem()
+            {
+                Function = mainConc,
+            });
+            // codeGens the main fn
+            mainConc.CodeGen(this);
             Console.WriteLine(FromByte(LLVM.PrintModuleToString(Module)));
             sbyte* idk;
             if (LLVM.VerifyModule(Module, LLVMVerifierFailureAction.LLVMPrintMessageAction, &idk) != 0)

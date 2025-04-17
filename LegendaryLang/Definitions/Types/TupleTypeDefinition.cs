@@ -10,15 +10,10 @@ namespace LegendaryLang.Parse.Types;
 
 public class TupleTypeDefinition : CustomTypeDefinition
 {
-    public override Type? Monomorphize(CodeGenContext context, LangPath langPath)
+
+    public override Type GenerateIncompleteMono(CodeGenContext context, LangPath langPath)
     {
-        if ((this as IDefinition).FullPath == langPath)
-        {
-            var tup = new TupleType(OtherTypes);
-            tup.CodeGen(context);
-            return tup;
-        }
-        return null;
+        return new TupleType(OtherTypes);
     }
 
     public override ImmutableArray<LangPath>? GetGenericArguments(LangPath langPath)

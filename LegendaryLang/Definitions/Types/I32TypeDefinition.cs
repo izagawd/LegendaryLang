@@ -4,6 +4,7 @@ using LegendaryLang.Lex.Tokens;
 
 using LegendaryLang.Semantics;
 using LLVMSharp.Interop;
+using Type = LegendaryLang.ConcreteDefinition.Type;
 
 namespace LegendaryLang.Parse.Types;
 
@@ -14,18 +15,9 @@ public abstract class PrimitiveTypeDefinition : TypeDefinition
 }
 public class I32TypeDefinition : PrimitiveTypeDefinition
 {
-
-    public override ConcreteDefinition.Type? Monomorphize(CodeGenContext context, LangPath langPath)
+    public override Type GenerateIncompleteMono(CodeGenContext context, LangPath langPath)
     {
-        var arg = GetGenericArguments(langPath);
-        if (arg is null)
-        {
-            return null;
-        }
-
-        var i32Type = new I32Type(this);
-        i32Type.CodeGen(context);
-        return i32Type;
+        return new I32Type(this);
     }
 
     public override ImmutableArray<LangPath>? GetGenericArguments(LangPath langPath)

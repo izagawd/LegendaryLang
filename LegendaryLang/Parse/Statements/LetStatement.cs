@@ -107,6 +107,13 @@ public class LetStatement : IStatement
     // Would be set after semantic analysis
     private LangPath? TypePath { get;  set; }
 
+
+
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return EqualsTo?.GetAllFunctionsUsed() ?? [];
+    }
+
     public Token LookUpToken => LetToken;
     public void Analyze(SemanticAnalyzer analyzer)
     {

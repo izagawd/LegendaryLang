@@ -9,6 +9,11 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class BoolExpression : IExpression
 {
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return [];
+    }
+
     public static BoolExpression Parse(Parser parser)
     {
         var token = parser.Pop();

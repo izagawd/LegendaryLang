@@ -23,6 +23,7 @@ public class StructType : CustomType
 
     public unsafe override void CodeGen(CodeGenContext context)
     {
+ 
         // 1. Check if the struct is already generated (avoid double-generation)
         if (TypeRef.Handle != IntPtr.Zero)
             return;
@@ -46,10 +47,7 @@ public class StructType : CustomType
         // 4. Set the body of the opaque struct
 
 
-        context.AddToDeepestScope(TypePath,new TypeRefItem()
-        {
-            Type = this
-        });
+
     }
     public StructType(CustomTypeDefinition definition) : base(definition)
     {

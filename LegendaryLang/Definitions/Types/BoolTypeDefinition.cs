@@ -9,16 +9,9 @@ namespace LegendaryLang.Parse.Types;
 
 public class BoolTypeDefinition : PrimitiveTypeDefinition
 {
-    public override ConcreteDefinition.Type? Monomorphize(CodeGenContext context, LangPath langPath)
+    public override ConcreteDefinition.Type GenerateIncompleteMono(CodeGenContext context, LangPath langPath)
     {
-        var arg = GetGenericArguments(langPath);
-        if (arg is null)
-        {
-            return null;
-        }
-        var boolType = new BoolType(this);
-        boolType.CodeGen(context);
-        return boolType;
+        return new BoolType(this);
     }
 
     public override ImmutableArray<LangPath>? GetGenericArguments(LangPath langPath)
@@ -32,7 +25,7 @@ public class BoolTypeDefinition : PrimitiveTypeDefinition
     }
 
     public override string Name => "bool";
-    public override LangPath TypePath { get; }
+
     public override Token LookUpToken => null;
 
 

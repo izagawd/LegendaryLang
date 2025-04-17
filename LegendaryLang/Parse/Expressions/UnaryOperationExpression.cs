@@ -7,6 +7,12 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class UnaryOperationExpression : IExpression
 {
+
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return Expression.GetAllFunctionsUsed();
+    }
+
     public static UnaryOperationExpression Parse(Parser parser)
     {
         var token = parser.Pop();

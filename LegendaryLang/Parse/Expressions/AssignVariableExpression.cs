@@ -54,6 +54,12 @@ public class AssignVariableExpression : IExpression
         EqualsTo = equalsTo;
         
     }
+
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+       return  EqualsTo.GetAllFunctionsUsed();
+    }
+
     public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         var valueToEq = EqualsTo.DataRefCodeGen(codeGenContext);

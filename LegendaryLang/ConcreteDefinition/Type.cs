@@ -44,6 +44,11 @@ public abstract class Type : IConcreteDefinition
 
     public abstract LLVMTypeRef TypeRef { get;  protected set; }
     public  TypeDefinition TypeDefinition { get;  }
+    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
+    {
+        return [];
+    }
+
     public Token LookUpToken => TypeDefinition.LookUpToken;
     public void Analyze(SemanticAnalyzer analyzer)
     {
@@ -54,6 +59,12 @@ public abstract class Type : IConcreteDefinition
     public abstract string Name { get; }
     public  NormalLangPath Module => TypeDefinition.Module;
     public bool HasBeenGened { get; set; }
+    public IDefinition? Definition => TypeDefinition;
+
+    /// <summary>
+    /// NOTE: ADD TO SCOPE FIRST BEFORE DOING CODEGEN IF NOT THERE WILL BE ISSUES
+    /// </summary>
+    /// <param name="context"></param>
     public abstract void CodeGen(CodeGenContext context);
 
 }
