@@ -25,7 +25,10 @@ public class TupleLangPath : LangPath
     }
 
     public ImmutableArray<LangPath> TypePaths { get; }
-
+    public override LangPath Monomorphize(CodeGenContext codeGen)
+    {
+        return new TupleLangPath(TypePaths.Select(i => i.Monomorphize(codeGen)));
+    }
 
 
     public override bool Equals(object? obj)
@@ -43,7 +46,7 @@ public class TupleLangPath : LangPath
         TypePaths = paths.ToImmutableArray();
     }
 
-
+    
 
     public override void LoadAsShortCutIfPossible(SemanticAnalyzer analyzer)
     {
@@ -59,7 +62,9 @@ public abstract class LangPath
 {
 
     /// <summary>
-    /// MAKES THE COMPILER understand that the i32 is actually 'std::primitive::i32' if the using is declared
+    /// MAKES THE COMPILER understand that the i32 is actually 'std::primitive::i32' if
+    /// use std::primitive::i32;
+    /// is declared
     /// </summary>
     public abstract void LoadAsShortCutIfPossible(SemanticAnalyzer analyzer);
     public static NormalLangPath PrimitivePath = new NormalLangPath(null,["std", "primitive"]);
@@ -155,4 +160,5 @@ public abstract class LangPath
     public  override abstract bool Equals(object? obj);
     public  override abstract string ToString();
 
+    public abstract LangPath Monomorphize(CodeGenContext codeGen);
 }

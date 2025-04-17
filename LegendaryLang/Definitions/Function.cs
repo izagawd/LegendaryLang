@@ -110,7 +110,7 @@ public class Function : IConcreteDefinition
         
         // sets return type post monomorphization (eg converting T to i32)
         ReturnType = blockValue.Type;
-        var returnVal = LLVM.BuildRet(context.Builder, blockValue.LoadValForRetOrArg(context));
+         LLVM.BuildRet(context.Builder, blockValue.LoadValForRetOrArg(context));
         
 
         context.PopScope();

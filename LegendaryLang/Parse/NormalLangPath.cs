@@ -8,7 +8,7 @@ namespace LegendaryLang.Parse;
 
 public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
 {
-    public NormalLangPath PostMonomorphize(CodeGenContext codeGen)
+    public override LangPath Monomorphize(CodeGenContext codeGen)
     {
         if (codeGen.HasIdent(this))
             return (NormalLangPath) (codeGen.GetRefItemFor(this, false) as TypeRefItem)?.Type.TypePath as NormalLangPath;

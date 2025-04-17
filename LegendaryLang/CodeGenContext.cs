@@ -159,7 +159,7 @@ public class CodeGenContext
     {
         if (monomorphizePath)
         {
-            ident = (ident as NormalLangPath)?.PostMonomorphize(this) ?? ident;
+            ident = ident.Monomorphize(this) ?? ident;
         }
   
         foreach (var scope in ScopeItems)
