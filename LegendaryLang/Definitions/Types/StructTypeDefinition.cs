@@ -10,13 +10,6 @@ namespace LegendaryLang.Definitions.Types;
 public class StructTypeDefinition : CustomTypeDefinition
 {
 
-
-
-
-    
-
-
-
     public override LangPath TypePath =>(this as IDefinition).FullPath;
     public override Token LookUpToken { get; }
 
