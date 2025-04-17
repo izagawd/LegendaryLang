@@ -28,14 +28,7 @@ public class PathExpression : IExpression
     public unsafe VariableRefItem DataRefCodeGen(CodeGenContext context)
     {
 
-        var gottenRefItem = context.GetRefItemFor(Path);
-        if (gottenRefItem is TypeRefItem typeRefItem)
-        {
-            Path = typeRefItem.Type.TypePath;
-        } else if (gottenRefItem is FunctionRefItem variableRefItem)
-        {
-            Path = variableRefItem.Function.FullPath;
-        }
+
         if (TypePath is null)
         {
       

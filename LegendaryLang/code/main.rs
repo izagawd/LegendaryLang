@@ -4,13 +4,14 @@ use code::dark::Nester;
  use std::primitive::i32;
 
 
-fn bruh<T>(dd: T) -> T{
+fn bruh<T,U>(dd: T) -> T{
     dd
     }
-fn hello<T>(dd: T) -> T{
-        code::bruh::<T>(dd)
+fn hello<T,U>(dd: T) -> T{
+        code::bruh::<T,U>(dd)
     }
 fn main() -> std::primitive::i32{
-    code::hello::<std::primitive::i32>(4)
+    code::hello::<std::primitive::i32, std::primitive::i32>(100)
+
 }
 

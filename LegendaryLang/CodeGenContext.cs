@@ -343,64 +343,7 @@ public class CodeGenContext
     }
 
    
-    public IEnumerable<NormalLangPath> MonomorphizeFunctions(Function function)
-    {
 
-  
-        var used = function.GetAllFunctionsUsed();
-        foreach (var i in used.ToArray())
-        {
-            var definition =definitionsList.OfType<FunctionDefinition>().First(j =>  (j as IDefinition).FullPath.Contains(i.PopGenerics()));
-            var monomorphized =  definition.Monomorphize(this, i);
-           MonomorphizeFunctions(monomorphized);
-        }
-        return used;
-    }
-    public IEnumerable<NormalLangPath> MonomorphizeFunctions(FunctionDefinition function)
-    {
-
-
-        var used = function.GetAllFunctionsUsed().ToArray();
-        foreach (var i in used.ToArray())
-        {
-
-            var definition =definitionsList.OfType<FunctionDefinition>().First(j =>  (j as IDefinition).FullPath.Contains(i.PopGenerics()));
-            var monomorphized =  definition.Monomorphize(this, i);
-            monomorphized.CodeGen(this);
-            AddToDeepestScope(monomorphized.FullPath, new FunctionRefItem()
-            {
-                Function = monomorphized,
-            });
-            monomorphized.CodeGen(this);
-            MonomorphizeFunctions(monomorphized);
-        }
-
-
-        return used;
-    }
-
-    
-    void MonoTypes()
-    {
-        var added = new List<IConcreteDefinition>();
-        foreach (var i in definitionsList.OfType<TypeDefinition>())
-        {
-
-            var monod = i.Monomorphize(this, i.TypePath) ?? throw new InvalidOperationException();
-            added.Add(monod);
-            AddToDeepestScope(i.TypePath, new TypeRefItem()
-            {
-                Type = monod,
-            });
-                
-        
-        }
-
-        foreach (var i in added)
-        {
-            i.CodeGen(this);
-        }
-    }
     public void CodeGen()
     {
         const string MODULE_NAME = "LEGENDARY_LANGUAGE";

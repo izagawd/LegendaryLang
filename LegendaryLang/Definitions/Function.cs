@@ -37,7 +37,8 @@ public class Function : IConcreteDefinition
         }
         FullPath = Module.Append([
             Name, new NormalLangPath.GenericTypesPathSegment(
-                Definition.Arguments.Select(i => (context.GetRefItemFor(i.TypePath) as TypeRefItem).Type.TypePath))
+                Definition.GenericParameters.Select(i => (context.GetRefItemFor(new NormalLangPath(null,
+                [i.Name])) as TypeRefItem).Type.TypePath))
         ]);
 
         // 1. Determine the LLVM return type.
