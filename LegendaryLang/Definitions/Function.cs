@@ -101,8 +101,7 @@ public class Function : IConcreteDefinition
 
         var blockValue = BlockExpression.DataRefCodeGen(context);
         
-        // codegenning block may have changed position of builder, this is to readjust it
-        LLVM.PositionBuilderAtEnd(context.Builder, entryBlock);
+        
         // sets return type post monomorphization (eg converting T to i32)
         ReturnType = blockValue.Type.TypePath;
         var returnVal = LLVM.BuildRet(context.Builder, blockValue.LoadValForRetOrArg(context));
