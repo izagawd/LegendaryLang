@@ -8,7 +8,11 @@ using File = LegendaryLang.Lex.File;
 namespace LegendaryLang.Parse;
 
 
-public class ParseException : Exception;
+public class ParseException : Exception
+{
+    public ParseException() { }
+    public ParseException(string message) : base(message) { }
+}
 
 public  class ExpectedParserException : ParseException
 {

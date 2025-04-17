@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Semantics;
 using LLVMSharp;
@@ -62,7 +63,39 @@ public class StructCreationExpression : IExpression
     public Token LookUpToken { get; }
     public void Analyze( SemanticAnalyzer analyzer)
     {
-        TypePath.GetAsShortCutIfPossible(analyzer);
+        TypePath = TypePath.GetAsShortCutIfPossible(analyzer);
+        var str = analyzer.GetDefinition(TypePath);
+        if (str is null)
+        {
+            throw new ParseException($"No definition found for {TypePath}\n{LookUpToken.GetLocationStringRepresentation()}");
+        }
+        var asStruct = str as StructTypeDefinition;
+        if (asStruct is null)
+        {
+            throw new ParseException($"Expected struct type but found {str.FullPath}\n{LookUpToken.GetLocationStringRepresentation()}");
+        }
+
+        if (AssignFields.Length != asStruct.Fields.Length)
+        {
+            throw new ParseException($"Not all fields are assigned to the instance '{TypePath}'\nfields: " +
+                                     $"{string.Join(",", asStruct.Fields.AsEnumerable().Where(i => !AssignFields.Select(j => j.FieldToken.Identity).Contains(i.Name))
+                                         .Select(i =>$"{i.Name}: {i.TypePath}"))}\n{LookUpToken.GetLocationStringRepresentation()}");
+        }
+
+        var invalidFields = new List<AssignedField>();
+        foreach (var field in AssignFields)
+        {
+            if (!asStruct.Fields.Any(i => i.Name == field.FieldToken.Identity))
+            {
+                invalidFields.Add(field);
+            }
+        }
+
+        if (invalidFields.Any())
+        {
+            throw new ParseException($"The following fields are not part of type '{TypePath}':\n{string.Join("\n",invalidFields.Select(i => i.FieldToken.Identity))}" +
+                                     $"\n{LookUpToken.GetLocationStringRepresentation()}");
+        }
         foreach (var i in AssignFields)
         {
             i.EqualsTo.Analyze(analyzer);
@@ -75,11 +108,11 @@ public class StructCreationExpression : IExpression
         public IdentifierToken FieldToken { get; init; }
         public IExpression EqualsTo { get; init; }
     }
-    public StructCreationExpression(LangPath typePath, IEnumerable<AssignedField> assignVariableExpressions)
+    public StructCreationExpression( LangPath typePath, IEnumerable<AssignedField> assignVariableExpressions)
     {
         TypePath = typePath;
         AssignFields = assignVariableExpressions.ToImmutableArray();
-        
+        LookUpToken = typePath.FirstIdentifierToken!;
     }
     private VariableRefItem? GeneratedDataRef { get; set; }
     public IEnumerable<LangPath> GetAllTypesUsed(MonomorphizationHelper helper)
