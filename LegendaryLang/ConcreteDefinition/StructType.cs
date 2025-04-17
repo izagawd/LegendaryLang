@@ -49,7 +49,7 @@ public class StructType : CustomType
 
 
     }
-    public StructType(CustomTypeDefinition definition) : base(definition)
+    public StructType(StructTypeDefinition definition) : base(definition)
     {
     }
 }

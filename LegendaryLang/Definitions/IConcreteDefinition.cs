@@ -9,5 +9,9 @@
 public interface IConcreteDefinition : IDefinition
 {
     public IDefinition? Definition { get; }
+    /// <summary>
+    /// NOTE: DO NOT ADD TO SCOPE! <see cref="CodeGenContext"/> will handle that!!
+    /// </summary>
+    /// <param name="context"></param>
     public void CodeGen(CodeGenContext context);
 }

@@ -13,15 +13,15 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
 
 
     
-    public ImmutableArray<LangPath>? GetGenericArguments(LangPath ident)
+    public ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
     {
         var fullPath = (this as IDefinition).FullPath;
-        if (fullPath == ident)
+        if (fullPath == path)
         {
             return [];
         }
 
-        if (ident is NormalLangPath normalLangPath)
+        if (path is NormalLangPath normalLangPath)
         {
             var segment = normalLangPath.GetLastPathSegment();
             if (segment is not NormalLangPath.GenericTypesPathSegment genericTypesPathSegment)
@@ -85,7 +85,7 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
     public void Analyze(SemanticAnalyzer analyzer)
     {
 
-        ReturnType.LoadAsShortCutIfPossible(analyzer);
+        ReturnTypePath.LoadAsShortCutIfPossible(analyzer);
         foreach (var i in Arguments)
         {
             i.TypePath?.LoadAsShortCutIfPossible(analyzer);
@@ -98,13 +98,13 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
     public BlockExpression BlockExpression { get; }
     public readonly ImmutableArray<VariableDefinition> Arguments;
     public string Name { get; }
-    public LangPath ReturnType { get; }
+    public LangPath ReturnTypePath { get; }
 
-    public FunctionDefinition(string name, IEnumerable<VariableDefinition> variables, LangPath returnType, BlockExpression blockExpression, NormalLangPath module, IEnumerable<GenericParameter> genericParameters, Token? lookUpToken = null)
+    public FunctionDefinition(string name, IEnumerable<VariableDefinition> variables, LangPath returnTypePath, BlockExpression blockExpression, NormalLangPath module, IEnumerable<GenericParameter> genericParameters, Token? lookUpToken = null)
     {
         Arguments = variables.ToImmutableArray();
         Name = name;
-        ReturnType = returnType;
+        ReturnTypePath = returnTypePath;
         BlockExpression = blockExpression;
         LookUpToken = lookUpToken;
         Module = module;

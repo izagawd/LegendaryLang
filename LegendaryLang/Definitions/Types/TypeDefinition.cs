@@ -33,7 +33,7 @@ public abstract class TypeDefinition : ITopLevel, IDefinition, IMonomorphizable
     {
         return Monomorphize(context, langPath);
     }
-    public abstract ImmutableArray<LangPath>? GetGenericArguments(LangPath langPath);
+    public abstract ImmutableArray<LangPath>? GetGenericArguments(LangPath path);
 
     /// <summary>
     /// Abstracts away loading a value, so it can be used for parameters and return types. done because if its

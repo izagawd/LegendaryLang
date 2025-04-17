@@ -10,7 +10,7 @@ fn bruh<T,U>(dd: T) -> T{
 fn hello<T,U>(dd: T) -> T{
         code::bruh::<T,U>(dd)
     }
-fn main() -> std::primitive::i32{
+fn main() -> i32{
     code::hello::<std::primitive::i32, std::primitive::i32>(100)
 
 }

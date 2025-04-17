@@ -16,7 +16,7 @@ public class TupleTypeDefinition : CustomTypeDefinition
         return new TupleType(OtherTypes);
     }
 
-    public override ImmutableArray<LangPath>? GetGenericArguments(LangPath langPath)
+    public override ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
     {
         throw new NotImplementedException();
     }

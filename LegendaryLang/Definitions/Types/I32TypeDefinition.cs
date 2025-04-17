@@ -20,9 +20,9 @@ public class I32TypeDefinition : PrimitiveTypeDefinition
         return new I32Type(this);
     }
 
-    public override ImmutableArray<LangPath>? GetGenericArguments(LangPath langPath)
+    public override ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
     {
-        if (langPath != (this as IDefinition).FullPath)
+        if (path != (this as IDefinition).FullPath)
         {
             return null;
         }

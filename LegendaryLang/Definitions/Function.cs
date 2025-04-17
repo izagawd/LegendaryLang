@@ -44,7 +44,7 @@ public class Function : IConcreteDefinition
         ]);
 
         // 1. Determine the LLVM return type.
-        LLVMTypeRef llvmReturnType = (context.GetRefItemFor(Definition.ReturnType) as TypeRefItem).TypeRef;
+        LLVMTypeRef llvmReturnType = (context.GetRefItemFor(Definition.ReturnTypePath) as TypeRefItem).TypeRef;
         // 2. Gather LLVM types for each parameter.
         var paramTypes = new LLVMTypeRef[Definition.Arguments.Length];
         for (int i = 0; i < Definition.Arguments.Length; i++)

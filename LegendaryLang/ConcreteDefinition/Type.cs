@@ -61,10 +61,7 @@ public abstract class Type : IConcreteDefinition
     public bool HasBeenGened { get; set; }
     public IDefinition? Definition => TypeDefinition;
 
-    /// <summary>
-    /// NOTE: ADD TO SCOPE FIRST BEFORE DOING CODEGEN IF NOT THERE WILL BE ISSUES
-    /// </summary>
-    /// <param name="context"></param>
+
     public abstract void CodeGen(CodeGenContext context);
 
 }

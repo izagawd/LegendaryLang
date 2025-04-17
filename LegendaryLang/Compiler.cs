@@ -55,9 +55,9 @@ public class Compiler
             return;
         }
 
-        if (mainFn.ReturnType != new I32TypeDefinition().TypePath)
+        if (mainFn.ReturnTypePath != new I32TypeDefinition().TypePath)
         {
-            Console.WriteLine($"'fn main' return type must be '{new I32TypeDefinition().TypePath}', not '{mainFn.ReturnType}'!!!");
+            Console.WriteLine($"'fn main' return type must be '{new I32TypeDefinition().TypePath}', not '{mainFn.ReturnTypePath}'!!!");
             return;
         }
 
