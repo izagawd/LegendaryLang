@@ -39,7 +39,7 @@ public abstract class Type : IConcreteDefinition
     
 
     public abstract int GetPrimitivesCompositeCount(CodeGenContext context);
-    public  abstract LLVMValueRef LoadValueForRetOrArg(CodeGenContext context, VariableRefItem variableRef);
+    public  abstract LLVMValueRef LoadValue(CodeGenContext context, VariableRefItem variableRef);
 
     public abstract void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr);
 

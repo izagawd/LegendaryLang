@@ -84,7 +84,7 @@ public class FunctionCallExpression : IExpression
                 i =>
                 {
                     var gened =i.DataRefCodeGen(codeGenContext);
-                    return gened.Type.LoadValueForRetOrArg(codeGenContext,gened);
+                    return gened.Type.LoadValue(codeGenContext,gened);
                 }).ToArray()
             );
 

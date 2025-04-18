@@ -10,12 +10,10 @@ fn main() -> i32{
 }
 
 fn main2() -> i32{
-    let a = {
-        let b = 5555;
-        b
-        
+    let a = code::Human{
+            age = 1 + 1
         };
-    a
-
+    a.age = a.age * 2;
+    a.age
 }
 

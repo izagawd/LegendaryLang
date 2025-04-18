@@ -7,31 +7,21 @@ using LLVMSharp.Interop;
 namespace LegendaryLang.Parse.Expressions;
 
 
-public class ReassignUnmatchedTypeException : SemanticException
-{
-    public AssignVariableExpression Expression { get; }
-    public SemanticAnalyzer Analyzer { get; }
 
-    public ReassignUnmatchedTypeException(AssignVariableExpression expression, SemanticAnalyzer analyzer)
-    {
-        Expression = expression;
-        Analyzer = analyzer;
-    }
-
-    public override string Message => $"Cannot assign variable of type {Expression.Assigner.TypePath} to an expression of type {Expression.EqualsTo.TypePath}";
-}
 public class AssignVariableExpression : IExpression
 {
     public static AssignVariableExpression Parse(Parser parser, IExpression assignerExpression)
     {
-        Equality.Parse(parser);
+        var equality = Equality.Parse(parser);
         var expression = IExpression.Parse(parser);
-        return new AssignVariableExpression(assignerExpression,  expression);
+        return new AssignVariableExpression(assignerExpression,  expression, equality);
     }
-    public Token Token => Assigner.Token;
+
+    public Token Token => EqualityToken;
     
     
     public IExpression EqualsTo { get; set; }
+    public EqualityToken EqualityToken { get; }
     public IExpression Assigner { get; }
 
     public void Analyze(SemanticAnalyzer analyzer)
@@ -40,19 +30,19 @@ public class AssignVariableExpression : IExpression
         TypePath = LangPath.VoidBaseLangPath;
         Assigner.Analyze(analyzer);
         EqualsTo.Analyze(analyzer);
-        if (EqualsTo != Assigner)
+        if (EqualsTo.TypePath != Assigner.TypePath)
         {
-            throw new ReassignUnmatchedTypeException(this, analyzer);
+           analyzer.AddException(new SemanticException($"Cannot assign variable of type '{Assigner.TypePath}' to an expression of type '{EqualsTo.TypePath}'\n{Token.GetLocationStringRepresentation()}"));
         }
     }
 
-    public AssignVariableExpression(IExpression assigner,  IExpression equalsTo)
+    public AssignVariableExpression(IExpression assigner,  IExpression equalsTo, EqualityToken equalityToken)
     {
 
         Assigner = assigner;
 
         EqualsTo = equalsTo;
-        
+        EqualityToken = equalityToken;
     }
 
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()

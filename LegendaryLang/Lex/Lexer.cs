@@ -33,6 +33,7 @@ namespace LegendaryLang.Lex
                     case '.':
                         file.AddToken(new DotToken(file, column, line));
                         break;
+
                     case ' ':
                         break;
                     case '=':

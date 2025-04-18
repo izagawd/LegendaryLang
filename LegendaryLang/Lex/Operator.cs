@@ -38,11 +38,11 @@ public static class OperatorExtensions
         {
             case Operator.Add:
             case Operator.Subtract:
-                return 10; // Lower precedence.
+                return 1; // Lower precedence.
             case Operator.Multiply:
-                return 15;
+                return 2;
             case Operator.Divide:
-                return 20; // Higher precedence.
+                return 3; // Higher precedence.
             default:
                 throw new ArgumentOutOfRangeException(nameof(@operator), @operator, "Unsupported operator.");
         }

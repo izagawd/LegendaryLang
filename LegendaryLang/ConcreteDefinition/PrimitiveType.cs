@@ -21,7 +21,7 @@ public abstract class PrimitiveType : Type
 
 
 
-    public override LLVMValueRef LoadValueForRetOrArg(CodeGenContext context, VariableRefItem variableRef)
+    public override LLVMValueRef LoadValue(CodeGenContext context, VariableRefItem variableRef)
     {
         if (variableRef.ValueRef.TypeOf.Kind != LLVMTypeKind.LLVMPointerTypeKind)
         {

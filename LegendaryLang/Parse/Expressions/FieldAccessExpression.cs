@@ -1,4 +1,5 @@
 ﻿using LegendaryLang.ConcreteDefinition;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Statements;
 using LegendaryLang.Semantics;
@@ -35,7 +36,20 @@ public class FieldAccessExpression : IExpression
     }
     public void Analyze(SemanticAnalyzer analyzer)
     {
+      
         Caller.Analyze(analyzer);
+        var definition = analyzer.GetDefinition(Caller.TypePath);
+        if (definition is not StructTypeDefinition structTypeDefinition)
+        {
+            analyzer.AddException(new SemanticException($"Type '{Caller.TypePath}' is not a struct, so field access does not make sense\n{Token.GetLocationStringRepresentation()}"));
+            return;
+        }
+
+        if (!structTypeDefinition.Fields.Any(i => i.Name == Field.Identity))
+        {
+            analyzer.AddException(new SemanticException($"Type '{structTypeDefinition.Fields}' does not contain a field named '{Field.Identity}'\n{Token.GetLocationStringRepresentation()}"));
+        }
+        TypePath = structTypeDefinition.Fields.First(i => i.Name == Field.Identity).TypePath;
     }
 
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
@@ -71,7 +85,7 @@ public class FieldAccessExpression : IExpression
  
     }
 
-    public LangPath? TypePath { get; }
+    public LangPath? TypePath { get; set; }
 
 
 }

@@ -1,4 +1,5 @@
 ﻿
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Definitions;
@@ -110,7 +111,7 @@ public class VariableRefItem : IRefItem, IHasType
     }
     public LLVMValueRef LoadValForRetOrArg(CodeGenContext context)
     {
-        return Type.LoadValueForRetOrArg(context,this);
+        return Type.LoadValue(context,this);
     }
 }
 
@@ -415,8 +416,11 @@ public class CodeGenContext
 
    
             var val = engine.RunFunction(LLVM.GetNamedFunction(Module,mainFnPath.ToString().ToCString()), []);
-
-            Console.WriteLine(LLVM.GenericValueToInt(val, 0));
+            var gotten = LLVM.GenericValueToInt(val, 1);
+            Console.WriteLine( 
+                // this cast is neeeded, because it is actually an int not a ulong. Using normal c# cast would change the bits, which would give us an incorrect value
+                Unsafe.As<ulong,int>(ref gotten) 
+                );
         }
     }
 

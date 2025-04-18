@@ -2,8 +2,6 @@
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 
-using LegendaryLang.Semantics;
-
 namespace LegendaryLang.Parse.Expressions;
 
 
@@ -103,6 +101,11 @@ public interface IExpression : ISyntaxNode, IAnalyzable
             case NumberToken:
                 expression = NumberExpression.Parse(parser);
                 break;
+            case IOperatorToken:
+                var operatorToken = IOperatorToken.Parse(parser);
+                expression = IExpression.Parse(parser);
+                expression = new UnaryOperationExpression(expression, operatorToken);
+                break;
             case LeftParenthesisToken:
                 expression =  ParseBracketOrTuple(parser);
                 break;
@@ -167,76 +170,4 @@ public interface IExpression : ISyntaxNode, IAnalyzable
 
         return lhs;
     }
-}
-
-public class BracketExpression : IExpression
-{
-    
-    public static BracketExpression Parse(Parser parser,LeftParenthesisToken leftParenthesisToken,  IExpression expression)
-    {
- 
-        Parenthesis.ParseRight(parser);
-        return new BracketExpression(leftParenthesisToken, expression);
-    }
-    public IExpression Expression { get; }
-    public LeftParenthesisToken LeftParenthesisToken { get; }
-    public BracketExpression(LeftParenthesisToken token, IExpression expression)
-    {
-        LeftParenthesisToken = token;
-        Expression = expression;
-    }
-
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return Expression.GetAllFunctionsUsed();
-    }
-
-    public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
-    {
-        return Expression.DataRefCodeGen(codeGenContext);
-    }
-
-
-    public void Analyze(SemanticAnalyzer analyzer)
-    {
-        Expression.Analyze(analyzer);
-    }
-
-    public LangPath? TypePath => Expression.TypePath;
-    public Token Token => LeftParenthesisToken;
-}
-
-public class BinaryOperationExpression : IExpression
-{
-    
-    public IExpression Left { get; }
-    public IExpression Right { get; }
-    public IOperatorToken OperatorToken { get;  }
-
-    public BinaryOperationExpression(IExpression left, IOperatorToken @operatorToken, IExpression right) 
-    {                                                 
-        Left = left;
-        Right = right;
-        OperatorToken = @operatorToken;
-    }
-
-
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return Left.GetAllFunctionsUsed().Union(Right.GetAllFunctionsUsed());
-    }
-
-    public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
-    {
-        throw new NotImplementedException();
-    }
-
-    public LangPath? TypePath { get; }
-
-    public void Analyze(SemanticAnalyzer analyzer)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Token Token => Left.Token;
 }

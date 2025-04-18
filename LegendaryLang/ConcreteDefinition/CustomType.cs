@@ -64,7 +64,7 @@ public abstract class CustomType : Type
         return  ComposedTypes.Select(i => (context.GetRefItemFor(i) as TypeRefItem).Type.GetPrimitivesCompositeCount(context))
             .Sum();
     }
-    public unsafe override LLVMValueRef LoadValueForRetOrArg(CodeGenContext context,VariableRefItem variableRef)
+    public unsafe override LLVMValueRef LoadValue(CodeGenContext context,VariableRefItem variableRef)
     {
         
         if (GetPrimitivesCompositeCount(context) > 0)
@@ -88,7 +88,7 @@ public abstract class CustomType : Type
                 }
                 else
                 {
-                    aggr = context.Builder.BuildInsertValue(aggr, type.Type.LoadValueForRetOrArg(context,refIt) ,(uint) i);
+                    aggr = context.Builder.BuildInsertValue(aggr, type.Type.LoadValue(context,refIt) ,(uint) i);
                 }
          
                 
