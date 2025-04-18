@@ -1,4 +1,5 @@
-Made a programming language that is compiled to machine code using LLVM. the syntax is similar to that of rust
+Made a programming language that is compiled to machine code using LLVM. the syntax is similar to that of rust,
+only difference being to initialize a struct fields you ue "=" instead of "'"
 Here is some example code
 ```rust
 
