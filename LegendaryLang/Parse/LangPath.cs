@@ -48,9 +48,9 @@ public class TupleLangPath : LangPath
 
 
 
-    public override LangPath GetAsShortCutIfPossible(SemanticAnalyzer analyzer)
+    public override LangPath GetFromShortCutIfPossible(SemanticAnalyzer analyzer)
     {
-        return new TupleLangPath(TypePaths.Select(i => i.GetAsShortCutIfPossible(analyzer)));
+        return new TupleLangPath(TypePaths.Select(i => i.GetFromShortCutIfPossible(analyzer)));
      
     }
 }
@@ -67,7 +67,7 @@ public abstract class LangPath
     /// use std::primitive::i32;
     /// is declared. provide it with i32, and its should return std::primitive::i32
     /// </summary>
-    public abstract LangPath GetAsShortCutIfPossible(SemanticAnalyzer analyzer);
+    public abstract LangPath GetFromShortCutIfPossible(SemanticAnalyzer analyzer);
     public static NormalLangPath PrimitivePath = new NormalLangPath(null,["std", "primitive"]);
     public static TupleLangPath VoidBaseLangPath { get; } = new TupleLangPath([]);
     public static bool operator ==(LangPath? path1, LangPath? path2)

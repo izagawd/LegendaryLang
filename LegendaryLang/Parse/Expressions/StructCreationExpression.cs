@@ -63,7 +63,7 @@ public class StructCreationExpression : IExpression
     public Token Token { get; }
     public void Analyze( SemanticAnalyzer analyzer)
     {
-        TypePath = TypePath.GetAsShortCutIfPossible(analyzer);
+        TypePath = TypePath.GetFromShortCutIfPossible(analyzer);
         foreach (var i in AssignFields)
         {
             i.EqualsTo.Analyze(analyzer);

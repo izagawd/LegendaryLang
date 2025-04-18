@@ -8,38 +8,45 @@ using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse.Expressions;
 
-public class BlockExpression : IExpression, IStatement
+public class BlockExpression : IExpression
 {
+    public struct BlockSyntaxNodeContainer
+    {
+        public   ISyntaxNode Node;
+        public bool HasSemiColonAfter;
+    }
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
 
         return SyntaxNodes.SelectMany(i => i.GetAllFunctionsUsed());
    
     }
-    public bool MustReturn { get; }
+
     public LeftCurlyBraceToken LeftCurlyBraceToken { get; }
     public RightCurlyBraceToken RightCurlyBraceToken { get; }
-    public ImmutableArray<ISyntaxNode> SyntaxNodes { get; }
-
+    public ImmutableArray<ISyntaxNode> SyntaxNodes => BlockSyntaxNodeContainers.Select(i => i.Node).ToImmutableArray();
+    
     public Token ReturnedThingsToken { get; set; }
-    public BlockExpression(LeftCurlyBraceToken leftCurlyBraceToken, RightCurlyBraceToken rightCurlyBraceToken, IEnumerable<ISyntaxNode> syntaxNodes, bool mustReturnVoid)
+    public BlockExpression(LeftCurlyBraceToken leftCurlyBraceToken, RightCurlyBraceToken rightCurlyBraceToken, IEnumerable<BlockSyntaxNodeContainer> syntaxNodes)
     {
         LeftCurlyBraceToken = leftCurlyBraceToken;
         RightCurlyBraceToken = rightCurlyBraceToken;
-        SyntaxNodes = syntaxNodes.ToImmutableArray();
-        MustReturn = mustReturnVoid;
+        BlockSyntaxNodeContainers = [..syntaxNodes];
+      
     }
+
+    public ImmutableArray<BlockSyntaxNodeContainer> BlockSyntaxNodeContainers { get;  }
 
     public new  static BlockExpression Parse(Parser parser)
     { 
-        var mustReturnVoid = true;
+      
         var leftCurly = CurlyBrace.ParseLeft(parser);
-        var syntaxNodes = new List<ISyntaxNode>();
+        var syntaxNodes = new List<BlockSyntaxNodeContainer>();
         var next = parser.Peek();
         while (next is not Lex.Tokens.RightCurlyBraceToken)
         {
             
-            while (next is SemiColonToken)
+            while (parser.Peek() is SemiColonToken)
             {
                 parser.Pop();
                 next = parser.Peek();
@@ -54,36 +61,29 @@ public class BlockExpression : IExpression, IStatement
             if (next is IStatementToken)
             {
                 parsed = IStatement.Parse(parser);
-                syntaxNodes.Add(parsed);
+                // has semi colon after set to true sice statements are forced to have a semi colon after anyways
+                syntaxNodes.Add(new BlockSyntaxNodeContainer { Node = parsed, HasSemiColonAfter = true });
                 
             }
             else
             {
                 parsed = IExpression.Parse(parser);
-                syntaxNodes.Add(parsed);
+                var container = new BlockSyntaxNodeContainer { Node = parsed, HasSemiColonAfter = false };
+                if (parser.Peek() is SemiColonToken)
+                {
+                    container.HasSemiColonAfter = true;
+                }
+                syntaxNodes.Add(container);
             }
+            
 
-            next = parser.Peek();
-            if (next is RightCurlyBraceToken && parsed is not IStatement)
-            {
-                mustReturnVoid = false;
-                break;
-            }
-            // statements already handle semicolons themselves
-            if (parsed is not IStatement)
-            {
-                SemiColon.Parse(parser);
-
-            }     
+  
             next = parser.Peek();
         }
-        return new BlockExpression(leftCurly,CurlyBrace.Parseight(parser), syntaxNodes, mustReturnVoid);
+        return new BlockExpression(leftCurly,CurlyBrace.Parseight(parser), syntaxNodes);
     }
 
-    public void CodeGen(CodeGenContext CodeGenContext)
-    {
-  
-    }
+
 
     public VariableRefItem DataRefCodeGen(CodeGenContext context)
     {
@@ -94,16 +94,22 @@ public class BlockExpression : IExpression, IStatement
 
         context.AddScope();
 
+        VariableRefItem? toEvalGenned = null;
         // Iterate over each syntax node in the block.
-        foreach (var node in SyntaxNodes)
+        foreach (var item in BlockSyntaxNodeContainers)
         {
             // If the node is an expression, use its ValueRefCodeGen.
-            if (node is IExpression expr)
+            if (item.Node is IExpression expr)
             {
+                
                 lastValue = expr.DataRefCodeGen(context);
+                if (item.Node == DtaRefExprToEval?.Node)
+                {
+                    toEvalGenned = lastValue;
+                }
             }
             // If the node is a statement, simply generate code.
-            else if (node is IStatement stmt)
+            else if (item.Node is IStatement stmt)
             {
                 lastValue = context.GetVoid();
                 stmt.CodeGen(context);
@@ -112,58 +118,71 @@ public class BlockExpression : IExpression, IStatement
 
         context.PopScope();
 
-        if (MustReturn)
+        if (DtaRefExprToEval is not null)
         {
-
-            return context.GetVoid();
+            if(DtaRefExprToEval.Value.HasSemiColonAfter)
+                return context.GetVoid();
+            return toEvalGenned ?? context.GetVoid();
         }
         else
         {
-            return lastValue;
+           return context.GetVoid();
         }
+       
     }
 
     public LangPath? TypePath { get; private set; }
 
 
+    public BlockSyntaxNodeContainer? DtaRefExprToEval { get; set; }
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        
-        foreach (var node in SyntaxNodes.OfType<IAnalyzable>())
+        var last = BlockSyntaxNodeContainers.Cast<BlockSyntaxNodeContainer?>().LastOrDefault();
+        foreach (var item in BlockSyntaxNodeContainers)
         {
-            node.Analyze(analyzer);
-        }
-        if (MustReturn)
-        {
-            TypePath = LangPath.VoidBaseLangPath;
+            if (item.Node is IExpression expr && expr != last?.Node && !item.HasSemiColonAfter)
+            {
+                analyzer.AddException(new SemanticException($"Expected semicolon after expression\n{item.Node.Token.GetLocationStringRepresentation()}"));
+            }
         }
 
-        else if (SyntaxNodes.Length == 0)
+        foreach (var item in SyntaxNodes.OfType<IAnalyzable>())
+        {
+            item.Analyze(analyzer);
+        }
+
+        if (SyntaxNodes.Length == 0)
         {
             TypePath= LangPath.VoidBaseLangPath;
-            ReturnedThingsToken = LeftCurlyBraceToken;
+            ReturnedThingsToken = RightCurlyBraceToken;
         }
         else
         {
-            var last = SyntaxNodes.Last();
-            if (last is IExpression expression)
+         
+            if (last?.Node is IExpression expression)
             {
-                
+                if (last.Value.HasSemiColonAfter)
+                {
+                    TypePath = LangPath.VoidBaseLangPath;
+                }
+                else
+                {
                     TypePath = expression.TypePath;
-                    
+                }
             }
             else
             {
                 TypePath = LangPath.VoidBaseLangPath;
             }
 
-            ReturnedThingsToken = last.Token;
+            ReturnedThingsToken = last?.Node?.Token ?? RightCurlyBraceToken;
         }
+        DtaRefExprToEval=last;
 
         
 
     }
 
-    public Token Token => LeftCurlyBraceToken;
+    public Token Token => RightCurlyBraceToken;
 }

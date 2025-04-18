@@ -8,7 +8,7 @@ namespace LegendaryLang.Definitions;
 
 public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
 {
-
+    public bool IsAnalyzed { get; set; } = false;
 
     
     public ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
@@ -83,20 +83,25 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
     public void Analyze(SemanticAnalyzer analyzer)
     {
 
-        ReturnTypePath = ReturnTypePath.GetAsShortCutIfPossible(analyzer);
+        if (IsAnalyzed)
+        {
+            return;
+        }
+        ReturnTypePath = ReturnTypePath.GetFromShortCutIfPossible(analyzer);
         foreach (var i in Arguments)
         {
-           i.TypePath = i.TypePath?.GetAsShortCutIfPossible(analyzer);
+           i.TypePath = i.TypePath?.GetFromShortCutIfPossible(analyzer);
         }
-
+        IsAnalyzed = true;
  
         BlockExpression.Analyze(analyzer);
         if (BlockExpression.TypePath != ReturnTypePath)
         {
             analyzer.AddException(new SemanticException(
-                $"Return type of function does not match it's definition\n{BlockExpression.ReturnedThingsToken.GetLocationStringRepresentation()}"));
+                $"Return type of function does not match it's definition\nExpected Type: '{ReturnTypePath}'\nFound: '{BlockExpression.TypePath}'\n{BlockExpression.ReturnedThingsToken.GetLocationStringRepresentation()}"));
             
         }
+   
     }
     public BlockExpression BlockExpression { get; }
     public readonly ImmutableArray<VariableDefinition> Arguments;

@@ -19,6 +19,7 @@ public class SemanticAnalyzer
     public Stack<ParseResult> ParseResults = new Stack<ParseResult>();
     
     private Stack<Dictionary<string, NormalLangPath>> ScopeItems = new();
+    private Stack<Dictionary<LangPath, LangPath>> VariableToTypeMapper = new();
     public SemanticAnalyzer(IEnumerable<ParseResult> parseResults)
     {
         ParseResults = new Stack<ParseResult>(parseResults);
@@ -37,6 +38,24 @@ public class SemanticAnalyzer
        return null;
     }
 
+    public LangPath? GetVariableTypePath(LangPath variableLangPath)
+    {
+        foreach (var scope in VariableToTypeMapper)
+        {
+            if (scope.TryGetValue(variableLangPath, out var symbol))
+            {
+
+                return symbol;
+                
+             
+            }
+        }
+        return null;
+    }
+    public void RegisterVariableType(LangPath variableLangPath, LangPath typPath)
+    {
+        VariableToTypeMapper.Peek().Add(variableLangPath, typPath);
+    }
     public void RegisterDefinition(LangPath path, IDefinition definition)
     {
         DefinitionsMap[path] = definition;
@@ -46,7 +65,7 @@ public class SemanticAnalyzer
     {
 
         ScopeItems.Push(new());
- 
+        VariableToTypeMapper.Push(new ());
     }
 
     public NormalLangPath? GetFullPathOfShortcut(string shortcut)
@@ -67,10 +86,10 @@ public class SemanticAnalyzer
     {
         ScopeItems.Peek().Add(map, to);
     }
-    public Dictionary<string, NormalLangPath> PopScope()
+    public void PopScope()
     {
-        return ScopeItems.Pop();
-
+         ScopeItems.Pop();
+         VariableToTypeMapper.Pop();
     }
 
     /// <returns>Collection of semantic errors that occured</returns>
@@ -88,14 +107,10 @@ public class SemanticAnalyzer
             AddScope();
             foreach (var i in result.TopLevels)
             {
-                try
-                {
-                    i.Analyze(this);
-                }
-                catch(NotImplementedException)
-                {
- 
-                }
+              
+                i.Analyze(this);
+                
+
             }
             PopScope();
 

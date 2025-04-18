@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Definitions;
 using LegendaryLang.Lex.Tokens;
 
 using LegendaryLang.Semantics;
@@ -49,10 +50,23 @@ public class FunctionCallExpression : IExpression
         Arguments = arguments.ToImmutableArray();
         FunctionPath = path;
     }
-    public Token Token { get; }
+
+    public Token Token => FunctionPath.FirstIdentifierToken!;
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        FunctionPath=(NormalLangPath) FunctionPath.GetAsShortCutIfPossible(analyzer);
+        FunctionPath=(NormalLangPath) FunctionPath.GetFromShortCutIfPossible(analyzer);
+        var def = analyzer.GetDefinition(FunctionPath);
+        if (def is FunctionDefinition fd)
+        {
+            /// do not worry. FunctionDef checks itself if its already analyzed or not to repeat double analyzing
+            fd.Analyze(analyzer);
+            TypePath = fd.ReturnTypePath;
+        }
+        else
+        {
+            TypePath = LangPath.VoidBaseLangPath;
+            analyzer.AddException(new SemanticException($"Cannot find function {FunctionPath}\n{Token.GetLocationStringRepresentation()}"));
+        }
         foreach (var i in Arguments)
         {
             i.Analyze(analyzer);
@@ -89,6 +103,6 @@ public class FunctionCallExpression : IExpression
         };
     }
 
-    public LangPath? TypePath { get; }
+    public LangPath? TypePath { get; set; }
 
 }

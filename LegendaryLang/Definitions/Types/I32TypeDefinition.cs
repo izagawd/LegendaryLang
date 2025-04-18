@@ -35,7 +35,7 @@ public class I32TypeDefinition : PrimitiveTypeDefinition
 
         public override void Analyze(SemanticAnalyzer analyzer)
         {
-            throw new NotImplementedException();
+          
         }
         
 

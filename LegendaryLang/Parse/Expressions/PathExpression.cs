@@ -62,11 +62,12 @@ public class PathExpression : IExpression
     /// </summary>
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        Path.GetAsShortCutIfPossible(analyzer);
-        // Resolve the variable (i.e. "bind" the identifier to its declaration).
-        // This process may also check for errors like "undefined variable".
-        // You can use a method in your SemanticAnalyzer to register or verify the symbol.
-        throw new NotImplementedException();
+        Path = Path.GetFromShortCutIfPossible(analyzer);
+        TypePath= analyzer.GetVariableTypePath(Path);
+        if (TypePath is null)
+        {
+            analyzer.AddException(new SemanticException($"Path to variable '{Path}' not found, or the path is not a variable\n{Token.GetLocationStringRepresentation()}"));
+        }
     }
 
     public Token Token => Path.FirstIdentifierToken;

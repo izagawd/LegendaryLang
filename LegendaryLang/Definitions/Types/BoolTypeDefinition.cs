@@ -30,6 +30,6 @@ public class BoolTypeDefinition : PrimitiveTypeDefinition
 
     public override void Analyze(SemanticAnalyzer analyzer)
     {
-        throw new NotImplementedException();
+        
     }
 }

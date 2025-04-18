@@ -6,6 +6,21 @@ namespace LegendaryLang.Parse.Statements;
 
 public class ReturnStatement : IStatement
 {
+    public ReturnStatement Parse(Parser parser)
+    {
+        var parsed = parser.Pop();
+        if (parsed is not ReturnToken returnToken)
+        {
+            throw new ExpectedParserException(parser, ParseType.ReturnToken,parsed);
+        }
+
+        IExpression? expression = null;
+        if (parser.Peek() is not SemiColonToken)
+        {
+            expression = IExpression.Parse(parser);
+        }
+        return new ReturnStatement(returnToken, expression);
+    }
     Token ISyntaxNode.Token   => Token;
     public ReturnToken Token { get; }
     public IExpression? ToReturn { get; }
@@ -17,13 +32,13 @@ public class ReturnStatement : IStatement
     }
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
-        throw new NotImplementedException();
+        return ToReturn?.GetAllFunctionsUsed() ?? [];
     }
 
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        throw new NotImplementedException();
+        ToReturn?.Analyze(analyzer);
     }
 
     public void CodeGen(CodeGenContext CodeGenContext)

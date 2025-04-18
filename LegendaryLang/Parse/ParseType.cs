@@ -18,5 +18,6 @@ public enum ParseType
     FunctionCall,
     Use,
     LessThan,
-    GreaterThan
+    GreaterThan,
+    ReturnToken
 }
