@@ -8,8 +8,14 @@ public class SemanticException : Exception
     public SemanticException(string message) : base(message){}
     public SemanticException(){}
 }
-public class SemanticAnalyzer 
+public class SemanticAnalyzer
 {
+    private List<SemanticException> Exceptions = [];
+
+    public void AddException(SemanticException exception)
+    {
+        Exceptions.Add(exception);
+    }
     public Stack<ParseResult> ParseResults = new Stack<ParseResult>();
     
     private Stack<Dictionary<string, NormalLangPath>> ScopeItems = new();
@@ -66,7 +72,9 @@ public class SemanticAnalyzer
         return ScopeItems.Pop();
 
     }
-    public void Analyze()
+
+    /// <returns>Collection of semantic errors that occured</returns>
+    public SemanticException[] Analyze()
     {
         
         // registers path mapping
@@ -90,8 +98,9 @@ public class SemanticAnalyzer
                 }
             }
             PopScope();
-       
+
         }
+        return Exceptions.ToArray();
   
     }
 }

@@ -25,7 +25,7 @@ public class BoolTypeDefinition : PrimitiveTypeDefinition
 
     public override string Name => "bool";
 
-    public override Token LookUpToken => null;
+    public override Token Token => null;
 
 
     public override void Analyze(SemanticAnalyzer analyzer)

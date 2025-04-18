@@ -60,27 +60,34 @@ public class StructCreationExpression : IExpression
     
 
     public ImmutableArray<AssignedField> AssignFields { get; }
-    public Token LookUpToken { get; }
+    public Token Token { get; }
     public void Analyze( SemanticAnalyzer analyzer)
     {
         TypePath = TypePath.GetAsShortCutIfPossible(analyzer);
+        foreach (var i in AssignFields)
+        {
+            i.EqualsTo.Analyze(analyzer);
+        }
         var str = analyzer.GetDefinition(TypePath);
         if (str is null)
         {
-            throw new SemanticException($"No definition found for {TypePath}\n{LookUpToken.GetLocationStringRepresentation()}");
+            analyzer.AddException( new SemanticException($"No definition found for {TypePath}\n{Token.GetLocationStringRepresentation()}"));
+            return;
         }
         var asStruct = str as StructTypeDefinition;
         if (asStruct is null)
         {
-            throw new SemanticException($"Expected struct type but found {str.FullPath}\n{LookUpToken.GetLocationStringRepresentation()}");
+            analyzer.AddException(new SemanticException($"Expected struct type but found {str.FullPath}\n{Token.GetLocationStringRepresentation()}"));
+            return;
         }
 
         if (AssignFields.Length != asStruct.Fields.Length)
         {
-            throw new SemanticException($"Not all fields are assigned to the instance '{TypePath}'\nthe following fields are missing:\n" +
-                                     $"{string.Join("\n", asStruct.Fields.AsEnumerable().Where(i => !AssignFields.Select(j => j.FieldToken.Identity).Contains(i.Name))
-                                         .Select(i =>$"{i.Name}: {i.TypePath}"))}\n\n" +
-                                     $"{LookUpToken.GetLocationStringRepresentation()}");
+            analyzer.AddException(new SemanticException($"Not all fields are assigned to the instance '{TypePath}'\nthe following fields are missing:\n" +
+                                                        $"{string.Join("\n", asStruct.Fields.AsEnumerable().Where(i => !AssignFields.Select(j => j.FieldToken.Identity).Contains(i.Name))
+                                                            .Select(i =>$"{i.Name}: {i.TypePath}"))}\n\n" +
+                                                        $"{Token.GetLocationStringRepresentation()}"));
+          
         }
 
         var invalidFields = new List<AssignedField>();
@@ -94,13 +101,11 @@ public class StructCreationExpression : IExpression
 
         if (invalidFields.Any())
         {
-            throw new SemanticException($"The following fields are not part of type '{TypePath}':\n{string.Join("\n",invalidFields.Select(i => i.FieldToken.Identity))}" +
-                                     $"\n{LookUpToken.GetLocationStringRepresentation()}");
+            analyzer.AddException(new SemanticException($"The following fields are not part of type '{TypePath}':\n{string.Join("\n",invalidFields.Select(i => i.FieldToken.Identity))}" +
+                                                              $"\n{Token.GetLocationStringRepresentation()}"));
+            
         }
-        foreach (var i in AssignFields)
-        {
-            i.EqualsTo.Analyze(analyzer);
-        }
+
 
     }
 
@@ -113,7 +118,7 @@ public class StructCreationExpression : IExpression
     {
         TypePath = typePath;
         AssignFields = assignVariableExpressions.ToImmutableArray();
-        LookUpToken = typePath.FirstIdentifierToken!;
+        Token = typePath.FirstIdentifierToken!;
     }
     private VariableRefItem? GeneratedDataRef { get; set; }
     public IEnumerable<LangPath> GetAllTypesUsed(MonomorphizationHelper helper)

@@ -50,8 +50,7 @@ public class UseDefinition : ITopLevel
         return [];
     }
 
-    public Token LookUpToken => Token;
-
+   Token  ISyntaxNode.Token  => Token;
 
 
 

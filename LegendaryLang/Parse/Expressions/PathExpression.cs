@@ -69,5 +69,5 @@ public class PathExpression : IExpression
         throw new NotImplementedException();
     }
 
-    public Token LookUpToken => Path.FirstIdentifierToken;
+    public Token Token => Path.FirstIdentifierToken;
 }

@@ -5,10 +5,10 @@ use code::dark::Nester;
 
 
 fn bruh<T,U>(dd: T) -> T{
-    dd
+    6
     }
 fn hello<T,U>(dd: T) -> T{
-   
+   7
 }
 fn main() -> i32{
     4

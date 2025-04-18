@@ -21,6 +21,7 @@ public class NumberExpression : IExpression
         return new NumberExpression(NumberExpression.ParseToken(parser));
     }
     public NumberToken Token { get; }
+    Token ISyntaxNode.Token => (Token)Token;
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
         return [];
@@ -46,7 +47,7 @@ public class NumberExpression : IExpression
 
     }
 
-    public Token LookUpToken => Token;
+
 
     public NumberExpression(NumberToken token)
     {

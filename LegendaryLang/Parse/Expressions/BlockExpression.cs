@@ -21,6 +21,7 @@ public class BlockExpression : IExpression, IStatement
     public RightCurlyBraceToken RightCurlyBraceToken { get; }
     public ImmutableArray<ISyntaxNode> SyntaxNodes { get; }
 
+    public Token ReturnedThingsToken { get; set; }
     public BlockExpression(LeftCurlyBraceToken leftCurlyBraceToken, RightCurlyBraceToken rightCurlyBraceToken, IEnumerable<ISyntaxNode> syntaxNodes, bool mustReturnVoid)
     {
         LeftCurlyBraceToken = leftCurlyBraceToken;
@@ -50,11 +51,11 @@ public class BlockExpression : IExpression, IStatement
 
          
             ISyntaxNode parsed;
-            if (next is IIsStatementToken)
+            if (next is IStatementToken)
             {
                 parsed = IStatement.Parse(parser);
                 syntaxNodes.Add(parsed);
-    
+                
             }
             else
             {
@@ -141,6 +142,7 @@ public class BlockExpression : IExpression, IStatement
         else if (SyntaxNodes.Length == 0)
         {
             TypePath= LangPath.VoidBaseLangPath;
+            ReturnedThingsToken = LeftCurlyBraceToken;
         }
         else
         {
@@ -149,17 +151,19 @@ public class BlockExpression : IExpression, IStatement
             {
                 
                     TypePath = expression.TypePath;
-       
+                    
             }
             else
             {
                 TypePath = LangPath.VoidBaseLangPath;
             }
+
+            ReturnedThingsToken = last.Token;
         }
 
         
 
     }
 
-    public Token LookUpToken => LeftCurlyBraceToken;
+    public Token Token => LeftCurlyBraceToken;
 }

@@ -11,9 +11,9 @@ public class TupleCreationExpression : IExpression
     public TupleCreationExpression(LeftParenthesisToken token, IEnumerable<IExpression> composites)
     {
         Composites = composites.ToImmutableArray();
-        LookUpToken = token;
+        Token = token;
     }
-    public Token LookUpToken { get; }
+    public Token Token { get; }
     public void Analyze(SemanticAnalyzer analyzer)
     {
         foreach (var i in Composites)

@@ -52,10 +52,10 @@ public abstract class TypeDefinition : ITopLevel, IDefinition, IMonomorphizable
         return [];
     }
 
-    public abstract Token LookUpToken { get; }
+    public abstract Token Token { get; }
 
 
-    public Token Token { get; }
+  
 
 
 

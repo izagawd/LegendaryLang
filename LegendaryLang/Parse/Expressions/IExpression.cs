@@ -203,7 +203,7 @@ public class BracketExpression : IExpression
     }
 
     public LangPath? TypePath => Expression.TypePath;
-    public Token LookUpToken => LeftParenthesisToken;
+    public Token Token => LeftParenthesisToken;
 }
 
 public class BinaryOperationExpression : IExpression
@@ -238,5 +238,5 @@ public class BinaryOperationExpression : IExpression
         throw new NotImplementedException();
     }
 
-    public Token LookUpToken => Left.LookUpToken;
+    public Token Token => Left.Token;
 }

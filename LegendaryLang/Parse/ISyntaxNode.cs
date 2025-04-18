@@ -7,6 +7,6 @@ public interface ISyntaxNode
 {
 
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed();
-    public  Token LookUpToken { get; }
+    public  Token Token { get; }
 
 }

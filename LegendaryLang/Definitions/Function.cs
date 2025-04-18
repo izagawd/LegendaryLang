@@ -131,7 +131,7 @@ public class Function : IConcreteDefinition
         return BlockExpression.GetAllFunctionsUsed();
     }
 
-    public Token? LookUpToken => Definition.LookUpToken;
+    public Token? Token => Definition.Token;
 
 
     public string Name => Definition.Name;

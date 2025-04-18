@@ -24,7 +24,7 @@ public class FieldAccessExpression : IExpression
         }
         return field;
     }
-    public Token LookUpToken => Field;
+    public Token Token => Field;
     public IdentifierToken Field { get; }
     public IExpression Caller { get; }
 

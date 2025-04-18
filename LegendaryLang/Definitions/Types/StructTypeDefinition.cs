@@ -11,7 +11,7 @@ public class StructTypeDefinition : CustomTypeDefinition
 {
 
     public override LangPath TypePath =>(this as IDefinition).FullPath;
-    public override Token LookUpToken { get; }
+
 
     public override void Analyze(SemanticAnalyzer analyzer)
     {
@@ -25,7 +25,7 @@ public class StructTypeDefinition : CustomTypeDefinition
     }
 
 
-    public Token Token => StructToken;
+    public override Token Token => StructToken;
 
     public StructToken StructToken { get; }
     public  ImmutableArray<VariableDefinition> Fields { get; protected set; }

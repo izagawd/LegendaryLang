@@ -50,7 +50,7 @@ public abstract class Type : IConcreteDefinition
         return [];
     }
 
-    public Token LookUpToken => TypeDefinition.LookUpToken;
+    public Token Token => TypeDefinition.Token;
     public void Analyze(SemanticAnalyzer analyzer)
     {
         throw new NotImplementedException();

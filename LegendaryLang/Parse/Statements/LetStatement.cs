@@ -114,7 +114,7 @@ public class LetStatement : IStatement
         return EqualsTo?.GetAllFunctionsUsed() ?? [];
     }
 
-    public Token LookUpToken => LetToken;
+    public Token Token => LetToken;
     public void Analyze(SemanticAnalyzer analyzer)
     {
         EqualsTo?.Analyze(analyzer);

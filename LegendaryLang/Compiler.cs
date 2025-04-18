@@ -1,6 +1,7 @@
 ﻿using LegendaryLang.Definitions;
 using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex;
+using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
 using LegendaryLang.Parse.Statements;
 using LegendaryLang.Semantics;
@@ -28,6 +29,8 @@ public class Compiler
                 string content = File.ReadAllText(file);
                 codeFiles.Add(file, content);
             }
+
+            Console.WriteLine("");
         }
         else
         {
@@ -48,7 +51,14 @@ public class Compiler
            .ToList();
         var mainFile = parseResults.First(i => i.File!.Path == $"{codeDirectory}\\main.{extension}");
 
-        new SemanticAnalyzer(parseResults).Analyze();
+        var analysis =new SemanticAnalyzer(parseResults).Analyze();
+        if (analysis.Any())
+        {
+            Console.WriteLine("SEMANTIC ERRORS FOUND\n");
+            Console.WriteLine(string.Join("\n\n", analysis.Select(i => i.Message)));
+            return;
+        }
+
         var mainFn = mainFile.TopLevels.OfType<FunctionDefinition>().FirstOrDefault(i => i.Name == "main");
         if (mainFn == null)
         {

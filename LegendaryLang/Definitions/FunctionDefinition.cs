@@ -77,7 +77,7 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
         return BlockExpression.GetAllFunctionsUsed();
     }
 
-    public Token LookUpToken {get; }
+    public Token Token {get; }
     
     
     public void Analyze(SemanticAnalyzer analyzer)
@@ -93,8 +93,9 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
         BlockExpression.Analyze(analyzer);
         if (BlockExpression.TypePath != ReturnTypePath)
         {
-            throw new SemanticException(
-                $"Return type of function does not match it's definition\n{LookUpToken.GetLocationStringRepresentation()}");
+            analyzer.AddException(new SemanticException(
+                $"Return type of function does not match it's definition\n{BlockExpression.ReturnedThingsToken.GetLocationStringRepresentation()}"));
+            
         }
     }
     public BlockExpression BlockExpression { get; }
@@ -108,7 +109,7 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
         Name = name;
         ReturnTypePath = returnTypePath;
         BlockExpression = blockExpression;
-        LookUpToken = lookUpToken;
+        Token = lookUpToken;
         Module = module;
         GenericParameters = genericParameters.ToImmutableArray();
     }

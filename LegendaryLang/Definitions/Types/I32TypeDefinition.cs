@@ -30,7 +30,7 @@ public class I32TypeDefinition : PrimitiveTypeDefinition
     }
 
 
-        public override Token LookUpToken { get; }
+        public override Token Token { get; }
 
 
         public override void Analyze(SemanticAnalyzer analyzer)

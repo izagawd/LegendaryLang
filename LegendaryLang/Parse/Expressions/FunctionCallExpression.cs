@@ -49,7 +49,7 @@ public class FunctionCallExpression : IExpression
         Arguments = arguments.ToImmutableArray();
         FunctionPath = path;
     }
-    public Token LookUpToken { get; }
+    public Token Token { get; }
     public void Analyze(SemanticAnalyzer analyzer)
     {
         FunctionPath=(NormalLangPath) FunctionPath.GetAsShortCutIfPossible(analyzer);

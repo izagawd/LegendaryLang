@@ -24,7 +24,7 @@ public class TupleTypeDefinition : CustomTypeDefinition
     public override NormalLangPath Module { get; } = new NormalLangPath(null, []);
 
     public override LangPath TypePath => new TupleLangPath(OtherTypes.Select(i => i.TypePath));
-    public override Token LookUpToken { get; }
+    public override Token Token { get; }
     public override void Analyze(SemanticAnalyzer analyzer)
     {
         throw new NotImplementedException();

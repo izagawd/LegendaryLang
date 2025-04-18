@@ -23,6 +23,8 @@ public class BoolExpression : IExpression
 
         return new BoolExpression(boolToken);
     }
+
+    Token ISyntaxNode.Token => (Token)Token;
     public IBoolToken Token { get; }
 
     public static BoolType BoolType { get; } = new(new BoolTypeDefinition());
@@ -46,7 +48,7 @@ public class BoolExpression : IExpression
     {
         Token = token;
     }
-    public Token LookUpToken =>(Token) Token ;
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
 

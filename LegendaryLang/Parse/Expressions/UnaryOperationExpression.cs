@@ -43,7 +43,7 @@ public class UnaryOperationExpression : IExpression
 
 
 
-    public Token LookUpToken =>(OperatorToken as Token)!;
+    public Token Token =>(OperatorToken as Token)!;
     public void Analyze(SemanticAnalyzer analyzer)
     {
         Expression.Analyze(analyzer);

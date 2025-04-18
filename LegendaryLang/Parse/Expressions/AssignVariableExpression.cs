@@ -28,7 +28,7 @@ public class AssignVariableExpression : IExpression
         var expression = IExpression.Parse(parser);
         return new AssignVariableExpression(assignerExpression,  expression);
     }
-    public Token LookUpToken => Assigner.LookUpToken;
+    public Token Token => Assigner.Token;
     
     
     public IExpression EqualsTo { get; set; }
