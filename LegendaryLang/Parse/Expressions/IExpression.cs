@@ -7,7 +7,7 @@ using LegendaryLang.Semantics;
 namespace LegendaryLang.Parse.Expressions;
 
 
-public interface IExpression : ISyntaxNode
+public interface IExpression : ISyntaxNode, IAnalyzable
 {
 
 

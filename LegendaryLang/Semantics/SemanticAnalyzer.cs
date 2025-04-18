@@ -3,7 +3,11 @@ using LegendaryLang.Parse;
 
 namespace LegendaryLang.Semantics;
 
-public class SemanticException : Exception;
+public class SemanticException : Exception
+{
+    public SemanticException(string message) : base(message){}
+    public SemanticException(){}
+}
 public class SemanticAnalyzer 
 {
     public Stack<ParseResult> ParseResults = new Stack<ParseResult>();

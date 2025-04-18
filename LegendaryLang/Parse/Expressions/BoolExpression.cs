@@ -47,7 +47,7 @@ public class BoolExpression : IExpression
         Token = token;
     }
     public Token LookUpToken =>(Token) Token ;
-    void ISyntaxNode.Analyze(SemanticAnalyzer analyzer)
+    public void Analyze(SemanticAnalyzer analyzer)
     {
 
     }

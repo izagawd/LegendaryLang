@@ -77,7 +77,7 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
         return BlockExpression.GetAllFunctionsUsed();
     }
 
-    public Token? LookUpToken {get; }
+    public Token LookUpToken {get; }
     
     
     public void Analyze(SemanticAnalyzer analyzer)
@@ -90,9 +90,11 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
         }
 
  
-        foreach (var i in BlockExpression.SyntaxNodes)
+        BlockExpression.Analyze(analyzer);
+        if (BlockExpression.TypePath != ReturnTypePath)
         {
-            i.Analyze(analyzer);
+            throw new SemanticException(
+                $"Return type of function does not match it's definition\n{LookUpToken.GetLocationStringRepresentation()}");
         }
     }
     public BlockExpression BlockExpression { get; }
@@ -100,7 +102,7 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
     public string Name { get; }
     public LangPath ReturnTypePath { get; protected set; }
 
-    public FunctionDefinition(string name, IEnumerable<VariableDefinition> variables, LangPath returnTypePath, BlockExpression blockExpression, NormalLangPath module, IEnumerable<GenericParameter> genericParameters, Token? lookUpToken = null)
+    public FunctionDefinition(string name, IEnumerable<VariableDefinition> variables, LangPath returnTypePath, BlockExpression blockExpression, NormalLangPath module, IEnumerable<GenericParameter> genericParameters, Token lookUpToken)
     {
         Arguments = variables.ToImmutableArray();
         Name = name;
@@ -118,7 +120,8 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
         var variables = new List<VariableDefinition>();
         if (token is FnToken)
         {
-            var name = Identifier.Parse(parser).Identity;
+            var nameToken = Identifier.Parse(parser);
+            var name = nameToken.Identity;
             var nextToken = parser.Peek();
             if (nextToken is LessThanToken)
             {
@@ -170,12 +173,11 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
                 parser.Pop();
                 returnTyp = LangPath.Parse(parser);
             }
-            return new FunctionDefinition(name, variables,returnTyp,LegendaryLang.Parse.Expressions.BlockExpression.Parse(parser),parser.File.Module, genericParameters);
+            return new FunctionDefinition(name, variables,returnTyp,BlockExpression.Parse(parser),parser.File.Module, genericParameters,nameToken);
         } else
         {
             throw new ExpectedParserException(parser,(ParseType.Fn), token);
         }
     }
 
-    public Token Token { get; private set; }
 }

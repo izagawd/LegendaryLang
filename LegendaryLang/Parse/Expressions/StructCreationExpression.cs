@@ -67,19 +67,20 @@ public class StructCreationExpression : IExpression
         var str = analyzer.GetDefinition(TypePath);
         if (str is null)
         {
-            throw new ParseException($"No definition found for {TypePath}\n{LookUpToken.GetLocationStringRepresentation()}");
+            throw new SemanticException($"No definition found for {TypePath}\n{LookUpToken.GetLocationStringRepresentation()}");
         }
         var asStruct = str as StructTypeDefinition;
         if (asStruct is null)
         {
-            throw new ParseException($"Expected struct type but found {str.FullPath}\n{LookUpToken.GetLocationStringRepresentation()}");
+            throw new SemanticException($"Expected struct type but found {str.FullPath}\n{LookUpToken.GetLocationStringRepresentation()}");
         }
 
         if (AssignFields.Length != asStruct.Fields.Length)
         {
-            throw new ParseException($"Not all fields are assigned to the instance '{TypePath}'\nfields: " +
-                                     $"{string.Join(",", asStruct.Fields.AsEnumerable().Where(i => !AssignFields.Select(j => j.FieldToken.Identity).Contains(i.Name))
-                                         .Select(i =>$"{i.Name}: {i.TypePath}"))}\n{LookUpToken.GetLocationStringRepresentation()}");
+            throw new SemanticException($"Not all fields are assigned to the instance '{TypePath}'\nthe following fields are missing:\n" +
+                                     $"{string.Join("\n", asStruct.Fields.AsEnumerable().Where(i => !AssignFields.Select(j => j.FieldToken.Identity).Contains(i.Name))
+                                         .Select(i =>$"{i.Name}: {i.TypePath}"))}\n\n" +
+                                     $"{LookUpToken.GetLocationStringRepresentation()}");
         }
 
         var invalidFields = new List<AssignedField>();
@@ -93,7 +94,7 @@ public class StructCreationExpression : IExpression
 
         if (invalidFields.Any())
         {
-            throw new ParseException($"The following fields are not part of type '{TypePath}':\n{string.Join("\n",invalidFields.Select(i => i.FieldToken.Identity))}" +
+            throw new SemanticException($"The following fields are not part of type '{TypePath}':\n{string.Join("\n",invalidFields.Select(i => i.FieldToken.Identity))}" +
                                      $"\n{LookUpToken.GetLocationStringRepresentation()}");
         }
         foreach (var i in AssignFields)

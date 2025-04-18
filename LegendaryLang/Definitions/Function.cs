@@ -132,10 +132,7 @@ public class Function : IConcreteDefinition
     }
 
     public Token? LookUpToken => Definition.LookUpToken;
-    public void Analyze(SemanticAnalyzer analyzer)
-    {
-        throw new NotImplementedException();
-    }
+
 
     public string Name => Definition.Name;
     public NormalLangPath Module => Definition.Module;

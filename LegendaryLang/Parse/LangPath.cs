@@ -70,7 +70,7 @@ public abstract class LangPath
     public abstract LangPath GetAsShortCutIfPossible(SemanticAnalyzer analyzer);
     public static NormalLangPath PrimitivePath = new NormalLangPath(null,["std", "primitive"]);
     public static TupleLangPath VoidBaseLangPath { get; } = new TupleLangPath([]);
-    public static bool operator ==(LangPath path1, LangPath path2)
+    public static bool operator ==(LangPath? path1, LangPath? path2)
     {
         if (path1 is null && path2 is null)
         {
@@ -84,7 +84,7 @@ public abstract class LangPath
         return path1.Equals(path2);
     }
 
-    public static bool operator !=(LangPath path1, LangPath path2)
+    public static bool operator !=(LangPath? path1, LangPath? path2)
     {
         return !(path1 == path2);
     }

@@ -129,7 +129,7 @@ public class BlockExpression : IExpression, IStatement
     public void Analyze(SemanticAnalyzer analyzer)
     {
         
-        foreach (var node in SyntaxNodes)
+        foreach (var node in SyntaxNodes.OfType<IAnalyzable>())
         {
             node.Analyze(analyzer);
         }
