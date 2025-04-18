@@ -15,6 +15,7 @@ fn bruh<T>(){
 }
 
 fn main() -> i32{
-    hello::<i32>(4)
+  let kk =  hello::<i32>(4) + 5;
+  kk
 }
 

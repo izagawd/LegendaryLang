@@ -62,8 +62,7 @@ public class FunctionCallExpression : IExpression
         }
         if (def is FunctionDefinition fd)
         {
-            /// do not worry. FunctionDef checks itself if its already analyzed or not to repeat double analyzing
-            fd.Analyze(analyzer);
+
             if (fd.GenericParameters.Length != FunctionPath.GetFrontGenerics().Length)
             {
                 analyzer.AddException(new SemanticException($"Incorrect number of generic parameters: {FunctionPath.GetFrontGenerics().Length}\n" +

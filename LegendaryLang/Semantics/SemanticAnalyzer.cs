@@ -52,9 +52,17 @@ public class SemanticAnalyzer
         }
         return null;
     }
-    public void RegisterVariableType(LangPath variableLangPath, LangPath typPath)
+    public void RegisterVariableType(LangPath variableLangPath, LangPath typPath, int? scope = null)
     {
-        VariableToTypeMapper.Peek().Add(variableLangPath, typPath);
+        if (scope is null)
+        {
+            VariableToTypeMapper.Peek().Add(variableLangPath, typPath);
+        }
+        else
+        {
+            VariableToTypeMapper.Reverse().Skip(scope.Value).First().Add(variableLangPath, typPath);
+        }
+       
     }
     public void RegisterDefinition(LangPath path, IDefinition definition)
     {

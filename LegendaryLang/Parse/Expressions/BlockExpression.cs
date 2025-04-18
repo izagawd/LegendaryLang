@@ -138,6 +138,7 @@ public class BlockExpression : IExpression
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        analyzer.AddScope();
         var last = BlockSyntaxNodeContainers.Cast<BlockSyntaxNodeContainer?>().LastOrDefault();
         foreach (var item in BlockSyntaxNodeContainers)
         {
@@ -179,7 +180,7 @@ public class BlockExpression : IExpression
             ReturnedThingsToken = last?.Node?.Token ?? RightCurlyBraceToken;
         }
         DtaRefExprToEval=last;
-
+        analyzer.PopScope();
         
 
     }

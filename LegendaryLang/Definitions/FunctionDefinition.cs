@@ -8,7 +8,7 @@ namespace LegendaryLang.Definitions;
 
 public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
 {
-    public bool IsAnalyzed { get; set; } = false;
+
 
     
     public ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
@@ -83,16 +83,13 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
     public void Analyze(SemanticAnalyzer analyzer)
     {
 
-        if (IsAnalyzed)
-        {
-            return;
-        }
+
         ReturnTypePath = ReturnTypePath.GetFromShortCutIfPossible(analyzer);
         foreach (var i in Arguments)
         {
            i.TypePath = i.TypePath?.GetFromShortCutIfPossible(analyzer);
         }
-        IsAnalyzed = true;
+ 
 
         foreach (var i in Arguments)
         {
@@ -119,6 +116,7 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
 
     public LangPath? GetMonomorphizedReturnTypePath(NormalLangPath functionLangPath)
     {
+        
         if (!(this as IDefinition).FullPath.Contains(functionLangPath.PopGenerics()))
         {
             return null;
