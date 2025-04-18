@@ -64,7 +64,17 @@ public class FunctionCallExpression : IExpression
         {
             /// do not worry. FunctionDef checks itself if its already analyzed or not to repeat double analyzing
             fd.Analyze(analyzer);
-            TypePath = fd.ReturnTypePath;
+            if (fd.GenericParameters.Length != FunctionPath.GetFrontGenerics().Length)
+            {
+                analyzer.AddException(new SemanticException($"Incorrect number of generic parameters: {FunctionPath.GetFrontGenerics().Length}\n" +
+                                                            $"Expected: {fd.GenericParameters.Length}\n\n" +
+                                                            $"{Token.GetLocationStringRepresentation()}"));
+                TypePath = fd.ReturnTypePath;
+            }
+            else
+            {
+                TypePath = fd.GetMonomorphizedReturnTypePath(FunctionPath);
+            }
         }
         else
         {

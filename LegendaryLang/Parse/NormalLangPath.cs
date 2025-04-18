@@ -195,6 +195,16 @@ public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
     {
         return new NormalLangPath(FirstIdentifierToken,PathSegments.SkipLast(1));
     }
+
+    public ImmutableArray<LangPath> GetFrontGenerics()
+    {
+        if (PathSegments.LastOrDefault() is GenericTypesPathSegment genericTypesPathSegment)
+        {
+            return genericTypesPathSegment.TypePaths;
+        }
+
+        return [];
+    }
     public NormalLangPath? PopGenerics()
     {
         if (PathSegments.LastOrDefault() is GenericTypesPathSegment)

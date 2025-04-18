@@ -110,8 +110,35 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
     public BlockExpression BlockExpression { get; }
     public readonly ImmutableArray<VariableDefinition> Arguments;
     public string Name { get; }
+    
+    
+    /// <summary>
+    /// NOTE: This would be the path pre monomorphization. so if the return type is a generic param T, thats exactly what it will return. 
+    /// </summary>
     public LangPath ReturnTypePath { get; protected set; }
 
+    public LangPath? GetMonomorphizedReturnTypePath(NormalLangPath functionLangPath)
+    {
+        if (!(this as IDefinition).FullPath.Contains(functionLangPath.PopGenerics()))
+        {
+            return null;
+        }
+        var genericArgs=functionLangPath.GetFrontGenerics();
+        if (genericArgs.Length != GenericParameters.Length)
+        {
+            return null;
+        }
+        for(int i = 0; i < GenericParameters.Length; i++)
+        {
+            var genericParam = GenericParameters[i];
+            if (new NormalLangPath(null, [genericParam.Name]) == ReturnTypePath)
+            {
+                return genericArgs[i];
+            }
+        }
+
+        return ReturnTypePath;
+    }
     public FunctionDefinition(string name, IEnumerable<VariableDefinition> variables, LangPath returnTypePath, BlockExpression blockExpression, NormalLangPath module, IEnumerable<GenericParameter> genericParameters, Token lookUpToken)
     {
         Arguments = variables.ToImmutableArray();
