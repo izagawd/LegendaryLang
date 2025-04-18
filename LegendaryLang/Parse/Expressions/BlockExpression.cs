@@ -15,6 +15,15 @@ public class BlockExpression : IExpression
         public   ISyntaxNode Node;
         public bool HasSemiColonAfter;
     }
+
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        foreach (var i in SyntaxNodes)
+        {
+            i.SetFullPathOfShortCuts(analyzer);
+        }
+    }
+
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
 

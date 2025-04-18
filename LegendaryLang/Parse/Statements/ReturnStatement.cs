@@ -30,6 +30,12 @@ public class ReturnStatement : IStatement
         Token = token;
         ToReturn = toReturn;
     }
+
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        ToReturn?.SetFullPathOfShortCuts(analyzer);
+    }
+
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
         return ToReturn?.GetAllFunctionsUsed() ?? [];

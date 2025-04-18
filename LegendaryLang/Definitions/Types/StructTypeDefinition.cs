@@ -13,7 +13,7 @@ public class StructTypeDefinition : CustomTypeDefinition
     public override LangPath TypePath =>(this as IDefinition).FullPath;
 
 
-    public override void Analyze(SemanticAnalyzer analyzer)
+    public override void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
     {
         var list = new List<VariableDefinition>();
         foreach (var i in Fields)
@@ -22,6 +22,11 @@ public class StructTypeDefinition : CustomTypeDefinition
         }
 
         Fields = list.ToImmutableArray();
+    }
+
+    public override void Analyze(SemanticAnalyzer analyzer)
+    {
+
     }
 
 

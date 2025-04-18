@@ -10,6 +10,10 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class UnaryOperationExpression : IExpression
 {
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        Expression.SetFullPathOfShortCuts(analyzer);
+    }
 
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {

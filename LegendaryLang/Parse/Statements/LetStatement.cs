@@ -108,6 +108,11 @@ public class LetStatement : IStatement
     private LangPath? TypePath { get;  set; }
 
 
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        EqualsTo?.SetFullPathOfShortCuts(analyzer);
+        VariableDefinition.TypePath =  VariableDefinition.TypePath?.GetFromShortCutIfPossible(analyzer);
+    }
 
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
@@ -118,7 +123,7 @@ public class LetStatement : IStatement
     public void Analyze(SemanticAnalyzer analyzer)
     {
         EqualsTo?.Analyze(analyzer);
-       VariableDefinition.TypePath =  VariableDefinition.TypePath?.GetFromShortCutIfPossible(analyzer);
+
         if (TypePath is null)
         {
       
@@ -145,7 +150,7 @@ public class LetStatement : IStatement
         }
         
         ArgumentNullException.ThrowIfNull(TypePath);
-        TypePath = TypePath.GetFromShortCutIfPossible(analyzer);
+ 
         analyzer.RegisterVariableType(new NormalLangPath(VariableDefinition.IdentifierToken,[VariableDefinition.Name]), TypePath);
     }
 }

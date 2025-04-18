@@ -30,7 +30,7 @@ public class UseDefinition : ITopLevel
     public NormalLangPath PathToUse { get; }
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        analyzer.AddToDeepestScope(PathToUse.PathSegments.Last(),PathToUse);
+
     }
 
     
@@ -44,6 +44,15 @@ public class UseDefinition : ITopLevel
 
     }
 
+    public void RegisterUsings(SemanticAnalyzer analyzer)
+    {
+        analyzer.AddToDeepestScope(PathToUse.PathSegments.Last(),PathToUse);
+    }
+
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        
+    }
 
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {

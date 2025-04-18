@@ -47,6 +47,11 @@ public abstract class TypeDefinition : ITopLevel, IDefinition, IMonomorphizable
     public abstract NormalLangPath Module { get; }
     public bool HasBeenGened { get; set; } = false;
     public abstract LangPath TypePath { get; }
+    public virtual void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        
+    }
+
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
         return [];

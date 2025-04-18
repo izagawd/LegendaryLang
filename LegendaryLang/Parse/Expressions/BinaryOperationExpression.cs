@@ -64,6 +64,11 @@ public class BinaryOperationExpression : IExpression
     }
 
     public LangPath? TypePath { get; } = new I32TypeDefinition().TypePath;
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        Left.SetFullPathOfShortCuts(analyzer);
+        Right.SetFullPathOfShortCuts(analyzer);
+    }
 
     public void Analyze(SemanticAnalyzer analyzer)
     {

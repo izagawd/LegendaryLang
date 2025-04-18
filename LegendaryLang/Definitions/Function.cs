@@ -133,6 +133,11 @@ public class Function : IConcreteDefinition
 
 
     public ImmutableArray<LangPath> GenericArguments { get; }
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        
+    }
+
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
         return BlockExpression.GetAllFunctionsUsed();

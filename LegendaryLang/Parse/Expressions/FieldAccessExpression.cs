@@ -52,6 +52,12 @@ public class FieldAccessExpression : IExpression
         TypePath = structTypeDefinition.Fields.First(i => i.Name == Field.Identity).TypePath;
     }
 
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+
+        Caller.SetFullPathOfShortCuts(analyzer);
+    }
+
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
         return Caller.GetAllFunctionsUsed();

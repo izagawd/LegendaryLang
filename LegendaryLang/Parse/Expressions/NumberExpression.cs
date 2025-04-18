@@ -22,6 +22,11 @@ public class NumberExpression : IExpression
     }
     public NumberToken Token { get; }
     Token ISyntaxNode.Token => (Token)Token;
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        
+    }
+
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
         return [];

@@ -45,6 +45,11 @@ public abstract class Type : IConcreteDefinition
 
     public abstract LLVMTypeRef TypeRef { get;  protected set; }
     public  TypeDefinition TypeDefinition { get;  }
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        
+    }
+
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
         return [];
@@ -53,7 +58,7 @@ public abstract class Type : IConcreteDefinition
     public Token Token => TypeDefinition.Token;
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        throw new NotImplementedException();
+        
     }
     public abstract LangPath TypePath { get; }
 

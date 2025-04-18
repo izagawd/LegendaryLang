@@ -23,6 +23,14 @@ public class TupleCreationExpression : IExpression
     }
 
 
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        foreach (var i in Composites)
+        {
+            i.SetFullPathOfShortCuts(analyzer);
+        }
+    }
+
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
         return Composites.SelectMany(composite => composite.GetAllFunctionsUsed());

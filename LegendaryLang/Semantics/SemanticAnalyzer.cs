@@ -113,6 +113,23 @@ public class SemanticAnalyzer
         foreach (var result in ParseResults)
         {
             AddScope();
+            foreach (var i in result.TopLevels.OfType<UseDefinition>())
+            {
+                i.RegisterUsings(this);
+            }
+            foreach (var i in result.TopLevels)
+            {
+              
+                i.SetFullPathOfShortCuts(this);
+                
+
+            }
+            PopScope();
+
+        }
+        foreach (var result in ParseResults)
+        {
+            AddScope();
             foreach (var i in result.TopLevels)
             {
               

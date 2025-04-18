@@ -9,6 +9,8 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class FunctionCallExpression : IExpression
 {
+
+
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
         return [FunctionPath];
@@ -52,9 +54,13 @@ public class FunctionCallExpression : IExpression
     }
 
     public Token Token => FunctionPath.FirstIdentifierToken!;
-    public void Analyze(SemanticAnalyzer analyzer)
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
     {
         FunctionPath=(NormalLangPath) FunctionPath.GetFromShortCutIfPossible(analyzer);
+    }
+    public void Analyze(SemanticAnalyzer analyzer)
+    {
+   
         var def = analyzer.GetDefinition(FunctionPath);
         if (def is null)
         {

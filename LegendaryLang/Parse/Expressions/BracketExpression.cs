@@ -20,6 +20,11 @@ public class BracketExpression : IExpression
         Expression = expression;
     }
 
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        Expression.SetFullPathOfShortCuts(analyzer);
+    }
+
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
         return Expression.GetAllFunctionsUsed();

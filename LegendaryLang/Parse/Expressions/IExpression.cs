@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
+using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse.Expressions;
 
@@ -137,6 +138,8 @@ public interface IExpression : ISyntaxNode, IAnalyzable
         }
         return expression;
     }
+
+
     public static IExpression Parse(Parser parser, int minPrec= 0)
     {
         IExpression lhs = ParsePrimary(parser);

@@ -9,6 +9,15 @@ namespace LegendaryLang.Definitions.Types;
 
 public class TupleTypeDefinition : CustomTypeDefinition
 {
+    public override void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+    
+        foreach (var i in OtherTypes)
+        {
+            i.SetFullPathOfShortCuts(analyzer);
+        }
+
+    }
 
     public override Type GenerateIncompleteMono(CodeGenContext context, LangPath langPath)
     {
@@ -27,7 +36,7 @@ public class TupleTypeDefinition : CustomTypeDefinition
     public override Token Token { get; }
     public override void Analyze(SemanticAnalyzer analyzer)
     {
-        throw new NotImplementedException();
+
     }
     public ImmutableArray<Type> OtherTypes { get; }
     public TupleTypeDefinition( IEnumerable<Type> otherTypes)

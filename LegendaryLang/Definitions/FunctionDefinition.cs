@@ -72,6 +72,18 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
 
     public int Priority => 3;
 
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        
+
+        ReturnTypePath = ReturnTypePath.GetFromShortCutIfPossible(analyzer);
+        foreach (var i in Arguments)
+        {
+            i.TypePath = i.TypePath?.GetFromShortCutIfPossible(analyzer);
+        }
+        BlockExpression.SetFullPathOfShortCuts(analyzer);
+    }
+
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
         return BlockExpression.GetAllFunctionsUsed();
@@ -83,12 +95,6 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
     public void Analyze(SemanticAnalyzer analyzer)
     {
 
-
-        ReturnTypePath = ReturnTypePath.GetFromShortCutIfPossible(analyzer);
-        foreach (var i in Arguments)
-        {
-           i.TypePath = i.TypePath?.GetFromShortCutIfPossible(analyzer);
-        }
  
 
         foreach (var i in Arguments)

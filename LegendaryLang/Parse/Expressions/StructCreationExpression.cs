@@ -61,9 +61,13 @@ public class StructCreationExpression : IExpression
 
     public ImmutableArray<AssignedField> AssignFields { get; }
     public Token Token { get; }
-    public void Analyze( SemanticAnalyzer analyzer)
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
     {
         TypePath = TypePath.GetFromShortCutIfPossible(analyzer);
+    }
+    public void Analyze( SemanticAnalyzer analyzer)
+    {
+
         foreach (var i in AssignFields)
         {
             i.EqualsTo.Analyze(analyzer);
@@ -125,6 +129,8 @@ public class StructCreationExpression : IExpression
     {
         throw new NotImplementedException();
     }
+
+ 
 
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {

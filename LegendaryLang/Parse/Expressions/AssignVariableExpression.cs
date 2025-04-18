@@ -24,6 +24,12 @@ public class AssignVariableExpression : IExpression
     public EqualityToken EqualityToken { get; }
     public IExpression Assigner { get; }
 
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        Assigner.SetFullPathOfShortCuts(analyzer);
+        EqualsTo.SetFullPathOfShortCuts(analyzer);
+    }
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
         

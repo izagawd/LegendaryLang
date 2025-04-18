@@ -16,6 +16,11 @@ public class PathExpression : IExpression
         Path = path;
     }
 
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        Path = Path.GetFromShortCutIfPossible(analyzer);
+    }
+
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
         return [];
@@ -62,7 +67,7 @@ public class PathExpression : IExpression
     /// </summary>
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        Path = Path.GetFromShortCutIfPossible(analyzer);
+
         TypePath= analyzer.GetVariableTypePath(Path);
         if (TypePath is null)
         {

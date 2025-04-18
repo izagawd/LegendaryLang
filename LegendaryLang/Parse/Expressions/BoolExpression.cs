@@ -8,6 +8,11 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class BoolExpression : IExpression
 {
+    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    {
+        
+    }
+
     public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
     {
         return [];
