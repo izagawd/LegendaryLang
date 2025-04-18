@@ -56,6 +56,10 @@ public class FunctionCallExpression : IExpression
     {
         FunctionPath=(NormalLangPath) FunctionPath.GetFromShortCutIfPossible(analyzer);
         var def = analyzer.GetDefinition(FunctionPath);
+        if (def is null)
+        {
+            def = analyzer.GetDefinition(FunctionPath.Pop());
+        }
         if (def is FunctionDefinition fd)
         {
             /// do not worry. FunctionDef checks itself if its already analyzed or not to repeat double analyzing

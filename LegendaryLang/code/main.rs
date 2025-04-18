@@ -1,21 +1,21 @@
 ﻿
 use code::Human;
-
+use code::hello;
+use code::bruh;
 use std::primitive::i32;
 use code::make_human_with_age;
-struct Human{
-    age: i32   
-}
-fn make_human_with_age(inputtedAge: i32) -> Human{
-    Human{
-        age = inputtedAge  
-    }
+
+
+fn hello<T>(){
+    bruh::<T>();
 }
 
+fn bruh<T>(){
+    hello::<T>();    
+}
 
 fn main() -> i32{
-    let createdHuman : Human = make_human_with_age(5);
-    createdHuman.age = createdHuman.age * 2;
-    createdHuman.age
+    hello::<i32>();
+    4
 }
 

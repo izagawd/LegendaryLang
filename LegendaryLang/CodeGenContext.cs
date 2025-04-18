@@ -228,6 +228,11 @@ public class CodeGenContext
 
                 }
                 var tuple = new TupleType(types);
+                AddToScope(ident,new TypeRefItem()
+                {
+                    Type = tuple,
+                    
+                },0);
                 // codegen may change the insert block. this is to preserve and set it back
                 var prevBuilder = Builder.InsertBlock;
                 CodeGen(tuple);
