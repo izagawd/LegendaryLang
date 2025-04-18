@@ -93,7 +93,11 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
            i.TypePath = i.TypePath?.GetFromShortCutIfPossible(analyzer);
         }
         IsAnalyzed = true;
- 
+
+        foreach (var i in Arguments)
+        {
+            analyzer.RegisterVariableType(new NormalLangPath(i.IdentifierToken,[i.Name]), i.TypePath);
+        }
         BlockExpression.Analyze(analyzer);
         if (BlockExpression.TypePath != ReturnTypePath)
         {

@@ -1,24 +1,21 @@
 ﻿
 use code::Human;
 use code::dark::Nester;
- use std::primitive::i32;
-
-struct Many{
-    a : i32,
-    b : i32,
-    c: i32,
-    d: i32,
-    e: i32,
-    f: i32,
-    g: i32,    
+use std::primitive::i32;
+use code::make_human_with_age;
+struct Human{
+    age: i32   
 }
+fn make_human_with_age(inputtedAge: i32) -> Human{
+    Human{
+        age = inputtedAge  
+    }
+}
+
+
 fn main() -> i32{
-    code::main2()
-
-}
-
-fn main2() -> i32{
-    let a = true;
-    5
+    let createdHuman : Human = make_human_with_age(5);
+    createdHuman.age = createdHuman.age * 2;
+    createdHuman.age
 }
 
