@@ -31,14 +31,16 @@ public class Function : IConcreteDefinition
         for (int i = 0; i < GenericArguments.Length; i++)
         {
             var argument = GenericArguments[i];
-            var kk3 = context.GetRefItemFor(argument);
-            var kk = (context.GetRefItemFor(argument) as TypeRefItem);
+
             context.AddToDeepestScope(new NormalLangPath(null,
                 [Definition.GenericParameters[i].Name]) , new TypeRefItem()
             {
                 Type = (context.GetRefItemFor(argument) as TypeRefItem).Type ?? throw new NullReferenceException(),
             });
         }
+
+        ReturnType = (context.GetRefItemFor(Definition.ReturnTypePath) as TypeRefItem).Type;
+        
         FullPath = Module.Append([
             Name, new NormalLangPath.GenericTypesPathSegment(
                 Definition.GenericParameters.Select(i => (context.GetRefItemFor(new NormalLangPath(null,
@@ -70,48 +72,53 @@ public class Function : IConcreteDefinition
 
         var argumentsToMonomorphize = new Variable[Definition.Arguments.Length];
 
-        // 6. For each parameter, allocate space and store the parameter into it.
         for (uint i = 0; i < (uint)Definition.Arguments.Length; i++)
         {
             var argument = Definition.Arguments[(int)i];
             var argType = context.GetRefItemFor(argument.TypePath) as TypeRefItem;
+            argumentsToMonomorphize[i] = new Variable()
+            {
+                Type = argType.Type,
+                Name = argument.Name,
+            };
+        }
+        Arguments = argumentsToMonomorphize.ToImmutableArray(); 
+        // 6. For each parameter, allocate space and store the parameter into it.
+        for (uint i = 0; i < (uint)Definition.Arguments.Length; i++)
+        {
+
+            var argument = argumentsToMonomorphize[i];
             
             // Get the function parameter.
             LLVMValueRef param = LLVM.GetParam(function, i);
             
             // Allocate space for the parameter in the entry block.
             LLVMValueRef alloca = LLVM.BuildAlloca(context.Builder, paramTypes[i],argument.Name.ToCString());
-            argType.Type.AssignTo(context,new VariableRefItem()
+            argument.Type.AssignTo(context,new VariableRefItem()
             {
-                Type = argType.Type,
+                Type = argument.Type,
                 ValueRef = param,
             }, new VariableRefItem()
             {
-                Type = argType.Type,
+                Type = argument.Type,
                 ValueRef = alloca,
             });
-            argumentsToMonomorphize[(int) i] = new Variable()
-            {
-                Name = argument.Name,
-                Type = argType.Type,
-            };
-            argument.TypePath = argType.Type.TypePath;
+
             // adds the stack ptr to codegen so argument can be referenced by name
             context.AddToDeepestScope(new NormalLangPath(null,[argument.Name]), new VariableRefItem()
             {
-                Type = (context.GetRefItemFor(argument.TypePath) as TypeRefItem).Type,
+                Type = (context.GetRefItemFor(argument.Type.TypePath) as TypeRefItem).Type,
                 ValueRef = alloca
             });
 
         }
         // sets arguments post monomorphization (eg converting T to i32)
-        Arguments = argumentsToMonomorphize.ToImmutableArray(); 
+
 
         var blockValue = BlockExpression.DataRefCodeGen(context);
         
         
-        // sets return type post monomorphization (eg converting T to i32)
-        ReturnType = blockValue.Type;
+
          LLVM.BuildRet(context.Builder, blockValue.LoadValForRetOrArg(context));
         
 
