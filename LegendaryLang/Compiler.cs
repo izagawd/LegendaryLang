@@ -44,11 +44,32 @@ public class Compiler
             Console.WriteLine($"No main.{extension} file found!!!");
         }
 
+        List<string> parserExceptionsText = [];
+        
         var parseResults = codeFiles.Select(
-                i => new Parser(Lexer.Lex(i.Value, i.Key)).Parse()
-            )
+                i =>
+                {
+                    try
+                    {
+                        return new Parser(Lexer.Lex(i.Value, i.Key)).Parse();
+                    }
+                    catch (Exception e)
+                    {
+                        parserExceptionsText.Add(e.Message);
+                        return null;
+                    }
+                    
+                })
             .Append(PrimitiveTypeGenerator.Generate())
             .ToList();
+        if (parserExceptionsText.Any())
+        {
+            foreach (var i in parserExceptionsText)
+            {
+                Console.WriteLine(i);
+            }
+            return;
+        }
         var mainFile = parseResults.First(i => i.File!.Path == $"{codeDirectory}\\main.{extension}");
 
         var analysis = new SemanticAnalyzer(parseResults).Analyze();
