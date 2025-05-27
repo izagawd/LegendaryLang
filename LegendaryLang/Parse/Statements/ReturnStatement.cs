@@ -6,7 +6,7 @@ namespace LegendaryLang.Parse.Statements;
 
 public class ReturnStatement : IStatement
 {
-    public ReturnStatement Parse(Parser parser)
+    public static ReturnStatement Parse(Parser parser)
     {
         var parsed = parser.Pop();
         if (parsed is not ReturnToken returnToken)
