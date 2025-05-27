@@ -350,7 +350,7 @@ public class CodeGenContext
 
    
 
-    public void CodeGen()
+    public void CodeGen(bool showLLVMIR = false)
     {
         const string MODULE_NAME = "LEGENDARY_LANGUAGE";
         unsafe
@@ -386,7 +386,11 @@ public class CodeGenContext
             });
             // codeGens the main fn
             mainConc.CodeGen(this);
-            Console.WriteLine(FromByte(LLVM.PrintModuleToString(Module)));
+            if (showLLVMIR)
+            {
+                Console.WriteLine(FromByte(LLVM.PrintModuleToString(Module)));
+            }
+
             sbyte* idk;
             if (LLVM.VerifyModule(Module, LLVMVerifierFailureAction.LLVMPrintMessageAction, &idk) != 0)
             {

@@ -9,14 +9,9 @@ use code::make_human_with_age;
 
 
 fn main() -> i32{
-  let kk =  hello::<i32>(4) + 5;
-  kk
+  code::get_left::<i32>(5 + 5, 7 )
 }
 
-fn hello<T>(kk: T) -> i32{
-    5
-}
-
-fn bruh<T>(){
-    hello::<T>();    
+fn get_left<T>(left: T, right: T) -> T{
+    left
 }

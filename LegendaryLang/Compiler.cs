@@ -13,7 +13,7 @@ public class Compiler
 {
 
     public const string extension = "rs";
-    public void Compile(string codeDirectory)
+    public void Compile(string codeDirectory, bool showLLVM = false)
     {
         string directoryPath = codeDirectory;
 
@@ -43,15 +43,15 @@ public class Compiler
         {
             Console.WriteLine($"No main.{extension} file found!!!");
         }
-        
-       var parseResults = codeFiles.Select(
-            i => new Parser(Lexer.Lex(i.Value, i.Key)).Parse()
-        )
-           .Append(PrimitiveTypeGenerator.Generate())
-           .ToList();
+
+        var parseResults = codeFiles.Select(
+                i => new Parser(Lexer.Lex(i.Value, i.Key)).Parse()
+            )
+            .Append(PrimitiveTypeGenerator.Generate())
+            .ToList();
         var mainFile = parseResults.First(i => i.File!.Path == $"{codeDirectory}\\main.{extension}");
 
-        var analysis =new SemanticAnalyzer(parseResults).Analyze();
+        var analysis = new SemanticAnalyzer(parseResults).Analyze();
         if (analysis.Any())
         {
             Console.WriteLine("SEMANTIC ERRORS FOUND\n");
@@ -68,7 +68,8 @@ public class Compiler
 
         if (mainFn.ReturnTypePath != new I32TypeDefinition().TypePath)
         {
-            Console.WriteLine($"'fn main' return type must be '{new I32TypeDefinition().TypePath}', not '{mainFn.ReturnTypePath}'!!!");
+            Console.WriteLine(
+                $"'fn main' return type must be '{new I32TypeDefinition().TypePath}', not '{mainFn.ReturnTypePath}'!!!");
             return;
         }
 
@@ -77,6 +78,7 @@ public class Compiler
             Console.WriteLine($"'fn main' arguments are not empty!!!");
             return;
         }
-        new CodeGenContext(parseResults,new NormalLangPath(null,[codeDirectory]) ).CodeGen();
+
+        new CodeGenContext(parseResults, new NormalLangPath(null, [codeDirectory])).CodeGen();
     }
 }
