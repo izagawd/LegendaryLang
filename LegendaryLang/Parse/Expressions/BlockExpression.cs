@@ -36,17 +36,18 @@ public class BlockExpression : IExpression
     public ImmutableArray<ISyntaxNode> SyntaxNodes => BlockSyntaxNodeContainers.Select(i => i.Node).ToImmutableArray();
     
 
-    public BlockExpression(LeftCurlyBraceToken leftCurlyBraceToken, RightCurlyBraceToken rightCurlyBraceToken, IEnumerable<BlockSyntaxNodeContainer> syntaxNodes)
+    public BlockExpression(LeftCurlyBraceToken leftCurlyBraceToken, RightCurlyBraceToken rightCurlyBraceToken, IEnumerable<BlockSyntaxNodeContainer> syntaxNodes, bool isFunctionBlock)
     {
         LeftCurlyBraceToken = leftCurlyBraceToken;
         RightCurlyBraceToken = rightCurlyBraceToken;
         BlockSyntaxNodeContainers = [..syntaxNodes];
-      
+        IsFunctionBlock = isFunctionBlock;
     }
 
     public ImmutableArray<BlockSyntaxNodeContainer> BlockSyntaxNodeContainers { get;  }
 
-    public new  static BlockExpression Parse(Parser parser)
+    public bool IsFunctionBlock { get; }
+    public new  static BlockExpression Parse(Parser parser, bool isFunctionBlock = false)
     { 
       
         var leftCurly = CurlyBrace.ParseLeft(parser);
@@ -89,18 +90,20 @@ public class BlockExpression : IExpression
   
             next = parser.Peek();
         }
-        return new BlockExpression(leftCurly,CurlyBrace.Parseight(parser), syntaxNodes);
+        return new BlockExpression(leftCurly,CurlyBrace.Parseight(parser), syntaxNodes, isFunctionBlock);
     }
 
 
 
-    public VariableRefItem DataRefCodeGen(CodeGenContext context)
+    public unsafe VariableRefItem DataRefCodeGen(CodeGenContext context)
     {
         // Optionally: Push a new scope if you have scope management.
         // context.SymbolTable.EnterScope();
         
+        
         var lastValue = context.GetVoid();
         context.AddScope();
+
         VariableRefItem? toEvalGenned = null;
         // Iterate over each syntax node in the block.
         foreach (var item in BlockSyntaxNodeContainers)
@@ -115,14 +118,22 @@ public class BlockExpression : IExpression
                     toEvalGenned = lastValue;
                 }
             }
+            
             // If the node is a statement, simply generate code.
             else if (item.Node is IStatement stmt)
             {
+                if (stmt is ReturnStatement returnStatement)
+                {
+                    lastValue = returnStatement.ToReturn.DataRefCodeGen(context);
+                    toEvalGenned = lastValue;
+                    break;
+                }
                 lastValue = context.GetVoid();
                 stmt.CodeGen(context);
             }
         }
-
+        
+        LLVM.BuildRet(context.Builder,   lastValue.LoadValForRetOrArg(context));
         context.PopScope();
 
         if (DtaRefExprToEval is not null)
@@ -133,8 +144,6 @@ public class BlockExpression : IExpression
         }
 
         return context.GetVoid();
-        
-       
     }
 
     public LangPath? TypePath { get; private set; }

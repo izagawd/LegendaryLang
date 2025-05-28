@@ -31,6 +31,7 @@ public class ReturnStatement : IStatement
         ToReturn = toReturn;
     }
 
+ 
     public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
     {
         ToReturn?.SetFullPathOfShortCuts(analyzer);
@@ -47,8 +48,11 @@ public class ReturnStatement : IStatement
         ToReturn?.Analyze(analyzer);
     }
 
+    /// <summary>
+    /// The <see cref="BlockExpression"/> will handle the codegen
+    /// </summary>
     public void CodeGen(CodeGenContext CodeGenContext)
     {
-        throw new NotImplementedException();
+
     }
 }

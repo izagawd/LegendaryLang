@@ -115,11 +115,8 @@ public class Function : IConcreteDefinition
         // sets arguments post monomorphization (eg converting T to i32)
 
 
-        var blockValue = BlockExpression.DataRefCodeGen(context);
-        
-        
+        BlockExpression.DataRefCodeGen(context);
 
-         LLVM.BuildRet(context.Builder, blockValue.LoadValForRetOrArg(context));
         
 
         context.PopScope();

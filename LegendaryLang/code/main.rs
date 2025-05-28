@@ -13,6 +13,6 @@ fn main() -> i32{
 }
 
 fn get_left<T>(left: T, right: T) -> T{
-    return left;
+    left
     
 }
