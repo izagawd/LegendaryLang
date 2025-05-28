@@ -23,9 +23,9 @@ public class ReturnStatement : IStatement
     }
     Token ISyntaxNode.Token   => Token;
     public ReturnToken Token { get; }
-    public IExpression? ToReturn { get; }
+    public IExpression ToReturn { get; }
 
-    public ReturnStatement(ReturnToken token, IExpression? toReturn)
+    public ReturnStatement(ReturnToken token, IExpression toReturn)
     {
         Token = token;
         ToReturn = toReturn;

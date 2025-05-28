@@ -35,7 +35,7 @@ public class BlockExpression : IExpression
     public RightCurlyBraceToken RightCurlyBraceToken { get; }
     public ImmutableArray<ISyntaxNode> SyntaxNodes => BlockSyntaxNodeContainers.Select(i => i.Node).ToImmutableArray();
     
-    public Token ReturnedThingsToken { get; set; }
+
     public BlockExpression(LeftCurlyBraceToken leftCurlyBraceToken, RightCurlyBraceToken rightCurlyBraceToken, IEnumerable<BlockSyntaxNodeContainer> syntaxNodes)
     {
         LeftCurlyBraceToken = leftCurlyBraceToken;
@@ -133,10 +133,9 @@ public class BlockExpression : IExpression
                 return context.GetVoid();
             return toEvalGenned ?? context.GetVoid();
         }
-        else
-        {
-           return context.GetVoid();
-        }
+
+        return context.GetVoid();
+        
        
     }
 
@@ -145,15 +144,38 @@ public class BlockExpression : IExpression
 
     public BlockSyntaxNodeContainer? DtaRefExprToEval { get; set; }
 
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        ReturnStatement? lastReturnStatement = null;
         analyzer.AddScope();
         var last = BlockSyntaxNodeContainers.Cast<BlockSyntaxNodeContainer?>().LastOrDefault();
+
         foreach (var item in BlockSyntaxNodeContainers)
         {
+  
             if (item.Node is IExpression expr && expr != last?.Node && !item.HasSemiColonAfter)
             {
-                analyzer.AddException(new SemanticException($"Expected semicolon after expression\n{item.Node.Token.GetLocationStringRepresentation()}"));
+                analyzer.AddException(new SemanticException($"Expected semicolon after expression" +
+                                                            $"\n{item.Node.Token.GetLocationStringRepresentation()}"));
+            }
+
+            if (item.Node is ReturnStatement returnStatement)
+            {
+                if (lastReturnStatement is not null && lastReturnStatement.ToReturn.TypePath != returnStatement.ToReturn.TypePath)
+                {
+                    var returnTypePath = lastReturnStatement.ToReturn.TypePath;
+                    analyzer.AddException(
+                        new SemanticException($"Conflicting return types\n" +
+                                              $"Expected {returnTypePath}, due to \n{returnTypePath.FirstIdentifierToken!.GetLocationStringRepresentation()}\n" +
+                                              $"found {returnStatement.ToReturn.TypePath}"));
+                }
+                else
+                {
+                    lastReturnStatement = returnStatement;
+                }
+       
+
             }
         }
 
@@ -165,28 +187,35 @@ public class BlockExpression : IExpression
         if (SyntaxNodes.Length == 0)
         {
             TypePath= LangPath.VoidBaseLangPath;
-            ReturnedThingsToken = RightCurlyBraceToken;
+  
         }
         else
         {
-         
+            LangPath possibleTypePath = null;
             if (last?.Node is IExpression expression)
             {
                 if (last.Value.HasSemiColonAfter)
                 {
-                    TypePath = LangPath.VoidBaseLangPath;
+                    possibleTypePath = LangPath.VoidBaseLangPath;
                 }
                 else
                 {
-                    TypePath = expression.TypePath;
+                    possibleTypePath = expression.TypePath;
                 }
             }
             else
             {
-                TypePath = LangPath.VoidBaseLangPath;
+                possibleTypePath = LangPath.VoidBaseLangPath;
             }
 
-            ReturnedThingsToken = last?.Node?.Token ?? RightCurlyBraceToken;
+            var lastReturnTypePath = lastReturnStatement?.ToReturn.TypePath;
+            if (lastReturnTypePath is not null && possibleTypePath != lastReturnTypePath )
+            {
+                analyzer.AddException(new SemanticException($"Conflicting return types\n" +
+                                      $"Expected {lastReturnTypePath}, due to \n{lastReturnStatement.Token!.GetLocationStringRepresentation()}\n" +
+                                      $"found {possibleTypePath}"));
+            }
+            TypePath = lastReturnTypePath ?? possibleTypePath;
         }
         DtaRefExprToEval=last;
         analyzer.PopScope();

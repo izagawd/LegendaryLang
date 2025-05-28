@@ -5,7 +5,7 @@ namespace LegendaryLang.Parse;
 
 public interface ISyntaxNode
 {
-    
+    public bool IncludesReturnStatement => false;
     /// <summary>
     /// used to set the shortcuts of lang paths.
     /// EG if

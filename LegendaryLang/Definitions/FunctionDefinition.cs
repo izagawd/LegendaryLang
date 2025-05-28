@@ -105,7 +105,7 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
         if (BlockExpression.TypePath != ReturnTypePath)
         {
             analyzer.AddException(new SemanticException(
-                $"Return type of function does not match it's definition\nExpected Type: '{ReturnTypePath}'\nFound: '{BlockExpression.TypePath}'\n{BlockExpression.ReturnedThingsToken.GetLocationStringRepresentation()}"));
+                $"Return type of function does not match it's definition\nExpected Type: '{ReturnTypePath}'\nFound: '{BlockExpression.TypePath}'"));
             
         }
    
