@@ -98,11 +98,9 @@ public class BlockExpression : IExpression
     {
         // Optionally: Push a new scope if you have scope management.
         // context.SymbolTable.EnterScope();
-
+        
         var lastValue = context.GetVoid();
-
         context.AddScope();
-
         VariableRefItem? toEvalGenned = null;
         // Iterate over each syntax node in the block.
         foreach (var item in BlockSyntaxNodeContainers)
@@ -183,15 +181,14 @@ public class BlockExpression : IExpression
         {
             item.Analyze(analyzer);
         }
-
+        
         if (SyntaxNodes.Length == 0)
         {
             TypePath= LangPath.VoidBaseLangPath;
-  
         }
         else
         {
-            LangPath possibleTypePath = null;
+            LangPath? possibleTypePath = null;
             if (last?.Node is IExpression expression)
             {
                 if (last.Value.HasSemiColonAfter)
@@ -203,24 +200,19 @@ public class BlockExpression : IExpression
                     possibleTypePath = expression.TypePath;
                 }
             }
-            else
-            {
-                possibleTypePath = LangPath.VoidBaseLangPath;
-            }
-
+            
             var lastReturnTypePath = lastReturnStatement?.ToReturn.TypePath;
-            if (lastReturnTypePath is not null && possibleTypePath != lastReturnTypePath )
+            if (lastReturnTypePath is not null && possibleTypePath is not null && possibleTypePath != lastReturnTypePath )
             {
                 analyzer.AddException(new SemanticException($"Conflicting return types\n" +
                                       $"Expected {lastReturnTypePath}, due to \n{lastReturnStatement.Token!.GetLocationStringRepresentation()}\n" +
                                       $"found {possibleTypePath}"));
             }
-            TypePath = lastReturnTypePath ?? possibleTypePath;
+            TypePath = lastReturnTypePath ?? possibleTypePath ?? LangPath.VoidBaseLangPath;
         }
-        DtaRefExprToEval=last;
+        DtaRefExprToEval = last;
         analyzer.PopScope();
         
-
     }
 
     public Token Token => RightCurlyBraceToken;

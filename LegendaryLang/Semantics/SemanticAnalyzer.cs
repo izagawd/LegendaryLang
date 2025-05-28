@@ -16,7 +16,7 @@ public class SemanticAnalyzer
     {
         Exceptions.Add(exception);
     }
-    public Stack<ParseResult> ParseResults = new Stack<ParseResult>();
+    public Stack<ParseResult> ParseResults = new();
     
     private Stack<Dictionary<string, NormalLangPath>> ScopeItems = new();
     private Stack<Dictionary<LangPath, LangPath>> VariableToTypeMapper = new();
