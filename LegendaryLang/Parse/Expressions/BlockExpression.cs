@@ -97,8 +97,7 @@ public class BlockExpression : IExpression
 
     public unsafe VariableRefItem DataRefCodeGen(CodeGenContext context)
     {
-        // Optionally: Push a new scope if you have scope management.
-        // context.SymbolTable.EnterScope();
+
         
         
         var lastValue = context.GetVoid();
@@ -133,12 +132,12 @@ public class BlockExpression : IExpression
             }
         }
         
-        LLVM.BuildRet(context.Builder,   lastValue.LoadValForRetOrArg(context));
+
         context.PopScope();
 
         if (DtaRefExprToEval is not null)
         {
-            if(DtaRefExprToEval.Value.HasSemiColonAfter)
+            if(DtaRefExprToEval.Value.HasSemiColonAfter && DtaRefExprToEval.Value.Node is not ReturnStatement)
                 return context.GetVoid();
             return toEvalGenned ?? context.GetVoid();
         }
@@ -220,6 +219,14 @@ public class BlockExpression : IExpression
             TypePath = lastReturnTypePath ?? possibleTypePath ?? LangPath.VoidBaseLangPath;
         }
         DtaRefExprToEval = last;
+        if (lastReturnStatement is not null)
+        {
+            DtaRefExprToEval = new BlockSyntaxNodeContainer()
+            {
+                HasSemiColonAfter = true,
+                Node = lastReturnStatement
+            };
+        }
         analyzer.PopScope();
         
     }

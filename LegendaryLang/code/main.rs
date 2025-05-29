@@ -9,10 +9,22 @@ use code::make_human_with_age;
 
 
 fn main() -> i32{
-  code::get_left::<i32>(5 + 5, 7 )
+    let a  = 11100;
+    
+  if false
+  {
+    return 1;   
+  } else if true{
+     return 2;
+ } else{
+    return 3;
+  };
+  a
 }
 
 fn get_left<T>(left: T, right: T) -> T{
-    left
+    return left;
+    return right;
+    right
     
 }

@@ -19,5 +19,7 @@ public enum ParseType
     Use,
     LessThan,
     GreaterThan,
-    ReturnToken
+    ReturnToken,
+    If,
+    Else
 }

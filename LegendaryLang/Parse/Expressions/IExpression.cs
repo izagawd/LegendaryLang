@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
+using LegendaryLang.Parse.Statements;
 using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse.Expressions;
@@ -98,6 +99,9 @@ public interface IExpression : ISyntaxNode, IAnalyzable
             // Literals and identifiers
             case ExclamationMarkToken:
                 expression = UnaryOperationExpression.Parse(parser); 
+                break;
+            case IfToken:
+                expression = IfExpression.Parse(parser);
                 break;
             case NumberToken:
                 expression = NumberExpression.Parse(parser);

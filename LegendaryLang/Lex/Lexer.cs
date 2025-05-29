@@ -177,7 +177,7 @@ namespace LegendaryLang.Lex
                                 file.AddToken(new LetToken(file, column, line));
                                 break;
                             case "if":
-                                file.AddToken(new If(file, column, line));
+                                file.AddToken(new IfToken(file, column, line));
                                 break;
                             case "else":
                                 file.AddToken(new Else(file, column, line));
