@@ -25,6 +25,7 @@ public class FieldAccessExpression : IExpression
         }
         return field;
     }
+    public IEnumerable<ISyntaxNode> Children => [Caller];
     public Token Token => Field;
     public IdentifierToken Field { get; }
     public IExpression Caller { get; }
@@ -52,16 +53,7 @@ public class FieldAccessExpression : IExpression
         TypePath = structTypeDefinition.Fields.First(i => i.Name == Field.Identity).TypePath;
     }
 
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
-    {
 
-        Caller.SetFullPathOfShortCuts(analyzer);
-    }
-
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return Caller.GetAllFunctionsUsed();
-    }
 
     /// <summary>
     /// Returns the pointer to the accessed field

@@ -9,7 +9,7 @@ namespace LegendaryLang.ConcreteDefinition;
 
 public abstract class Type : IConcreteDefinition
 {
-    
+    public IEnumerable<ISyntaxNode> Children => [];
     public Type(TypeDefinition definition)
     {
         TypeDefinition = definition;
@@ -45,15 +45,12 @@ public abstract class Type : IConcreteDefinition
 
     public abstract LLVMTypeRef TypeRef { get;  protected set; }
     public  TypeDefinition TypeDefinition { get;  }
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
     {
         
     }
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return [];
-    }
+
 
     public Token Token => TypeDefinition.Token;
     public void Analyze(SemanticAnalyzer analyzer)

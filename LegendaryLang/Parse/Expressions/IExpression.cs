@@ -11,6 +11,7 @@ public interface IExpression : ISyntaxNode, IAnalyzable
 {
 
 
+  
     /// <summary>
     /// SHOULD ONLY BE CALLED ONCE PER OBJECT
     /// </summary>
@@ -94,7 +95,7 @@ public interface IExpression : ISyntaxNode, IAnalyzable
         {
             // Block and grouping
             case LeftCurlyBraceToken:
-                expression =  BlockExpression.Parse(parser);
+                expression =  BlockExpression.Parse(parser,null);
                 break;
             // Literals and identifiers
             case ExclamationMarkToken:

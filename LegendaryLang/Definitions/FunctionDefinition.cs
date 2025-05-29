@@ -2,15 +2,16 @@
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
 using LegendaryLang.Parse.Expressions;
+using LegendaryLang.Parse.Statements;
 using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Definitions;
 
-public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
+public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable, IPathHaver
 {
 
 
-    
+    public IEnumerable<ISyntaxNode> Children => [BlockExpression];
     public ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
     {
         var fullPath = (this as IDefinition).FullPath;
@@ -72,7 +73,7 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
 
     public int Priority => 3;
 
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
     {
         
 
@@ -81,13 +82,9 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
         {
             i.TypePath = i.TypePath?.GetFromShortCutIfPossible(analyzer);
         }
-        BlockExpression.SetFullPathOfShortCuts(analyzer);
+
     }
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return BlockExpression.GetAllFunctionsUsed();
-    }
 
     public Token Token {get; }
     
@@ -104,9 +101,50 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
         BlockExpression.Analyze(analyzer);
         if (BlockExpression.TypePath != ReturnTypePath)
         {
-            analyzer.AddException(new SemanticException(
-                $"Return type of function does not match it's definition\nExpected Type: '{ReturnTypePath}'\nFound: '{BlockExpression.TypePath}'"));
-            
+            IEnumerable<ReturnStatement> ReturnStatements(ISyntaxNode node)
+            {
+                if (node is ReturnStatement returnStatement)
+                {
+                    yield return returnStatement;
+                }
+
+                foreach (var i in node.Children.Where(i =>i is not IfExpression || (i is IfExpression ifExpression && ifExpression.EndsWithoutIf)))
+                {
+                    foreach (var j in ReturnStatements(i) )
+                    {
+                        yield return j;
+                    }
+             
+                }
+           
+            }
+
+            if (ReturnStatements(this).Any())
+            {
+                var statementsThatDontFollow = ReturnStatements(this)
+                    .Where(i => i.TypePath != ReturnTypePath).ToArray();
+                if (statementsThatDontFollow.Length != 0)
+                {
+                    foreach (var i in statementsThatDontFollow)
+                    {
+                        analyzer.AddException(new SemanticException(
+                            $"Return type of function does not match it's definition\nExpected Type: '{ReturnTypePath}'\nFound: '{i.TypePath}\n{i.Token.GetLocationStringRepresentation()}'"));
+
+                    }
+
+                }
+                
+            }
+            else if(ReturnTypePath != LangPath.VoidBaseLangPath)
+            {
+    
+                    analyzer.AddException(new SemanticException(
+                        $"Not all paths return a value\n{Token.GetLocationStringRepresentation()}'"));
+
+                
+            }
+
+
         }
    
     }
@@ -214,7 +252,7 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable
                 parser.Pop();
                 returnTyp = LangPath.Parse(parser);
             }
-            return new FunctionDefinition(name, variables,returnTyp,BlockExpression.Parse(parser),parser.File.Module, genericParameters,nameToken);
+            return new FunctionDefinition(name, variables,returnTyp,BlockExpression.Parse(parser,returnTyp),parser.File.Module, genericParameters,nameToken);
         } else
         {
             throw new ExpectedParserException(parser,(ParseType.Fn), token);

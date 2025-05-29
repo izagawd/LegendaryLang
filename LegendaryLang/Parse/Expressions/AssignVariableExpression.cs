@@ -10,6 +10,8 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class AssignVariableExpression : IExpression
 {
+    public IEnumerable<ISyntaxNode> Children => [EqualsTo, Assigner];
+
     public static AssignVariableExpression Parse(Parser parser, IExpression assignerExpression)
     {
         var equality = Equality.Parse(parser);
@@ -24,11 +26,9 @@ public class AssignVariableExpression : IExpression
     public EqualityToken EqualityToken { get; }
     public IExpression Assigner { get; }
 
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
-    {
-        Assigner.SetFullPathOfShortCuts(analyzer);
-        EqualsTo.SetFullPathOfShortCuts(analyzer);
-    }
+
+    
+
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
@@ -51,10 +51,7 @@ public class AssignVariableExpression : IExpression
         EqualityToken = equalityToken;
     }
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-       return  EqualsTo.GetAllFunctionsUsed();
-    }
+
 
     public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {

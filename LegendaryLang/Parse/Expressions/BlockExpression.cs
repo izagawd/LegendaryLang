@@ -8,46 +8,37 @@ using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse.Expressions;
 
-public class BlockExpression : IExpression
+public class BlockExpression : IExpression, IPathHaver
 {
+    public IEnumerable<ISyntaxNode> Children => SyntaxNodes;
     public struct BlockSyntaxNodeContainer
     {
         public   ISyntaxNode Node;
         public bool HasSemiColonAfter;
     }
 
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
-    {
-        foreach (var i in SyntaxNodes)
-        {
-            i.SetFullPathOfShortCuts(analyzer);
-        }
-    }
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
 
-        return SyntaxNodes.SelectMany(i => i.GetAllFunctionsUsed());
-   
-    }
+
 
     public LeftCurlyBraceToken LeftCurlyBraceToken { get; }
     public RightCurlyBraceToken RightCurlyBraceToken { get; }
     public ImmutableArray<ISyntaxNode> SyntaxNodes => BlockSyntaxNodeContainers.Select(i => i.Node).ToImmutableArray();
     
+    public LangPath? ExpectedReturnType { get; set; }
 
-    public BlockExpression(LeftCurlyBraceToken leftCurlyBraceToken, RightCurlyBraceToken rightCurlyBraceToken, IEnumerable<BlockSyntaxNodeContainer> syntaxNodes, bool isFunctionBlock)
+    public BlockExpression(LeftCurlyBraceToken leftCurlyBraceToken, RightCurlyBraceToken rightCurlyBraceToken, IEnumerable<BlockSyntaxNodeContainer> syntaxNodes, LangPath? expectedReturnType)
     {
         LeftCurlyBraceToken = leftCurlyBraceToken;
         RightCurlyBraceToken = rightCurlyBraceToken;
         BlockSyntaxNodeContainers = [..syntaxNodes];
-        IsFunctionBlock = isFunctionBlock;
+        ExpectedReturnType = expectedReturnType;
     }
 
     public ImmutableArray<BlockSyntaxNodeContainer> BlockSyntaxNodeContainers { get;  }
 
-    public bool IsFunctionBlock { get; }
-    public new  static BlockExpression Parse(Parser parser, bool isFunctionBlock = false)
+
+    public new  static BlockExpression Parse(Parser parser, LangPath? expectedReturnType)
     { 
       
         var leftCurly = CurlyBrace.ParseLeft(parser);
@@ -90,8 +81,9 @@ public class BlockExpression : IExpression
   
             next = parser.Peek();
         }
-        return new BlockExpression(leftCurly,CurlyBrace.Parseight(parser), syntaxNodes, isFunctionBlock);
+        return new BlockExpression(leftCurly,CurlyBrace.Parseight(parser), syntaxNodes, expectedReturnType);
     }
+
 
 
 
@@ -102,7 +94,6 @@ public class BlockExpression : IExpression
         
         var lastValue = context.GetVoid();
         context.AddScope();
-
         VariableRefItem? toEvalGenned = null;
         // Iterate over each syntax node in the block.
         foreach (var item in BlockSyntaxNodeContainers)
@@ -110,12 +101,7 @@ public class BlockExpression : IExpression
             // If the node is an expression, use its ValueRefCodeGen.
             if (item.Node is IExpression expr)
             {
-                
                 lastValue = expr.DataRefCodeGen(context);
-                if (item.Node == DtaRefExprToEval?.Node)
-                {
-                    toEvalGenned = lastValue;
-                }
             }
             
             // If the node is a statement, simply generate code.
@@ -124,7 +110,6 @@ public class BlockExpression : IExpression
                 if (stmt is ReturnStatement returnStatement)
                 {
                     lastValue = returnStatement.ToReturn.DataRefCodeGen(context);
-                    toEvalGenned = lastValue;
                     break;
                 }
                 lastValue = context.GetVoid();
@@ -135,21 +120,33 @@ public class BlockExpression : IExpression
 
         context.PopScope();
 
-        if (DtaRefExprToEval is not null)
-        {
-            if(DtaRefExprToEval.Value.HasSemiColonAfter && DtaRefExprToEval.Value.Node is not ReturnStatement)
-                return context.GetVoid();
-            return toEvalGenned ?? context.GetVoid();
-        }
 
-        return context.GetVoid();
+
+        if ( lastValue.Type.TypePath == LangPath.VoidBaseLangPath)
+        {
+            return context.GetVoid();
+        }
+        return lastValue;
     }
 
+    /// <summary>
+    /// this can be null
+    /// </summary>
     public LangPath? TypePath { get; private set; }
 
 
-    public BlockSyntaxNodeContainer? DtaRefExprToEval { get; set; }
 
+    public bool NeedsSemiColonAfterIfNotLastInBlock
+    {
+        get
+        {
+            if (TypePath == LangPath.VoidBaseLangPath)
+            {
+                return false;
+            }
+            return true;
+        }
+    }
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
@@ -157,79 +154,93 @@ public class BlockExpression : IExpression
         analyzer.AddScope();
         var last = BlockSyntaxNodeContainers.Cast<BlockSyntaxNodeContainer?>().LastOrDefault();
 
-        foreach (var item in BlockSyntaxNodeContainers)
+        void SetExpectedReturnTypesRecursively(ISyntaxNode syntaxNode)
         {
-  
-            if (item.Node is IExpression expr && expr != last?.Node && !item.HasSemiColonAfter)
+            if (syntaxNode is BlockExpression block)
             {
-                analyzer.AddException(new SemanticException($"Expected semicolon after expression" +
-                                                            $"\n{item.Node.Token.GetLocationStringRepresentation()}"));
+                block.ExpectedReturnType = ExpectedReturnType;
             }
-
-            if (item.Node is ReturnStatement returnStatement)
+            foreach (var i in syntaxNode.Children)
             {
-                if (lastReturnStatement is not null && lastReturnStatement.ToReturn.TypePath != returnStatement.ToReturn.TypePath)
-                {
-                    var returnTypePath = lastReturnStatement.ToReturn.TypePath;
-                    analyzer.AddException(
-                        new SemanticException($"Conflicting return types\n" +
-                                              $"Expected {returnTypePath}, due to \n{returnTypePath.FirstIdentifierToken!.GetLocationStringRepresentation()}\n" +
-                                              $"found {returnStatement.ToReturn.TypePath}"));
-                }
-                else
-                {
-                    lastReturnStatement = returnStatement;
-                }
-       
-
+                SetExpectedReturnTypesRecursively(i);
             }
         }
-
+        SetExpectedReturnTypesRecursively(this);
         foreach (var item in SyntaxNodes.OfType<IAnalyzable>())
         {
             item.Analyze(analyzer);
         }
         
+        foreach (var item in BlockSyntaxNodeContainers)
+        {
+  
+            if (item.Node.NeedsSemiColonAfterIfNotLastInBlock && item.Node != last?.Node && !item.HasSemiColonAfter)
+            {
+                analyzer.AddException(new SemanticException($"Expected semicolon after" +
+                                                            $"\n{item.Node.Token.GetLocationStringRepresentation()}"));
+            }
+            
+        }
+
+        void CheckChildren(ISyntaxNode syntaxNode)
+        {
+            if (syntaxNode is ReturnStatement returnStatement)
+            {
+                if (ExpectedReturnType != returnStatement.TypePath)
+                {
+         
+                    analyzer.AddException(
+                        new SemanticException(
+                                              $"Expected {ExpectedReturnType}," +
+                                              $"found {returnStatement.TypePath}\n{returnStatement.Token!.GetLocationStringRepresentation()}"));
+                    
+                }
+                else
+                {
+                    lastReturnStatement = returnStatement;
+                }
+            }
+            foreach (var i in syntaxNode.Children)
+            {
+                CheckChildren(i);
+            }
+        }
+        CheckChildren(this);
         if (SyntaxNodes.Length == 0)
         {
             TypePath= LangPath.VoidBaseLangPath;
         }
         else
         {
+            var lastReturnTypePath = lastReturnStatement?.TypePath;
             LangPath? possibleTypePath = null;
-            if (last?.Node is IExpression expression)
+            if (last is not null)
             {
                 if (last.Value.HasSemiColonAfter)
                 {
                     possibleTypePath = LangPath.VoidBaseLangPath;
                 }
-                else
-                {
-                    possibleTypePath = expression.TypePath;
-                }
+                else if (last.Value.Node is IExpression expr)
+                    {
+                        possibleTypePath = expr.TypePath;
+                    } 
+                
+
             }
-            
-            var lastReturnTypePath = lastReturnStatement?.ToReturn.TypePath;
-            if (lastReturnTypePath is not null && possibleTypePath is not null && possibleTypePath != lastReturnTypePath )
-            {
-                analyzer.AddException(new SemanticException($"Conflicting return types\n" +
-                                      $"Expected {lastReturnTypePath}, due to \n{lastReturnStatement.Token!.GetLocationStringRepresentation()}\n" +
-                                      $"found {possibleTypePath}"));
-            }
-            TypePath = lastReturnTypePath ?? possibleTypePath ?? LangPath.VoidBaseLangPath;
+ 
+            TypePath = possibleTypePath ?? LangPath.VoidBaseLangPath;
         }
-        DtaRefExprToEval = last;
-        if (lastReturnStatement is not null)
-        {
-            DtaRefExprToEval = new BlockSyntaxNodeContainer()
-            {
-                HasSemiColonAfter = true,
-                Node = lastReturnStatement
-            };
-        }
+
         analyzer.PopScope();
         
     }
 
     public Token Token => RightCurlyBraceToken;
+    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+    {
+        if (ExpectedReturnType is not null)
+        {
+            ExpectedReturnType = ExpectedReturnType.GetFromShortCutIfPossible(analyzer);
+        }
+    }
 }

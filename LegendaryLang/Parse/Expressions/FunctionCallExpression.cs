@@ -7,14 +7,11 @@ using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse.Expressions;
 
-public class FunctionCallExpression : IExpression
+public class FunctionCallExpression : IExpression, IPathHaver
 {
 
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return [FunctionPath];
-    }
+
 
     public ImmutableArray<IExpression> Arguments { get; }
     public static FunctionCallExpression ParseFunctionCallExpression(Parser parser,
@@ -45,7 +42,7 @@ public class FunctionCallExpression : IExpression
             return (FunctionPath?.GetLastPathSegment() as NormalLangPath.GenericTypesPathSegment)?.TypePaths ?? [];
         }
     }
-
+    public IEnumerable<ISyntaxNode> Children => Arguments;
     public NormalLangPath FunctionPath { get; set; }
     public FunctionCallExpression(NormalLangPath path, IEnumerable<IExpression> arguments)
     {
@@ -54,7 +51,7 @@ public class FunctionCallExpression : IExpression
     }
 
     public Token Token => FunctionPath.FirstIdentifierToken!;
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
     {
         FunctionPath=(NormalLangPath) FunctionPath.GetFromShortCutIfPossible(analyzer);
     }

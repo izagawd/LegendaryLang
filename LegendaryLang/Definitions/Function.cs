@@ -130,15 +130,14 @@ public class Function : IConcreteDefinition
 
 
     public ImmutableArray<LangPath> GenericArguments { get; }
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    public IEnumerable<ISyntaxNode> Children => [BlockExpression];
+
+    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
     {
         
     }
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return BlockExpression.GetAllFunctionsUsed();
-    }
+
 
     public Token? Token => Definition.Token;
 

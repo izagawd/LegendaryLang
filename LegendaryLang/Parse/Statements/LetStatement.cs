@@ -19,7 +19,7 @@ public class LetConflictingTypesException : SemanticException
     public override string Message => $"Conflicting types:\nThe declared type '{Statement.VariableDefinition.TypePath}' and assigned expression with type" +
                                       $" '{Statement.EqualsTo.TypePath}' do not have matching types\n{Statement.LetToken?.GetLocationStringRepresentation()}";
 }
-public class LetStatement : IStatement
+public class LetStatement : IStatement, IPathHaver
 {
     public class UnknownTypeException : SemanticException
     {
@@ -108,16 +108,23 @@ public class LetStatement : IStatement
     private LangPath? TypePath { get;  set; }
 
 
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    public IEnumerable<ISyntaxNode> Children
     {
-        EqualsTo?.SetFullPathOfShortCuts(analyzer);
+        get
+        {
+            if (EqualsTo is not null)
+            {
+                yield return EqualsTo;
+            }
+        }
+    }
+
+    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+    {
         VariableDefinition.TypePath =  VariableDefinition.TypePath?.GetFromShortCutIfPossible(analyzer);
     }
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return EqualsTo?.GetAllFunctionsUsed() ?? [];
-    }
+
 
     public Token Token => LetToken;
     public void Analyze(SemanticAnalyzer analyzer)

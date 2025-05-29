@@ -5,7 +5,7 @@ using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse.Expressions;
 
-public class PathExpression : IExpression
+public class PathExpression : IExpression, IPathHaver
 {
  
     public LangPath Path { get; set; }
@@ -15,16 +15,12 @@ public class PathExpression : IExpression
      
         Path = path;
     }
-
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    public IEnumerable<ISyntaxNode> Children => [];
+    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
     {
         Path = Path.GetFromShortCutIfPossible(analyzer);
     }
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return [];
-    }
 
     /// <summary>
     /// Generates LLVM IR to load the runtime value of the variable

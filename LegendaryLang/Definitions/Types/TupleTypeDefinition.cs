@@ -9,12 +9,12 @@ namespace LegendaryLang.Definitions.Types;
 
 public class TupleTypeDefinition : CustomTypeDefinition
 {
-    public override void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    public override void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
     {
     
         foreach (var i in OtherTypes)
         {
-            i.SetFullPathOfShortCuts(analyzer);
+            i.SetFullPathOfShortCutsDirectly(analyzer);
         }
 
     }

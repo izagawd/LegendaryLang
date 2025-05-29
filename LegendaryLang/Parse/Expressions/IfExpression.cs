@@ -7,17 +7,10 @@ namespace LegendaryLang.Parse.Statements;
 
 public class ElseExpression : IExpression
 {
+    public IEnumerable<ISyntaxNode> Children => [Body];
     public IExpression Body {get; set;}
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
-    {
-        Body.SetFullPathOfShortCuts(analyzer);
-    }
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return Body.GetAllFunctionsUsed();
-    }
-
+    public bool NeedsSemiColonAfterIfNotLastInBlock => Body.NeedsSemiColonAfterIfNotLastInBlock;
     public ElseExpression(Token token, IExpression body)
     {
         Body = body;
@@ -35,10 +28,45 @@ public class ElseExpression : IExpression
         return Body.DataRefCodeGen(codeGenContext); 
     }
 
-    public LangPath? TypePath => Body.TypePath;
+    /// <summary>
+    /// Else expression is a unique expression in which it doesnt directly hav4 a type path
+    /// </summary>
+    public LangPath? TypePath => null;
 }
 public class IfExpression : IExpression
 {
+    public bool EndsWithoutIf
+    {
+        get
+        {
+ 
+            if (ElseExpression is not null)
+            {
+                if (ElseExpression.Body is IfExpression ifExpression)
+                {
+                    return ifExpression.EndsWithoutIf;
+                }
+
+                return true;
+            }
+            return false;
+        }
+    }
+
+    public bool NeedsSemiColonAfterIfNotLastInBlock => BodyExpression.NeedsSemiColonAfterIfNotLastInBlock;
+    public IEnumerable<ISyntaxNode> Children
+    {
+        get
+        {
+            yield return CondExpression;
+            yield return BodyExpression;
+            if (ElseExpression is not null)
+            {
+                yield return ElseExpression;
+            }
+        }
+    }
+
     public IfExpression(IfToken ifToken, IExpression conditionExpression, BlockExpression body,
         ElseExpression? elseExpression)
     {
@@ -55,7 +83,7 @@ public class IfExpression : IExpression
             throw new ExpectedParserException(parser,[ParseType.If],gotten);
         }
         var condition = IExpression.Parse(parser);
-        var toExecute = BlockExpression.Parse(parser);
+        var toExecute = BlockExpression.Parse(parser, null);
         var next = parser.Peek();
         ElseExpression? elseExpression = null;
         if (next is Else elseToken)
@@ -78,16 +106,8 @@ public class IfExpression : IExpression
     public IExpression CondExpression {get; set;}
     public ElseExpression? ElseExpression {get; set;}
 
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
-    {
-        CondExpression.SetFullPathOfShortCuts(analyzer);
-        ElseExpression?.SetFullPathOfShortCuts(analyzer);
-    }
+
     public BlockExpression BodyExpression {get; set;}
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-       return CondExpression.GetAllFunctionsUsed().Union(ElseExpression?.GetAllFunctionsUsed() ??[]);
-    }
 
     public Token Token { get; }
     public void Analyze(SemanticAnalyzer analyzer)
@@ -101,8 +121,7 @@ public class IfExpression : IExpression
         }
         else
         {
-            
-            if (ElseExpression.TypePath != BodyExpression.TypePath)
+            if (ElseExpression.Body.TypePath != BodyExpression.TypePath)
             {
                 analyzer.AddException(new SemanticException($"if and else blocks do not return the same type\n{Token.GetLocationStringRepresentation()}"));
             }
@@ -115,25 +134,90 @@ public class IfExpression : IExpression
 
     public unsafe VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
-       
+        LLVMValueRef? stackPtr = null;
+
+        var expressionTypeRefItem = codeGenContext.GetRefItemFor(TypePath) as TypeRefItem;
+        var expressionType = expressionTypeRefItem.Type;
+        VariableRefItem? possibleRefItem= null;
+        if (ElseExpression is not null)
+        {
+
+        
+            stackPtr= expressionTypeRefItem.Type.AssignToStack(codeGenContext,new VariableRefItem()
+            {
+                Type = expressionTypeRefItem.Type,
+                ValueRef = LLVM.GetUndef(expressionTypeRefItem.Type.TypeRef)
+            });
+            possibleRefItem= new VariableRefItem()
+            {
+                Type = expressionTypeRefItem.Type,
+                ValueRef = stackPtr!.Value,
+            };
+        }
+        
         var thenBB  =     codeGenContext.Module.LastFunction.AppendBasicBlock("then");
-        LLVMBasicBlockRef? elseBB  = ElseExpression is  null ?  default(LLVMBasicBlockRef?) :  codeGenContext.Module.LastFunction.AppendBasicBlock("then");
+        LLVMBasicBlockRef? elseBB  = ElseExpression is  null ?  default(LLVMBasicBlockRef?) :  codeGenContext.Module.LastFunction.AppendBasicBlock("else");
         var resume = codeGenContext.Module.LastFunction.AppendBasicBlock("resume");
         var condCodeGen = CondExpression.DataRefCodeGen(codeGenContext);
         codeGenContext.Builder.BuildCondBr(condCodeGen.ValueRef,thenBB,elseBB ?? resume);
         codeGenContext.Builder.PositionAtEnd(thenBB);
-        BodyExpression.DataRefCodeGen(codeGenContext);
-        codeGenContext.Builder.BuildBr(resume);
+
+
+        bool DirectlyContainsReturnStatement(ISyntaxNode syntaxNode)
+        {
+            if (syntaxNode is ReturnStatement returnStatement)
+            {
+                return true;
+            }
+
+            foreach (var child in syntaxNode.Children.Where(i => i is not IfExpression))
+            {
+                if (DirectlyContainsReturnStatement(child))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        var bodyVal = BodyExpression.DataRefCodeGen(codeGenContext);
+        expressionType.AssignTo(codeGenContext, bodyVal, possibleRefItem);
+        if (!DirectlyContainsReturnStatement(BodyExpression))
+        {
+            codeGenContext.Builder.BuildBr(resume);
+        }
+        else
+        {
+            codeGenContext.Builder.BuildRet(bodyVal.LoadValForRetOrArg(codeGenContext));   
+        }
+        
         if (ElseExpression is not null)
         {
             codeGenContext.Builder.PositionAtEnd(elseBB!.Value);
-            ElseExpression.DataRefCodeGen(codeGenContext);
-            codeGenContext.Builder.BuildBr(resume);
+            var codegennedElseVal =ElseExpression.DataRefCodeGen(codeGenContext);
+            expressionType.AssignTo(codeGenContext, codegennedElseVal, possibleRefItem);
+            if (!DirectlyContainsReturnStatement(ElseExpression.Body))
+            {
+                codeGenContext.Builder.BuildBr(resume);
+            }
+            else
+            {
+                codeGenContext.Builder.BuildRet(codegennedElseVal.LoadValForRetOrArg(codeGenContext));   
+            }
         }
         codeGenContext.Builder.PositionAtEnd(resume);
-        return null;
+
+        if (ElseExpression is null)
+        {
+            return codeGenContext.GetVoid();
+        }
+
+        return possibleRefItem!;
+
 
     }
 
+    /// <summary>
+    /// This can be null, since block expressions can be null
+    /// </summary>
     public LangPath? TypePath { get; set; }
 }

@@ -7,6 +7,7 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class NumberExpression : IExpression
 {
+    public IEnumerable<ISyntaxNode> Children => [];
     public static NumberToken ParseToken(Parser parser)
     {
         var gotten = parser.Pop();
@@ -22,15 +23,11 @@ public class NumberExpression : IExpression
     }
     public NumberToken Token { get; }
     Token ISyntaxNode.Token => (Token)Token;
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
     {
         
     }
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return [];
-    }
 
     public unsafe VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {

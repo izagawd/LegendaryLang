@@ -19,16 +19,7 @@ public class BracketExpression : IExpression
         LeftParenthesisToken = token;
         Expression = expression;
     }
-
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
-    {
-        Expression.SetFullPathOfShortCuts(analyzer);
-    }
-
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return Expression.GetAllFunctionsUsed();
-    }
+    public IEnumerable<ISyntaxNode> Children => [Expression];
 
     public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {

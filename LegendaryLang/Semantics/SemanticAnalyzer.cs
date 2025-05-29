@@ -1,5 +1,6 @@
 ﻿using System.Collections.Immutable;
 using LegendaryLang.Parse;
+using LegendaryLang.Parse.Expressions;
 
 namespace LegendaryLang.Semantics;
 
@@ -117,12 +118,24 @@ public class SemanticAnalyzer
             {
                 i.RegisterUsings(this);
             }
+
+            void SetFullPathOfShortCutsRecursively(ISyntaxNode node)
+            {
+                if (node is IPathHaver pathHaver)
+                {
+                    pathHaver.SetFullPathOfShortCutsDirectly(this);
+                }
+
+                foreach (var child in node.Children)
+                {
+                    SetFullPathOfShortCutsRecursively(child);
+                }
+            }
             foreach (var i in result.TopLevels)
             {
               
-                i.SetFullPathOfShortCuts(this);
+                SetFullPathOfShortCutsRecursively(i);
                 
-
             }
             PopScope();
 

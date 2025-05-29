@@ -22,10 +22,8 @@ public class BinaryOperationExpression : IExpression
     }
 
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return Left.GetAllFunctionsUsed().Union(Right.GetAllFunctionsUsed());
-    }
+
+    public IEnumerable<ISyntaxNode> Children => [Left, Right];
 
     public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
@@ -64,11 +62,9 @@ public class BinaryOperationExpression : IExpression
     }
 
     public LangPath? TypePath { get; } = new I32TypeDefinition().TypePath;
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
-    {
-        Left.SetFullPathOfShortCuts(analyzer);
-        Right.SetFullPathOfShortCuts(analyzer);
-    }
+
+
+
 
     public void Analyze(SemanticAnalyzer analyzer)
     {

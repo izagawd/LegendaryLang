@@ -11,6 +11,7 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class StructCreationExpression : IExpression
 {
+    public IEnumerable<ISyntaxNode> Children => AssignFields.Select(i => i.EqualsTo);
     public class StructFieldTokenIsNullException : ParseException
     {
         public Token LookUpToken { get; }
@@ -61,7 +62,7 @@ public class StructCreationExpression : IExpression
 
     public ImmutableArray<AssignedField> AssignFields { get; }
     public Token Token { get; }
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
     {
         TypePath = TypePath.GetFromShortCutIfPossible(analyzer);
     }
@@ -132,10 +133,7 @@ public class StructCreationExpression : IExpression
 
  
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return AssignFields.SelectMany(i => i.EqualsTo?.GetAllFunctionsUsed());
-    }
+
 
     public unsafe VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {

@@ -100,6 +100,6 @@ public class Compiler
             return;
         }
 
-        new CodeGenContext(parseResults, new NormalLangPath(null, [codeDirectory])).CodeGen();
+        new CodeGenContext(parseResults, new NormalLangPath(null, [codeDirectory])).CodeGen(showLLVM);
     }
 }

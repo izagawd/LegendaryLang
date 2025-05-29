@@ -49,15 +49,13 @@ public class UseDefinition : ITopLevel
         analyzer.AddToDeepestScope(PathToUse.PathSegments.Last(),PathToUse);
     }
 
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+    public IEnumerable<ISyntaxNode> Children => [];
+
+    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
     {
         
     }
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return [];
-    }
 
    Token  ISyntaxNode.Token  => Token;
 

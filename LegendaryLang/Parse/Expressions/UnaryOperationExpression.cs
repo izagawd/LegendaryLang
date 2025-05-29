@@ -5,20 +5,14 @@ using LegendaryLang.Lex.Tokens;
 
 using LegendaryLang.Semantics;
 using LLVMSharp.Interop;
+using Microsoft.VisualBasic.CompilerServices;
 
 namespace LegendaryLang.Parse.Expressions;
 
 public class UnaryOperationExpression : IExpression
 {
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
-    {
-        Expression.SetFullPathOfShortCuts(analyzer);
-    }
+    public IEnumerable<ISyntaxNode> Children => [Expression];
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return Expression.GetAllFunctionsUsed();
-    }
 
     public static UnaryOperationExpression Parse(Parser parser)
     {

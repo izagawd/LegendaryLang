@@ -6,6 +6,7 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class TupleCreationExpression : IExpression
 {
+    public IEnumerable<ISyntaxNode> Children => Composites;
     private IExpression _expressionImplementation;
     public ImmutableArray<IExpression> Composites { get; set; }
     public TupleCreationExpression(LeftParenthesisToken token, IEnumerable<IExpression> composites)
@@ -23,18 +24,6 @@ public class TupleCreationExpression : IExpression
     }
 
 
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
-    {
-        foreach (var i in Composites)
-        {
-            i.SetFullPathOfShortCuts(analyzer);
-        }
-    }
-
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return Composites.SelectMany(composite => composite.GetAllFunctionsUsed());
-    }
 
     public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {

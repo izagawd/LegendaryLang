@@ -6,6 +6,7 @@ namespace LegendaryLang.Parse.Statements;
 
 public class ReturnStatement : IStatement
 {
+    
     public static ReturnStatement Parse(Parser parser)
     {
         var parsed = parser.Pop();
@@ -21,9 +22,11 @@ public class ReturnStatement : IStatement
         }
         return new ReturnStatement(returnToken, expression);
     }
+ 
+    public LangPath TypePath => ToReturn?.TypePath ?? LangPath.VoidBaseLangPath;
     Token ISyntaxNode.Token   => Token;
     public ReturnToken Token { get; }
-    public IExpression ToReturn { get; }
+    public IExpression? ToReturn { get; }
 
     public ReturnStatement(ReturnToken token, IExpression toReturn)
     {
@@ -31,16 +34,12 @@ public class ReturnStatement : IStatement
         ToReturn = toReturn;
     }
 
- 
-    public void SetFullPathOfShortCuts(SemanticAnalyzer analyzer)
+
+    public IEnumerable<ISyntaxNode> Children
     {
-        ToReturn?.SetFullPathOfShortCuts(analyzer);
+        get { if (ToReturn is not null) yield return ToReturn; }
     }
 
-    public IEnumerable<NormalLangPath> GetAllFunctionsUsed()
-    {
-        return ToReturn?.GetAllFunctionsUsed() ?? [];
-    }
 
 
     public void Analyze(SemanticAnalyzer analyzer)
