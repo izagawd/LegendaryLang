@@ -9,7 +9,7 @@ using StructType = LegendaryLang.ConcreteDefinition.StructType;
 namespace LegendaryLang.Parse.Expressions;
 
 
-public class StructCreationExpression : IExpression
+public class StructCreationExpression : IExpression, IPathHaver
 {
     public IEnumerable<ISyntaxNode> Children => AssignFields.Select(i => i.EqualsTo);
     public class StructFieldTokenIsNullException : ParseException
@@ -126,12 +126,6 @@ public class StructCreationExpression : IExpression
         Token = typePath.FirstIdentifierToken!;
     }
     private VariableRefItem? GeneratedDataRef { get; set; }
-    public IEnumerable<LangPath> GetAllTypesUsed(MonomorphizationHelper helper)
-    {
-        throw new NotImplementedException();
-    }
-
- 
 
 
 

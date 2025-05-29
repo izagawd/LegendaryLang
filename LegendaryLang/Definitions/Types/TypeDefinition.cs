@@ -1,12 +1,13 @@
 ﻿using System.Collections.Immutable;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
+using LegendaryLang.Parse.Expressions;
 using LegendaryLang.Semantics;
 using Type = LegendaryLang.ConcreteDefinition.Type;
 
 namespace LegendaryLang.Definitions.Types;
 
-public abstract class TypeDefinition : ITopLevel, IDefinition, IMonomorphizable
+public abstract class TypeDefinition : ITopLevel, IDefinition, IMonomorphizable, IPathHaver
 {
     /// <summary>
     /// Monomprhize and codegen for a specific generic variant
