@@ -67,6 +67,11 @@ public class IfExpression : IExpression
         }
     }
 
+    class ResumeBlockPropagator
+    {
+        public LLVMBasicBlockRef ResumeBlock { get; set; } 
+    }
+    ResumeBlockPropagator? _resumeBlockPropagator { get; set; } 
     public IfExpression(IfToken ifToken, IExpression conditionExpression, BlockExpression body,
         ElseExpression? elseExpression)
     {
@@ -107,6 +112,8 @@ public class IfExpression : IExpression
     public ElseExpression? ElseExpression {get; set;}
 
 
+    public bool IsFirstInIfChain { get; set; } = false;
+    public bool IsLastIfInChain {get; set;} = false;
     public BlockExpression BodyExpression {get; set;}
 
     public Token Token { get; }
@@ -157,55 +164,95 @@ public class IfExpression : IExpression
         
         var thenBB  =     codeGenContext.Module.LastFunction.AppendBasicBlock("then");
         LLVMBasicBlockRef? elseBB  = ElseExpression is  null ?  default(LLVMBasicBlockRef?) :  codeGenContext.Module.LastFunction.AppendBasicBlock("else");
-        var resume = codeGenContext.Module.LastFunction.AppendBasicBlock("resume");
+        if (_resumeBlockPropagator is null)
+        {
+            _resumeBlockPropagator = new ResumeBlockPropagator()
+            {
+
+            };
+           
+            var currentIf = this;
+            currentIf.IsFirstInIfChain = true;
+            while ( currentIf.ElseExpression?.Body is IfExpression ifExpr)
+            {
+                ifExpr._resumeBlockPropagator = _resumeBlockPropagator;
+                currentIf = ifExpr;
+            }
+            currentIf.IsLastIfInChain = true;
+        }
+
+        if (IsLastIfInChain)
+        {
+            _resumeBlockPropagator.ResumeBlock = codeGenContext.Module.LastFunction.AppendBasicBlock("resume");
+        }
+
         var condCodeGen = CondExpression.DataRefCodeGen(codeGenContext);
-        codeGenContext.Builder.BuildCondBr(condCodeGen.ValueRef,thenBB,elseBB ?? resume);
-        codeGenContext.Builder.PositionAtEnd(thenBB);
+        codeGenContext.Builder.BuildCondBr(condCodeGen.ValueRef,thenBB,elseBB ?? _resumeBlockPropagator.ResumeBlock);
 
 
-        bool DirectlyContainsReturnStatement(ISyntaxNode syntaxNode)
+        ReturnStatement? DirectReturnStatement(ISyntaxNode syntaxNode)
         {
             if (syntaxNode is ReturnStatement returnStatement)
             {
-                return true;
+                return returnStatement;
             }
 
             foreach (var child in syntaxNode.Children.Where(i => i is not IfExpression))
             {
-                if (DirectlyContainsReturnStatement(child))
+                if (DirectReturnStatement(child) is not null)
                 {
-                    return true;
+                    return DirectReturnStatement(child);
                 }
             }
-            return false;
+            return null;
         }
+        bool DirectlyContainsReturnStatement(ISyntaxNode syntaxNode)
+        {
+            return DirectReturnStatement(syntaxNode) is not null;
+        }
+        codeGenContext.Builder.PositionAtEnd(thenBB);
+
+        LLVMBasicBlockRef last = thenBB;
         var bodyVal = BodyExpression.DataRefCodeGen(codeGenContext);
+        codeGenContext.Builder.PositionAtEnd(thenBB);
         expressionType.AssignTo(codeGenContext, bodyVal, possibleRefItem);
+   
         if (!DirectlyContainsReturnStatement(BodyExpression))
         {
-            codeGenContext.Builder.BuildBr(resume);
+            codeGenContext.Builder.BuildBr(_resumeBlockPropagator.ResumeBlock);
         }
         else
         {
             codeGenContext.Builder.BuildRet(bodyVal.LoadValForRetOrArg(codeGenContext));   
         }
-        
+
         if (ElseExpression is not null)
         {
             codeGenContext.Builder.PositionAtEnd(elseBB!.Value);
+            last = elseBB!.Value;
             var codegennedElseVal =ElseExpression.DataRefCodeGen(codeGenContext);
-            expressionType.AssignTo(codeGenContext, codegennedElseVal, possibleRefItem);
-            if (!DirectlyContainsReturnStatement(ElseExpression.Body))
+            codeGenContext.Builder.PositionAtEnd(elseBB!.Value);
+            if (IsLastIfInChain)
             {
-                codeGenContext.Builder.BuildBr(resume);
-            }
-            else
-            {
-                codeGenContext.Builder.BuildRet(codegennedElseVal.LoadValForRetOrArg(codeGenContext));   
+                if (!DirectlyContainsReturnStatement(ElseExpression))
+                {
+                    codeGenContext.Builder.BuildBr(_resumeBlockPropagator.ResumeBlock);
+                }
+                else
+                {
+                    codeGenContext.Builder.BuildRet(codegennedElseVal.LoadValForRetOrArg(codeGenContext));
+                }
+
             }
         }
-        codeGenContext.Builder.PositionAtEnd(resume);
 
+        if (IsFirstInIfChain)
+        {
+            codeGenContext.Builder.PositionAtEnd(_resumeBlockPropagator.ResumeBlock);
+        }
+
+      
+        
         if (ElseExpression is null)
         {
             return codeGenContext.GetVoid();

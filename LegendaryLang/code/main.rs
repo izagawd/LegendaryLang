@@ -11,20 +11,19 @@ struct Idk{
    
    
  fn bruh() -> Idk{
-    let kk =if false{
-        Idk{kk = 5} 
-    }   else if false{
-        Idk{kk = 10}
-        } else{
-            Idk{kk = 22}};
-        kk
+     let a = 5;
+    if false{
+        a = 10;
+    }   else {
+        a = 20;
+        };
+       return Idk{
+            kk = a};
+        
 
   } 
 fn main() -> i32{
-if true{
-       return 5;
-       } else{
-           return 5;
-           }
+    return bruh().kk;
+       
 }
 

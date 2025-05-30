@@ -116,7 +116,7 @@ public class Function : IConcreteDefinition
 
 
         var gennedVal = BlockExpression.DataRefCodeGen(context);
-        LLVM.BuildRet(context.Builder,   gennedVal.LoadValForRetOrArg(context));
+        var built = context.Builder.BuildRet(gennedVal.LoadValForRetOrArg(context));
         
 
         context.PopScope();

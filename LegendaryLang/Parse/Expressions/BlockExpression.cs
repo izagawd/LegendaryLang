@@ -128,6 +128,8 @@ public class BlockExpression : IExpression, IPathHaver
             {
                 return context.GetVoid();
             }
+
+
             return (context.GetRefItemFor(ExpectedReturnType) as TypeRefItem).Type.CreateUninitializedValRef(context);
         }
         return lastValue;
