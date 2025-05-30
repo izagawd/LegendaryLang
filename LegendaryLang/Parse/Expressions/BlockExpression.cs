@@ -180,7 +180,6 @@ public class BlockExpression : IExpression, IPathHaver
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        ReturnStatement? lastReturnStatement = null;
         analyzer.AddScope();
         var last = BlockSyntaxNodeContainers.Cast<BlockSyntaxNodeContainer?>().LastOrDefault();
 
@@ -209,33 +208,22 @@ public class BlockExpression : IExpression, IPathHaver
                 analyzer.AddException(new SemanticException($"Expected semicolon after" +
                                                             $"\n{item.Node.Token.GetLocationStringRepresentation()}"));
             }
-            
-        }
 
-        void CheckChildren(ISyntaxNode syntaxNode)
-        {
-            if (syntaxNode is ReturnStatement returnStatement)
+            if (item.Node is ReturnStatement returnStatement)
             {
                 if (ExpectedReturnType != returnStatement.TypePath)
                 {
          
                     analyzer.AddException(
                         new SemanticException(
-                                              $"Expected {ExpectedReturnType}," +
-                                              $"found {returnStatement.TypePath}\n{returnStatement.Token!.GetLocationStringRepresentation()}"));
+                            $"Expected {ExpectedReturnType}, " +
+                            $"found {returnStatement.TypePath}\n{returnStatement.Token!.GetLocationStringRepresentation()}"));
                     
                 }
-                else
-                {
-                    lastReturnStatement = returnStatement;
-                }
-            }
-            foreach (var i in syntaxNode.Children)
-            {
-                CheckChildren(i);
             }
         }
-        CheckChildren(this);
+
+
         if (SyntaxNodes.Length == 0)
         {
             TypePath= LangPath.VoidBaseLangPath;
