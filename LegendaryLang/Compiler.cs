@@ -13,7 +13,7 @@ public class Compiler
 {
 
     public const string extension = "rs";
-    public void Compile(string codeDirectory, bool showLLVM = false, bool optimized = false)
+    public Func<int>? Compile(string codeDirectory, bool showLLVM = false, bool optimized = false)
     {
         string directoryPath = codeDirectory;
 
@@ -35,7 +35,7 @@ public class Compiler
         else
         {
             Console.WriteLine("Directory does not exist.");
-            return;
+            return null;
         }
 
         var mainFileDir = $"{codeDirectory}\\main.{extension}";
@@ -68,7 +68,7 @@ public class Compiler
             {
                 Console.WriteLine(i);
             }
-            return;
+            return null;
         }
         var mainFile = parseResults.First(i => i.File!.Path == $"{codeDirectory}\\main.{extension}");
 
@@ -77,29 +77,29 @@ public class Compiler
         {
             Console.WriteLine("SEMANTIC ERRORS FOUND\n");
             Console.WriteLine(string.Join("\n\n", analysis.Select(i => i.Message)));
-            return;
+            return null;
         }
 
         var mainFn = mainFile.TopLevels.OfType<FunctionDefinition>().FirstOrDefault(i => i.Name == "main");
         if (mainFn == null)
         {
             Console.WriteLine($"'fn main' function not found in {mainFileDir}!!!");
-            return;
+            return null;
         }
 
         if (mainFn.ReturnTypePath != new I32TypeDefinition().TypePath)
         {
             Console.WriteLine(
                 $"'fn main' return type must be '{new I32TypeDefinition().TypePath}', not '{mainFn.ReturnTypePath}'!!!");
-            return;
+            return null;
         }
 
         if (mainFn.Arguments.Length != 0)
         {
             Console.WriteLine($"'fn main' arguments are not empty!!!");
-            return;
+            return null;
         }
 
-        new CodeGenContext(parseResults, new NormalLangPath(null, [codeDirectory])).CodeGen(showLLVM, optimized);
+        return new CodeGenContext(parseResults, new NormalLangPath(null, [codeDirectory])).CodeGen(showLLVM, optimized);
     }
 }

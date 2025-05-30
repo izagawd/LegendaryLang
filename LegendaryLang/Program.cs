@@ -15,7 +15,8 @@ public class Program
 
     public static void Main(string[] args)
     { 
-        new Compiler().Compile("code",true,true);
+        var function = new Compiler().Compile("code",true,true);
+        Console.WriteLine(function?.Invoke());
     }
     
 }

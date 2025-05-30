@@ -350,7 +350,7 @@ public class CodeGenContext
 
    
 
-    public void CodeGen(bool showLLVMIR = false, bool optimized = false)
+    public unsafe Func<int>? CodeGen(bool showLLVMIR = false, bool optimized = false)
     {
         const string MODULE_NAME = "LEGENDARY_LANGUAGE";
         unsafe
@@ -421,40 +421,38 @@ public class CodeGenContext
             {
                 var errMsg = Marshal.PtrToStringAnsi((IntPtr)idk);
                 Console.WriteLine("LLVM Module Verification Failed:\n" + errMsg);
-                return;
+                return null;
             }
 
 
-            LLVMExecutionEngineRef engine;
-            sbyte* error;
+            LLVMExecutionEngineRef engine = Module.CreateExecutionEngine();
+       
+            
 
-            // Create a pointer to the engine ref
-            LLVMExecutionEngineRef* enginePtr = &engine;
-            if (LLVM.CreateExecutionEngineForModule((LLVMOpaqueExecutionEngine**)enginePtr, Module, &idk) != 0)
-            {
-                var errMsg = FromByte(idk);
-                Console.WriteLine("Execution engine creation failed: " + errMsg);
-                return;
-            }
 
             var mainFnPath = (mainConc as IDefinition).FullPath;
             Console.WriteLine(mainFnPath);
             Console.WriteLine(engine == null);
-            LLVMValueRef mainFn = LLVM.GetNamedFunction(Module, mainFnPath.ToString().ToCString());
+            LLVMValueRef mainFnPtr = LLVM.GetNamedFunction(Module, mainFnPath.ToString().ToCString());
 
-            if (mainFn.Handle == IntPtr.Zero)
+            if (mainFnPtr.Handle == IntPtr.Zero)
             {
                 Console.WriteLine("main function not found!");
-                return;
+                return null;
             }
 
-   
-            var val = engine.RunFunction(LLVM.GetNamedFunction(Module,mainFnPath.ToString().ToCString()), []);
-            var gotten = LLVM.GenericValueToInt(val, 1);
-            Console.WriteLine( 
-                // this cast is neeeded, because it is actually an int not a ulong. Using normal c# cast would change the bits, which would give us an incorrect value
-                Unsafe.As<ulong,int>(ref gotten) 
-                );
+
+            var mainFunctionDelegate = () =>
+            {
+                var val = engine.RunFunction(mainFnPtr, []);
+                var gotten = LLVM.GenericValueToInt(val, 1);
+                var
+                    returned = // this cast is neeeded, because it is actually an int not a ulong. Using normal c# cast would change the bits, which would give us an incorrect value
+                        Unsafe.As<ulong, int>(ref gotten);
+                return returned;
+            };
+            return mainFunctionDelegate;
+
         }
     }
 
