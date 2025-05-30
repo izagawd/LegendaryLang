@@ -89,15 +89,13 @@ public class BlockExpression : IExpression, IPathHaver
 
     public unsafe ValueRefItem DataRefCodeGen(CodeGenContext context)
     {
-
-        
-        
         var lastValue = context.GetVoid();
         context.AddScope();
         ValueRefItem? toEvalGenned = null;
         // Iterate over each syntax node in the block.
         foreach (var item in BlockSyntaxNodeContainers)
         {
+            var firstNoticed = GetFirstNoticedReturn(item.Node);
             // If the node is an expression, use its ValueRefCodeGen.
             if (item.Node is IExpression expr)
             {
@@ -107,14 +105,36 @@ public class BlockExpression : IExpression, IPathHaver
             // If the node is a statement, simply generate code.
             else if (item.Node is IStatement stmt)
             {
-                if (stmt is ReturnStatement returnStatement)
-                {
-                    lastValue = returnStatement.ToReturn?.DataRefCodeGen(context) ?? context.GetVoid();
-                    break;
-                }
+ 
                 lastValue = context.GetVoid();
                 stmt.CodeGen(context);
             }
+            if (firstNoticed is not null)
+            {
+               
+                lastValue = firstNoticed.ToReturn?.DataRefCodeGen(context) ?? context.GetVoid(); 
+                break;
+            } 
+
+
+            ReturnStatement? GetFirstNoticedReturn(ISyntaxNode syntaxNode)
+            {
+                if (syntaxNode is ReturnStatement returnStatement)
+                {
+                    return returnStatement;
+                }
+
+                foreach (var child in syntaxNode.Children.Where(i => i is not IfExpression))
+                {
+                    var ret = GetFirstNoticedReturn(child);
+                    if (ret is not null)
+                    {
+                        return ret;
+                    }
+                }
+                return null;
+            }
+
         }
         
 
@@ -128,8 +148,6 @@ public class BlockExpression : IExpression, IPathHaver
             {
                 return context.GetVoid();
             }
-
-
             return (context.GetRefItemFor(ExpectedReturnType) as TypeRefItem).Type.CreateUninitializedValRef(context);
         }
         return lastValue;

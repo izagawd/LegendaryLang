@@ -389,17 +389,18 @@ public class CodeGenContext
             if (optimized)
             {
                 var passManager = LLVM.CreatePassManager();
-  
+             
 // classic “-O3” subset of passes:
                 LLVM.AddFunctionInliningPass(passManager);
-               LLVM.AddCalledValuePropagationPass(passManager);
+                
+            
                 LLVM.AddDeadStoreEliminationPass(passManager);
-                LLVM.AddConstantMergePass(passManager);
+        
                 LLVM.AddInstructionCombiningPass(passManager);
                 LLVM.AddReassociatePass(passManager);
                 LLVM.AddGVNPass(passManager);
                 LLVM.AddCFGSimplificationPass(passManager);
-                LLVM.AddPromoteMemoryToRegisterPass(passManager);
+              
 // …you can add more as needed…
 
                 LLVM.RunPassManager(passManager, Module);
