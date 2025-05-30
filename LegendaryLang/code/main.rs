@@ -14,7 +14,7 @@ struct Idk{
        Idk{kk = kk.kk + 4}
       }
  fn bruh() -> Idk{
-    let a  = if true{
+    let a  = if false{
         
       5       
          }

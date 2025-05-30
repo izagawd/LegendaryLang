@@ -354,7 +354,7 @@ public class CodeGenContext
                 LLVM.AddCFGSimplificationPass(passManager);
               
 
-
+                LLVM.AddDeadStoreEliminationPass(passManager);
                 LLVM.RunPassManager(passManager, Module);
 
                

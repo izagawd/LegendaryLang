@@ -72,6 +72,10 @@ public class IfExpression : IExpression
     /// </summary>
     class ResumeBlockPropagator
     {
+        /// <summary>
+        /// used to hold the stack ptr of the implicit return value the if/(possible else chain) is supposed to have
+        /// </summary>
+        public ValueRefItem ImplicitReturnValue {get; set;}
         public LLVMBasicBlockRef ResumeBlock { get; set; } 
     }
 
@@ -151,20 +155,7 @@ public class IfExpression : IExpression
         var expressionTypeRefItem = codeGenContext.GetRefItemFor(TypePath) as TypeRefItem;
         var expressionType = expressionTypeRefItem.Type;
         ValueRefItem? possibleRefItem= null;
-        if (ElseExpression is not null)
-        {
-    
-            stackPtr= expressionTypeRefItem.Type.AssignToStack(codeGenContext,new ValueRefItem()
-            {
-                Type = expressionTypeRefItem.Type,
-                ValueRef = LLVM.GetUndef(expressionTypeRefItem.Type.TypeRef)
-            });
-            possibleRefItem= new ValueRefItem()
-            {
-                Type = expressionTypeRefItem.Type,
-                ValueRef = stackPtr!.Value,
-            };
-        }
+
         
         var thenBB  =     codeGenContext.Module.LastFunction.AppendBasicBlock("then");
         LLVMBasicBlockRef? elseBB  = ElseExpression is  null ?  default(LLVMBasicBlockRef?) :  codeGenContext.Module.LastFunction.AppendBasicBlock("else");
@@ -183,7 +174,22 @@ public class IfExpression : IExpression
                 currentIf = ifExpr;
             }
             currentIf.IsLastIfInChain = true;
+            if (ElseExpression is not null)
+            {
+                stackPtr= expressionTypeRefItem.Type.AssignToStack(codeGenContext,new ValueRefItem()
+                {
+                    Type = expressionTypeRefItem.Type,
+                    ValueRef = LLVM.GetUndef(expressionTypeRefItem.Type.TypeRef)
+                });
+
+                _resumeBlockPropagator.ImplicitReturnValue = new ValueRefItem()
+                {
+                    Type = expressionTypeRefItem.Type,
+                    ValueRef = stackPtr!.Value,
+                };
+            }
         }
+        possibleRefItem = _resumeBlockPropagator.ImplicitReturnValue;
 
         if (IsLastIfInChain)
         {
@@ -223,8 +229,10 @@ public class IfExpression : IExpression
         
             var codegennedElseVal =ElseExpression.DataRefCodeGen(codeGenContext);
             codeGenContext.Builder.PositionAtEnd(elseBB!.Value);
+
             if (IsLastIfInChain)
             {
+                expressionType.AssignTo(codeGenContext, codegennedElseVal , possibleRefItem);
                 if (!DirectlyContainsReturnStatement(ElseExpression))
                 {
                     codeGenContext.Builder.BuildBr(_resumeBlockPropagator.ResumeBlock);
