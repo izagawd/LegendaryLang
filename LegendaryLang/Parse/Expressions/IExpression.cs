@@ -17,7 +17,7 @@ public interface IExpression : ISyntaxNode, IAnalyzable
     /// </summary>
     /// <param name="codeGenContext"></param>
     /// <returns></returns>
-    public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext);
+    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext);
  
     /// <summary>
     /// Parses field access, struct cration, variable assignment, etc. pretty much anything after a

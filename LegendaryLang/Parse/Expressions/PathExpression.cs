@@ -26,7 +26,7 @@ public class PathExpression : IExpression, IPathHaver
     /// Generates LLVM IR to load the runtime value of the variable
     /// referenced by the path.
     /// </summary>
-    public unsafe VariableRefItem DataRefCodeGen(CodeGenContext context)
+    public unsafe ValueRefItem DataRefCodeGen(CodeGenContext context)
     {
 
 
@@ -40,11 +40,11 @@ public class PathExpression : IExpression, IPathHaver
         uint* major = null;
         uint* other = null;
 
-        var refItem = context.GetRefItemFor(Path) as VariableRefItem;
+        var refItem = context.GetRefItemFor(Path) as ValueRefItem;
         var gotten = refItem.ValueRef;
            
         // 3. Emit a load instruction to get the current value from the variable's pointer.
-        return new VariableRefItem()
+        return new ValueRefItem()
         {
             ValueRef = gotten,
             Type = refItem.Type

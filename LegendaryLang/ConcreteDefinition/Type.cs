@@ -9,6 +9,19 @@ namespace LegendaryLang.ConcreteDefinition;
 
 public abstract class Type : IConcreteDefinition
 {
+
+    public unsafe  LLVMValueRef CreateUninitialized(CodeGenContext context)
+    {
+        return LLVM.GetUndef(TypeRef);
+    }
+    public   ValueRefItem CreateUninitializedValRef(CodeGenContext context)
+    {
+        return new ValueRefItem()
+        {
+            Type = this,
+            ValueRef = CreateUninitialized(context),
+        };
+    }
     public IEnumerable<ISyntaxNode> Children => [];
     public Type(TypeDefinition definition)
     {
@@ -19,7 +32,7 @@ public abstract class Type : IConcreteDefinition
     /// </summary>
     /// <param name="dataRefItem"></param>
     /// <returns>Stack pointer</returns>
-    public virtual LLVMValueRef AssignToStack(CodeGenContext context, VariableRefItem dataRefItem)
+    public virtual LLVMValueRef AssignToStack(CodeGenContext context, ValueRefItem dataRefItem)
     {
         
         
@@ -28,7 +41,7 @@ public abstract class Type : IConcreteDefinition
         // if its intended to be an rvalue simply use that pointer
 
         var allocated = context.Builder.BuildAlloca(TypeRef);
-        AssignTo(context, dataRefItem, new VariableRefItem()
+        AssignTo(context, dataRefItem, new ValueRefItem()
         {
             Type = this,
             ValueRef = allocated
@@ -39,9 +52,9 @@ public abstract class Type : IConcreteDefinition
     
 
     public abstract int GetPrimitivesCompositeCount(CodeGenContext context);
-    public  abstract LLVMValueRef LoadValue(CodeGenContext context, VariableRefItem variableRef);
+    public  abstract LLVMValueRef LoadValue(CodeGenContext context, ValueRefItem valueRef);
 
-    public abstract void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr);
+    public abstract void AssignTo(CodeGenContext codeGenContext, ValueRefItem value, ValueRefItem ptr);
 
     public abstract LLVMTypeRef TypeRef { get;  protected set; }
     public  TypeDefinition TypeDefinition { get;  }

@@ -21,7 +21,7 @@ public class BracketExpression : IExpression
     }
     public IEnumerable<ISyntaxNode> Children => [Expression];
 
-    public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         return Expression.DataRefCodeGen(codeGenContext);
     }

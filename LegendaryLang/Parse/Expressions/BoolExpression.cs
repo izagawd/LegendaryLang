@@ -31,13 +31,13 @@ public class BoolExpression : IExpression
     public IBoolToken Token { get; }
 
     public static BoolType BoolType { get; } = new(new BoolTypeDefinition());
-    public unsafe VariableRefItem DataRefCodeGen(CodeGenContext context)
+    public unsafe ValueRefItem DataRefCodeGen(CodeGenContext context)
     {
         // Assume IBoolToken has a property "Value" that holds a Boolean.
         bool value = Token.Bool; // e.g., true or false
         // Create a constant i1 with value 1 for true, 0 for false.
         var boolValue = LLVM.ConstInt(BoolType.TypeRef, (ulong)(value ? 1 : 0), 0);
-        return new VariableRefItem()
+        return new ValueRefItem()
         {
             ValueRef = boolValue,
             Type = (context.GetRefItemFor(TypePath) as TypeRefItem)?.Type

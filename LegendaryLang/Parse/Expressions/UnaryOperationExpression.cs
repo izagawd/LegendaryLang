@@ -33,7 +33,7 @@ public class UnaryOperationExpression : IExpression
         OperatorToken =operatorToken;
     }
 
-    public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         var gottenVal = Expression.DataRefCodeGen(codeGenContext);
         if (OperatorToken.Operator == Operator.Add)
@@ -44,7 +44,7 @@ public class UnaryOperationExpression : IExpression
             var zero = LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, 0, false);
             var loaded = gottenVal.Type.LoadValue(codeGenContext, gottenVal);
             var subbed= codeGenContext.Builder.BuildSub(zero,loaded);
-            return new VariableRefItem()
+            return new ValueRefItem()
             {
                 Type = gottenVal.Type,
                 ValueRef = subbed,

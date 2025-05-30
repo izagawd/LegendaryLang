@@ -23,7 +23,7 @@ public class ElseExpression : IExpression
         Body.Analyze(analyzer);
     }
 
-    public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         return Body.DataRefCodeGen(codeGenContext); 
     }
@@ -132,23 +132,23 @@ public class IfExpression : IExpression
         }
     }
 
-    public unsafe VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public unsafe ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         LLVMValueRef? stackPtr = null;
 
         var expressionTypeRefItem = codeGenContext.GetRefItemFor(TypePath) as TypeRefItem;
         var expressionType = expressionTypeRefItem.Type;
-        VariableRefItem? possibleRefItem= null;
+        ValueRefItem? possibleRefItem= null;
         if (ElseExpression is not null)
         {
 
         
-            stackPtr= expressionTypeRefItem.Type.AssignToStack(codeGenContext,new VariableRefItem()
+            stackPtr= expressionTypeRefItem.Type.AssignToStack(codeGenContext,new ValueRefItem()
             {
                 Type = expressionTypeRefItem.Type,
                 ValueRef = LLVM.GetUndef(expressionTypeRefItem.Type.TypeRef)
             });
-            possibleRefItem= new VariableRefItem()
+            possibleRefItem= new ValueRefItem()
             {
                 Type = expressionTypeRefItem.Type,
                 ValueRef = stackPtr!.Value,

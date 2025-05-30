@@ -21,7 +21,10 @@ struct Idk{
 
   } 
 fn main() -> i32{
-    let d : i32= bruh().kk;
-    d
+if true{
+       return 5;
+       } else{
+           return 5;
+           }
 }
 

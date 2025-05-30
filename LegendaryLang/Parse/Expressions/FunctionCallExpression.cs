@@ -89,7 +89,7 @@ public class FunctionCallExpression : IExpression, IPathHaver
         }
     }
 
-    public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
 
 
@@ -105,14 +105,14 @@ public class FunctionCallExpression : IExpression, IPathHaver
             );
 
         var returnType = zaPath.Function.ReturnType;
-        LLVMValueRef stackPtr= returnType.AssignToStack(codeGenContext,new VariableRefItem()
+        LLVMValueRef stackPtr= returnType.AssignToStack(codeGenContext,new ValueRefItem()
         {
                 Type = returnType,
                 ValueRef = callResult
         });  
 
  
-        return new VariableRefItem()
+        return new ValueRefItem()
         {
             Type = returnType,
             ValueRef = stackPtr,

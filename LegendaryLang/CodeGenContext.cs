@@ -95,7 +95,7 @@ public enum ValueClassification
     RValue
 }
 
-public class VariableRefItem : IRefItem, IHasType
+public class ValueRefItem : IRefItem, IHasType
 {
     public required ConcreteDefinition.Type Type {get; init;}
     public  required LLVMValueRef ValueRef {get; init; }
@@ -298,12 +298,12 @@ public class CodeGenContext
     }
 
 
-    public VariableRefItem GetVoid()
+    public ValueRefItem GetVoid()
     {
         return Void;
     }
 
-    private VariableRefItem Void;
+    private ValueRefItem Void;
 
     public LLVMBuilderRef Builder { get; set; }  
     public LLVMModuleRef Module { get; private set; }
@@ -332,7 +332,7 @@ public class CodeGenContext
         CodeGen(emptyTuple);
 
        
-        Void = new VariableRefItem
+        Void = new ValueRefItem
         {
             ValueRef = null,
             Type =emptyTuple

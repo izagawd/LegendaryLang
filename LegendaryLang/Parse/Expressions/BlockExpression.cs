@@ -87,14 +87,14 @@ public class BlockExpression : IExpression, IPathHaver
 
 
 
-    public unsafe VariableRefItem DataRefCodeGen(CodeGenContext context)
+    public unsafe ValueRefItem DataRefCodeGen(CodeGenContext context)
     {
 
         
         
         var lastValue = context.GetVoid();
         context.AddScope();
-        VariableRefItem? toEvalGenned = null;
+        ValueRefItem? toEvalGenned = null;
         // Iterate over each syntax node in the block.
         foreach (var item in BlockSyntaxNodeContainers)
         {
@@ -109,7 +109,7 @@ public class BlockExpression : IExpression, IPathHaver
             {
                 if (stmt is ReturnStatement returnStatement)
                 {
-                    lastValue = returnStatement.ToReturn.DataRefCodeGen(context);
+                    lastValue = returnStatement.ToReturn?.DataRefCodeGen(context) ?? context.GetVoid();
                     break;
                 }
                 lastValue = context.GetVoid();
@@ -121,10 +121,14 @@ public class BlockExpression : IExpression, IPathHaver
         context.PopScope();
 
 
-
+        
         if ( lastValue.Type.TypePath == LangPath.VoidBaseLangPath)
         {
-            return context.GetVoid();
+            if (ExpectedReturnType == LangPath.VoidBaseLangPath)
+            {
+                return context.GetVoid();
+            }
+            return (context.GetRefItemFor(ExpectedReturnType) as TypeRefItem).Type.CreateUninitializedValRef(context);
         }
         return lastValue;
     }

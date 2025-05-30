@@ -29,9 +29,9 @@ public class NumberExpression : IExpression
     }
 
 
-    public unsafe VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public unsafe ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
-        return new VariableRefItem()
+        return new ValueRefItem()
         {
             ValueRef = LLVM.ConstInt(LLVM.Int32Type(), ulong.Parse(Token.Number), 0),
             Type = (codeGenContext.GetRefItemFor(TypePath) as TypeRefItem).Type

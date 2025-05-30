@@ -53,7 +53,7 @@ public class AssignVariableExpression : IExpression
 
 
 
-    public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         var valueToEq = EqualsTo.DataRefCodeGen(codeGenContext);
         

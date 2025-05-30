@@ -94,18 +94,18 @@ public class Function : IConcreteDefinition
             
             // Allocate space for the parameter in the entry block.
             LLVMValueRef alloca = LLVM.BuildAlloca(context.Builder, paramTypes[i],argument.Name.ToCString());
-            argument.Type.AssignTo(context,new VariableRefItem()
+            argument.Type.AssignTo(context,new ValueRefItem()
             {
                 Type = argument.Type,
                 ValueRef = param,
-            }, new VariableRefItem()
+            }, new ValueRefItem()
             {
                 Type = argument.Type,
                 ValueRef = alloca,
             });
 
             // adds the stack ptr to codegen so argument can be referenced by name
-            context.AddToDeepestScope(new NormalLangPath(null,[argument.Name]), new VariableRefItem()
+            context.AddToDeepestScope(new NormalLangPath(null,[argument.Name]), new ValueRefItem()
             {
                 Type = (context.GetRefItemFor(argument.Type.TypePath) as TypeRefItem).Type,
                 ValueRef = alloca

@@ -5,10 +5,12 @@ namespace LegendaryLang.ConcreteDefinition;
 
 public class BoolType : PrimitiveType
 {
+    
     public BoolType(BoolTypeDefinition definition) : base(definition)
     {
 
     }
+    
     public override LLVMTypeRef TypeRef
     {
         get => LLVMTypeRef.Int1;

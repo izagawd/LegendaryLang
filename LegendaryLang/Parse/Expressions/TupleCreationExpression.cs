@@ -25,7 +25,7 @@ public class TupleCreationExpression : IExpression
 
 
 
-    public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         throw new NotImplementedException();
     }

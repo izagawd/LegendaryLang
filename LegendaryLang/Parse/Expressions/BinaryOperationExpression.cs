@@ -25,7 +25,7 @@ public class BinaryOperationExpression : IExpression
 
     public IEnumerable<ISyntaxNode> Children => [Left, Right];
 
-    public VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         var leftVal = Left.DataRefCodeGen(codeGenContext);
         var rightVal = Right.DataRefCodeGen(codeGenContext);
@@ -54,7 +54,7 @@ public class BinaryOperationExpression : IExpression
                 throw new ArgumentOutOfRangeException();
         }
 
-        return new VariableRefItem()
+        return new ValueRefItem()
         {
             ValueRef = valueRef,
             Type = type,

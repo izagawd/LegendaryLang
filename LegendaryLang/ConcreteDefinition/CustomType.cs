@@ -10,7 +10,7 @@ public abstract class CustomType : Type
     
 
     public ImmutableArray<LangPath> ComposedTypes =>((CustomTypeDefinition) TypeDefinition).ComposedTypes;
-    public override void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr)
+    public override void AssignTo(CodeGenContext codeGenContext, ValueRefItem value, ValueRefItem ptr)
     {
         for (int i = 0; i < ComposedTypes.Length; i++)
         {
@@ -24,12 +24,12 @@ public abstract class CustomType : Type
                 fieldValuePtr = codeGenContext.Builder.BuildStructGEP2(TypeRef, value.ValueRef,
                     (uint) i );
 
-                composedType.Type.AssignTo(codeGenContext, new VariableRefItem()
+                composedType.Type.AssignTo(codeGenContext, new ValueRefItem()
                     {
                         ValueRef = fieldValuePtr,
                         Type = composedType.Type
                     },
-                    new VariableRefItem()
+                    new ValueRefItem()
                     {
                         ValueRef = fieldPtrPtr,
                         Type = composedType.Type
@@ -42,11 +42,11 @@ public abstract class CustomType : Type
 
                 var toExtract = codeGenContext.Builder.BuildExtractValue(value.ValueRef,(uint)i);
                 composedType.Type.AssignTo(codeGenContext,
-                    new VariableRefItem()
+                    new ValueRefItem()
                     {
                         ValueRef = toExtract,
                         Type = composedType.Type
-                    }, new VariableRefItem()
+                    }, new ValueRefItem()
                     {
                         ValueRef = fieldPtrPtr,
                         Type = composedType.Type
@@ -64,7 +64,7 @@ public abstract class CustomType : Type
         return  ComposedTypes.Select(i => (context.GetRefItemFor(i) as TypeRefItem).Type.GetPrimitivesCompositeCount(context))
             .Sum();
     }
-    public unsafe override LLVMValueRef LoadValue(CodeGenContext context,VariableRefItem variableRef)
+    public unsafe override LLVMValueRef LoadValue(CodeGenContext context,ValueRefItem valueRef)
     {
         
         if (GetPrimitivesCompositeCount(context) > 0)
@@ -75,8 +75,8 @@ public abstract class CustomType : Type
             {
                 var composed = ComposedTypes[i];
                 var type = context.GetRefItemFor(composed) as TypeRefItem;
-                var otherComposed = context.Builder.BuildStructGEP2(TypeRef, variableRef.ValueRef, (uint)i);
-                var refIt = new VariableRefItem()
+                var otherComposed = context.Builder.BuildStructGEP2(TypeRef, valueRef.ValueRef, (uint)i);
+                var refIt = new ValueRefItem()
                 {
                     ValueRef = otherComposed,
                     Type = type.Type

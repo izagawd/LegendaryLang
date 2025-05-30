@@ -58,7 +58,7 @@ public class FieldAccessExpression : IExpression
     /// <summary>
     /// Returns the pointer to the accessed field
     /// </summary>
-    public unsafe VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public unsafe ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         
  
@@ -74,7 +74,7 @@ public class FieldAccessExpression : IExpression
             var field = structType.GetField(Field.Identity);
             var fieldTypeRef = codeGenContext.GetRefItemFor(field.TypePath) as TypeRefItem;
 
-            return new VariableRefItem()
+            return new ValueRefItem()
             {
                 Type = fieldTypeRef.Type,
             

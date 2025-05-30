@@ -125,11 +125,11 @@ public class StructCreationExpression : IExpression, IPathHaver
         AssignFields = assignVariableExpressions.ToImmutableArray();
         Token = typePath.FirstIdentifierToken!;
     }
-    private VariableRefItem? GeneratedDataRef { get; set; }
+    private ValueRefItem? GeneratedDataRef { get; set; }
 
 
 
-    public unsafe VariableRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public unsafe ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
 
         var typeRef = (codeGenContext.GetRefItemFor(TypePath) as TypeRefItem);
@@ -147,7 +147,7 @@ public class StructCreationExpression : IExpression, IPathHaver
             var data = gotten.EqualsTo.DataRefCodeGen(codeGenContext);
             var fieldPtr = codeGenContext.Builder.BuildStructGEP2(structType.TypeRef,structPtr,(uint)i);
 
-            data.Type.AssignTo(codeGenContext, data, new VariableRefItem()
+            data.Type.AssignTo(codeGenContext, data, new ValueRefItem()
             {
                 Type = data.Type,
                 ValueRef = fieldPtr
@@ -156,7 +156,7 @@ public class StructCreationExpression : IExpression, IPathHaver
         }
         
         
-        return new VariableRefItem()
+        return new ValueRefItem()
         {
             Type = structType,
             ValueRef = structPtr

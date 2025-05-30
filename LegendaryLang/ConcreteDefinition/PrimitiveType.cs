@@ -14,24 +14,24 @@ public abstract class PrimitiveType : Type
         return 1;
     }
 
-    public override void AssignTo(CodeGenContext codeGenContext, VariableRefItem value, VariableRefItem ptr)
+    public override void AssignTo(CodeGenContext codeGenContext, ValueRefItem value, ValueRefItem ptr)
     {
         codeGenContext.Builder.BuildStore(value.LoadValForRetOrArg(codeGenContext), ptr.ValueRef );
     }
 
 
 
-    public override LLVMValueRef LoadValue(CodeGenContext context, VariableRefItem variableRef)
+    public override LLVMValueRef LoadValue(CodeGenContext context, ValueRefItem valueRef)
     {
-        if (variableRef.ValueRef.TypeOf.Kind != LLVMTypeKind.LLVMPointerTypeKind)
+        if (valueRef.ValueRef.TypeOf.Kind != LLVMTypeKind.LLVMPointerTypeKind)
         {
-            return variableRef.ValueRef;
+            return valueRef.ValueRef;
         }
-        return context.Builder.BuildLoad2(TypeRef, variableRef.ValueRef);
+        return context.Builder.BuildLoad2(TypeRef, valueRef.ValueRef);
     
     }
 
-    public override LLVMValueRef AssignToStack(CodeGenContext context, VariableRefItem dataRefItem)
+    public override LLVMValueRef AssignToStack(CodeGenContext context, ValueRefItem dataRefItem)
     {
         LLVMValueRef value;
         if (dataRefItem.ValueRef.TypeOf.Kind != LLVMTypeKind.LLVMPointerTypeKind)
