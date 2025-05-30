@@ -216,18 +216,6 @@ public class IfExpression : IExpression
         }
         codeGenContext.Builder.PositionAtEnd(thenBB);
 
-        var bodyVal = BodyExpression.DataRefCodeGen(codeGenContext);
-        codeGenContext.Builder.PositionAtEnd(thenBB);
-        expressionType.AssignTo(codeGenContext, bodyVal, possibleRefItem);
-   
-        if (!DirectlyContainsReturnStatement(BodyExpression))
-        {
-            codeGenContext.Builder.BuildBr(_resumeBlockPropagator.ResumeBlock);
-        }
-        else
-        {
-            codeGenContext.Builder.BuildRet(bodyVal.LoadValForRetOrArg(codeGenContext));   
-        }
 
         if (ElseExpression is not null)
         {
@@ -247,6 +235,18 @@ public class IfExpression : IExpression
                 }
 
             }
+        }
+        var bodyVal = BodyExpression.DataRefCodeGen(codeGenContext);
+        codeGenContext.Builder.PositionAtEnd(thenBB);
+        expressionType.AssignTo(codeGenContext, bodyVal, possibleRefItem);
+   
+        if (!DirectlyContainsReturnStatement(BodyExpression))
+        {
+            codeGenContext.Builder.BuildBr(_resumeBlockPropagator.ResumeBlock);
+        }
+        else
+        {
+            codeGenContext.Builder.BuildRet(bodyVal.LoadValForRetOrArg(codeGenContext));   
         }
 
         if (IsFirstInIfChain)

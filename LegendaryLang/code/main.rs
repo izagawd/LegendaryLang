@@ -10,10 +10,20 @@ struct Idk{
     kk: i32}
    
    fn other(kk: Idk) -> Idk{
+       
        Idk{kk = kk.kk + 4}
       }
  fn bruh() -> Idk{
-    other(Idk{kk = 5})
+    let a  = if true{
+        
+      5       
+         }
+     else if false{
+        10
+        } else{
+            11
+     };
+    other(Idk{kk = a})
 } 
 fn main() -> i32{
      bruh().kk
