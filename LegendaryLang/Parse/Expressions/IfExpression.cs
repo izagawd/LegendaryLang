@@ -8,7 +8,7 @@ namespace LegendaryLang.Parse.Statements;
 public class ElseExpression : IExpression
 {
     public IEnumerable<ISyntaxNode> Children => [Body];
-    public IExpression Body {get; set;}
+    public IExpression Body {get; }
 
     public bool NeedsSemiColonAfterIfNotLastInBlock => Body.NeedsSemiColonAfterIfNotLastInBlock;
     public ElseExpression(Token token, IExpression body)
@@ -66,11 +66,15 @@ public class IfExpression : IExpression
             }
         }
     }
-
+    /// <summary>
+    /// Used to keep track of the resume block, to be jumped to after a series of if/else chains (or even a single if) have been code genned
+    /// 
+    /// </summary>
     class ResumeBlockPropagator
     {
         public LLVMBasicBlockRef ResumeBlock { get; set; } 
     }
+
     ResumeBlockPropagator? _resumeBlockPropagator { get; set; } 
     public IfExpression(IfToken ifToken, IExpression conditionExpression, BlockExpression body,
         ElseExpression? elseExpression)
@@ -141,6 +145,7 @@ public class IfExpression : IExpression
 
     public unsafe ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
+        // used to help make if/else expression return implicitly (if the else is not null of course)
         LLVMValueRef? stackPtr = null;
 
         var expressionTypeRefItem = codeGenContext.GetRefItemFor(TypePath) as TypeRefItem;
@@ -148,8 +153,7 @@ public class IfExpression : IExpression
         ValueRefItem? possibleRefItem= null;
         if (ElseExpression is not null)
         {
-
-        
+    
             stackPtr= expressionTypeRefItem.Type.AssignToStack(codeGenContext,new ValueRefItem()
             {
                 Type = expressionTypeRefItem.Type,
@@ -170,7 +174,7 @@ public class IfExpression : IExpression
             {
 
             };
-           
+            // passes a shared ResumeBlockPropagator down the if/else chain
             var currentIf = this;
             currentIf.IsFirstInIfChain = true;
             while ( currentIf.ElseExpression?.Body is IfExpression ifExpr)
@@ -212,7 +216,6 @@ public class IfExpression : IExpression
         }
         codeGenContext.Builder.PositionAtEnd(thenBB);
 
-        LLVMBasicBlockRef last = thenBB;
         var bodyVal = BodyExpression.DataRefCodeGen(codeGenContext);
         codeGenContext.Builder.PositionAtEnd(thenBB);
         expressionType.AssignTo(codeGenContext, bodyVal, possibleRefItem);
@@ -229,7 +232,7 @@ public class IfExpression : IExpression
         if (ElseExpression is not null)
         {
             codeGenContext.Builder.PositionAtEnd(elseBB!.Value);
-            last = elseBB!.Value;
+        
             var codegennedElseVal =ElseExpression.DataRefCodeGen(codeGenContext);
             codeGenContext.Builder.PositionAtEnd(elseBB!.Value);
             if (IsLastIfInChain)
@@ -252,7 +255,7 @@ public class IfExpression : IExpression
         }
 
       
-        
+        // we implicitly return void if else expression is null
         if (ElseExpression is null)
         {
             return codeGenContext.GetVoid();
@@ -263,8 +266,6 @@ public class IfExpression : IExpression
 
     }
 
-    /// <summary>
-    /// This can be null, since block expressions can be null
-    /// </summary>
+
     public LangPath? TypePath { get; set; }
 }
