@@ -262,8 +262,7 @@ public class IfExpression : IExpression
         {
             codeGenContext.Builder.PositionAtEnd(_resumeBlockPropagator.ResumeBlock);
         }
-
-      
+        
         // we implicitly return void if else expression is null
         if (ElseExpression is null)
         {

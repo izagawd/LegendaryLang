@@ -126,8 +126,8 @@ public class BlockExpression : IExpression, IPathHaver
                 }
                 return null;
             }
-            // if encountering a return statemeint after recursive checks, ignoring if expressions,
-            // put it as the last value and stop looping, since return ignores the rest of the code in
+            // if encountering a return statement after recursive checks, ignoring if expressions,
+            // put it as the last value and stop looping, since explicit returns ignores the rest of the code in
             // blocks anyways
             var firstNoticed = GetFirstNoticedReturn(item.Node);
             if (firstNoticed is not null)
@@ -155,7 +155,7 @@ public class BlockExpression : IExpression, IPathHaver
             }
             // if the last values type is void, despite desired expected return type not being void,
             // it "should" be assumed that the return statement is unreachable, so we just
-            // return an uninitialized value for its respective type
+            // return an uninitialized value for its expected return type
             return (context.GetRefItemFor(ExpectedReturnType) as TypeRefItem).Type.CreateUninitializedValRef(context);
         }
         return lastValue;
