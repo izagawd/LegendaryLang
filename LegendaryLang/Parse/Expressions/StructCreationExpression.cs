@@ -111,6 +111,16 @@ public class StructCreationExpression : IExpression, IPathHaver
             
         }
 
+        foreach (var field in AssignFields.Except(invalidFields) )
+        {
+            var fieldType = asStruct.Fields.First(i => i.Name == field.FieldToken.Identity).TypePath;
+            if (field.EqualsTo.TypePath != fieldType)
+            {
+                analyzer.AddException(new SemanticException($"Field {field.FieldToken.Identity} expects type '{fieldType}', found '{field.EqualsTo.TypePath}'\n" +
+                                                            $"{field.FieldToken.GetLocationStringRepresentation()}"));
+            }
+        }
+
 
     }
 

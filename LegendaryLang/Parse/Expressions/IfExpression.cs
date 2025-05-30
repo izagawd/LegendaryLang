@@ -138,6 +138,7 @@ public class IfExpression : IExpression
         {
             if (ElseExpression.Body.TypePath != BodyExpression.TypePath)
             {
+                TypePath = LangPath.VoidBaseLangPath;
                 analyzer.AddException(new SemanticException($"if and else blocks do not return the same type\n{Token.GetLocationStringRepresentation()}"));
             }
             else

@@ -16,14 +16,14 @@ struct Idk{
  fn bruh() -> Idk{
     let a  = if false{
         
-      5       
+      5;       
          }
      else if false{
-        10
-        } else{
-            11
+        10;
+        } else if false{
+            11;
      };
-    other(Idk{kk = a})
+    other(Idk{kk = 8})
 } 
 fn main() -> i32{
      bruh().kk
