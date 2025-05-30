@@ -350,7 +350,7 @@ public class CodeGenContext
 
    
 
-    public void CodeGen(bool showLLVMIR = false)
+    public void CodeGen(bool showLLVMIR = false, bool optimized = false)
     {
         const string MODULE_NAME = "LEGENDARY_LANGUAGE";
         unsafe
@@ -386,11 +386,35 @@ public class CodeGenContext
             });
             // codeGens the main fn
             mainConc.CodeGen(this);
+            if (optimized)
+            {
+                var passManager = LLVM.CreatePassManager();
+
+// classic “-O3” subset of passes:
+                LLVM.AddFunctionInliningPass(passManager);
+               LLVM.AddCalledValuePropagationPass(passManager);
+                LLVM.AddDeadStoreEliminationPass(passManager);
+                LLVM.AddConstantMergePass(passManager);
+                LLVM.AddInstructionCombiningPass(passManager);
+                LLVM.AddReassociatePass(passManager);
+                LLVM.AddGVNPass(passManager);
+                LLVM.AddCFGSimplificationPass(passManager);
+                LLVM.AddPromoteMemoryToRegisterPass(passManager);
+// …you can add more as needed…
+
+                LLVM.RunPassManager(passManager, Module);
+
+// now dump:
+               
+
+
+            }
+
             if (showLLVMIR)
             {
                 Console.WriteLine(FromByte(LLVM.PrintModuleToString(Module)));
             }
-
+            
             sbyte* idk;
             if (LLVM.VerifyModule(Module, LLVMVerifierFailureAction.LLVMPrintMessageAction, &idk) != 0)
             {

@@ -13,7 +13,7 @@ public class Compiler
 {
 
     public const string extension = "rs";
-    public void Compile(string codeDirectory, bool showLLVM = false)
+    public void Compile(string codeDirectory, bool showLLVM = false, bool optimized = false)
     {
         string directoryPath = codeDirectory;
 
@@ -100,6 +100,6 @@ public class Compiler
             return;
         }
 
-        new CodeGenContext(parseResults, new NormalLangPath(null, [codeDirectory])).CodeGen(showLLVM);
+        new CodeGenContext(parseResults, new NormalLangPath(null, [codeDirectory])).CodeGen(showLLVM, optimized);
     }
 }
