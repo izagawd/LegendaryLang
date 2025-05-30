@@ -21,7 +21,7 @@ public static class Extensions
 /// <summary>
 /// Base type that represents either the type, or variable reference of a path
 /// like how in c#, if u have a type Foo in namespace bar it will be in
-/// Bar.Foo. that wouldbe the type. if Foo has a static variable Dog, it will be in
+/// Bar.Foo. that wouldb e the type. if Foo has a static variable Dog, it will be in
 /// Bar.Foo.Dog. that would be a variable ref
 /// </summary>
 public abstract class IRefItem
@@ -31,35 +31,7 @@ public abstract class IRefItem
     
 }
 
-public class MonomorphizationHelper
-{
-    public Stack<IDictionary<LangPath, LangPath>> MonomorphizationStack { get; set; } = [];
 
-    public void PopStack()
-    {
-         MonomorphizationStack.Pop();
-    }
-
-    public LangPath? Get(LangPath langPath)
-    {
-        foreach (var i in MonomorphizationStack)
-        {
-            if (i.TryGetValue(langPath, out var value))
-            {
-                return value;
-            }
-        }
-        return null;
-    }
-    public void AddToDeepestStack(LangPath langPath, LangPath refItem)
-    {
-        MonomorphizationStack.First().Add(langPath, refItem);
-    }
-    public void PushStack()
-    {
-        MonomorphizationStack.Push(new Dictionary<LangPath, LangPath>());
-    }
-}
 public interface IHasType
 {
     ConcreteDefinition.Type Type { get; }
@@ -78,21 +50,6 @@ public class TypeRefItem : IRefItem, IHasType
     }
 
     public required ConcreteDefinition.Type Type {get; init;}
-}
-/// <summary>
-/// NOTE: DataRefItems that are not primitive 9eg structs, tuples) having a classification RValue doesnt mean its valueref is a value.
-/// for structs, it would be a pointer since
-/// LLVM doesnt have much freedom with structs as values. Its not set as an LValue because
-/// from the programming language perspective, the developer would see it as an LValue
-///
-/// If its a struct that is an R
-/// </summary>
-public enum ValueClassification
-{
-    /// intended to represent stored in memory. doesnt matter if its in the stack or heap
-    LValue,
-    ///intented just a value, not stored in memory. probably is stored in a register
-    RValue
 }
 
 public class ValueRefItem : IRefItem, IHasType
@@ -115,11 +72,7 @@ public class ValueRefItem : IRefItem, IHasType
     }
 }
 
-public struct Symbol
-{
-    public LLVMValueRef Value;
-    public LLVMTypeRef Type;
-}
+
 public class CodeGenContext
 {
     public NormalLangPath MainLangModule { get; }
@@ -384,13 +337,12 @@ public class CodeGenContext
             {
                 Function = mainConc,
             });
-            // codeGens the main fn
+        
             mainConc.CodeGen(this);
             if (optimized)
             {
                 var passManager = LLVM.CreatePassManager();
-             
-// classic “-O3” subset of passes:
+
                 LLVM.AddFunctionInliningPass(passManager);
                 
             
@@ -401,11 +353,10 @@ public class CodeGenContext
                 LLVM.AddGVNPass(passManager);
                 LLVM.AddCFGSimplificationPass(passManager);
               
-// …you can add more as needed…
+
 
                 LLVM.RunPassManager(passManager, Module);
 
-// now dump:
                
 
 
@@ -456,8 +407,6 @@ public class CodeGenContext
         }
     }
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate int MainDelegate();
     public CodeGenContext( IEnumerable<ParseResult> results, NormalLangPath mainLangModule) : this(results.SelectMany(i => i.TopLevels.OfType<IDefinition>()), mainLangModule)
     {
     

@@ -20,7 +20,7 @@ public interface IExpression : ISyntaxNode, IAnalyzable
     public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext);
  
     /// <summary>
-    /// Parses field access, struct cration, variable assignment, etc. pretty much anything after a
+    /// Parses field access, struct creation, variable assignment, etc. pretty much anything after a
     /// path (NOTE: a path can be a local or global var. a::b::c is considered a path)
     /// </summary>
     /// <param name="parser"></param>

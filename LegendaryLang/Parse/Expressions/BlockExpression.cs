@@ -95,7 +95,7 @@ public class BlockExpression : IExpression, IPathHaver
         // Iterate over each syntax node in the block.
         foreach (var item in BlockSyntaxNodeContainers)
         {
-            var firstNoticed = GetFirstNoticedReturn(item.Node);
+          
             // If the node is an expression, use its ValueRefCodeGen.
             if (item.Node is IExpression expr)
             {
@@ -109,14 +109,6 @@ public class BlockExpression : IExpression, IPathHaver
                 lastValue = context.GetVoid();
                 stmt.CodeGen(context);
             }
-            if (firstNoticed is not null)
-            {
-               
-                lastValue = firstNoticed.ToReturn?.DataRefCodeGen(context) ?? context.GetVoid(); 
-                break;
-            } 
-
-
             ReturnStatement? GetFirstNoticedReturn(ISyntaxNode syntaxNode)
             {
                 if (syntaxNode is ReturnStatement returnStatement)
@@ -134,6 +126,19 @@ public class BlockExpression : IExpression, IPathHaver
                 }
                 return null;
             }
+            // if encountering a return statemeint after recursive checks, ignoring if expressions,
+            // put it as the last value and stop looping, since return ignores the rest of the code in
+            // blocks anyways
+            var firstNoticed = GetFirstNoticedReturn(item.Node);
+            if (firstNoticed is not null)
+            {
+               
+                lastValue = firstNoticed.ToReturn?.DataRefCodeGen(context) ?? context.GetVoid(); 
+                break;
+            } 
+
+
+
 
         }
         
@@ -148,14 +153,15 @@ public class BlockExpression : IExpression, IPathHaver
             {
                 return context.GetVoid();
             }
+            // if the last values type is void, despite desired expected return type not being void,
+            // it "should" be assumed that the return statement is unreachable, so we just
+            // return an uninitialized value for its respective type
             return (context.GetRefItemFor(ExpectedReturnType) as TypeRefItem).Type.CreateUninitializedValRef(context);
         }
         return lastValue;
     }
 
-    /// <summary>
-    /// this can be null
-    /// </summary>
+
     public LangPath? TypePath { get; private set; }
 
 
@@ -236,7 +242,7 @@ public class BlockExpression : IExpression, IPathHaver
         }
         else
         {
-            var lastReturnTypePath = lastReturnStatement?.TypePath;
+
             LangPath? possibleTypePath = null;
             if (last is not null)
             {
@@ -245,9 +251,9 @@ public class BlockExpression : IExpression, IPathHaver
                     possibleTypePath = LangPath.VoidBaseLangPath;
                 }
                 else if (last.Value.Node is IExpression expr)
-                    {
-                        possibleTypePath = expr.TypePath;
-                    } 
+                {
+                    possibleTypePath = expr.TypePath;
+                } 
                 
 
             }
