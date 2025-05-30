@@ -389,7 +389,7 @@ public class CodeGenContext
             if (optimized)
             {
                 var passManager = LLVM.CreatePassManager();
-
+  
 // classic “-O3” subset of passes:
                 LLVM.AddFunctionInliningPass(passManager);
                LLVM.AddCalledValuePropagationPass(passManager);
