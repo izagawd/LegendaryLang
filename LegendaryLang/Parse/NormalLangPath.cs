@@ -8,6 +8,12 @@ namespace LegendaryLang.Parse;
 
 public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
 {
+    /// <summary>
+    /// converts EG T to std::primitive::i32 if T is i32,
+    /// and (T, U) to (i32,bool) if U is bool
+    /// </summary>
+    /// <param name="codeGen"></param>
+    /// <returns></returns>
     public override LangPath Monomorphize(CodeGenContext codeGen)
     {
         if (codeGen.HasIdent(this))

@@ -55,7 +55,9 @@ public class TupleLangPath : LangPath
     }
 }
 
-
+/// <summary>
+/// Used to represent a path. could be a path to a variable, function or type
+/// </summary>
 public abstract class LangPath
 {
     public static implicit operator LangPath(ImmutableArray<NormalLangPath.PathSegment> segments)
