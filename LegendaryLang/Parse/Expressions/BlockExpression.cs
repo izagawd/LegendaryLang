@@ -41,6 +41,8 @@ public class BlockExpression : IExpression, IPathHaver
             {
                 lastValue = expr.DataRefCodeGen(context);
             }
+            // return statements are special, as when you encounter one theres no
+            // point in code genning the rest of the nodes
             else if (item.Node is ReturnStatement ret)
             {
                 lastValue = ret.ToReturn?.DataRefCodeGen(context) ?? context.GetVoid();
@@ -53,7 +55,7 @@ public class BlockExpression : IExpression, IPathHaver
                 stmt.CodeGen(context);
             }
 
-            
+
             ReturnStatement? GetFirstNoticedGuaranteedReturn(ISyntaxNode syntaxNode)
             {
                 // an if chain that ends with an "else if" or "if" is not guaranteed to always return a value,
@@ -74,10 +76,7 @@ public class BlockExpression : IExpression, IPathHaver
             // stop looping, since explicit returns ignores the rest of the code in
             // blocks anyways
             var firstNoticed = GetFirstNoticedGuaranteedReturn(item.Node);
-            if (firstNoticed is not null)
-            {
-                break;
-            }
+            if (firstNoticed is not null) break;
         }
 
 

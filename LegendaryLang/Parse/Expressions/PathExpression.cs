@@ -18,7 +18,7 @@ public class PathExpression : IExpression, IPathHaver
     ///     Generates LLVM IR to load the runtime value of the variable
     ///     referenced by the path.
     /// </summary>
-    public unsafe ValueRefItem DataRefCodeGen(CodeGenContext context)
+    public ValueRefItem DataRefCodeGen(CodeGenContext context)
     {
         if (TypePath is null) TypePath = (context.GetRefItemFor(Path) as IHasType).Type.TypePath;
 

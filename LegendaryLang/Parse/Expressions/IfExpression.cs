@@ -112,10 +112,9 @@ public class IfExpression : IExpression
     public unsafe ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         // used to help make if/else expression return implicitly (if the else is not null of course)
-        LLVMValueRef? stackPtr = null;
 
         var expressionTypeRefItem = codeGenContext.GetRefItemFor(TypePath) as TypeRefItem;
-        var expressionType = expressionTypeRefItem.Type;
+        var expressionType = expressionTypeRefItem!.Type;
         ValueRefItem? possibleRefItem = null;
 
 
@@ -138,7 +137,7 @@ public class IfExpression : IExpression
             currentIf.IsLastIfInChain = true;
             if (ElseExpression is not null)
             {
-                stackPtr = expressionTypeRefItem.Type.AssignToStack(codeGenContext, new ValueRefItem
+                LLVMValueRef? stackPtr = expressionTypeRefItem.Type.AssignToStack(codeGenContext, new ValueRefItem
                 {
                     Type = expressionTypeRefItem.Type,
                     ValueRef = LLVM.GetUndef(expressionTypeRefItem.Type.TypeRef)
@@ -164,7 +163,8 @@ public class IfExpression : IExpression
         ReturnStatement? DirectReturnStatement(ISyntaxNode syntaxNode)
         {
             if (syntaxNode is ReturnStatement returnStatement) return returnStatement;
-
+            
+            // we ignore if expressions, as they handle their own terminator instructions
             foreach (var child in syntaxNode.Children.Where(i => i is not IfExpression))
                 if (DirectReturnStatement(child) is not null)
                     return DirectReturnStatement(child);
@@ -190,6 +190,10 @@ public class IfExpression : IExpression
             if (IsLastIfInChain)
             {
                 expressionType.AssignTo(codeGenContext, codegennedElseVal, possibleRefItem);
+                
+                
+                // if there is no direct return statement then we can safety branch to the resume block from the then block
+                // since its not explicitly returning a value
                 if (!DirectlyContainsReturnStatement(ElseExpression))
                     codeGenContext.Builder.BuildBr(_resumeBlockPropagator.ResumeBlock);
                 else
@@ -201,6 +205,8 @@ public class IfExpression : IExpression
         codeGenContext.Builder.PositionAtEnd(thenBB);
         expressionType.AssignTo(codeGenContext, bodyVal, possibleRefItem);
 
+        // if there is no direct return statement then we can safety branch to the resume block from the then block
+        // since its not explicitly returning a value
         if (!DirectlyContainsReturnStatement(BodyExpression))
             codeGenContext.Builder.BuildBr(_resumeBlockPropagator.ResumeBlock);
         else
@@ -208,7 +214,7 @@ public class IfExpression : IExpression
 
         if (IsFirstInIfChain) codeGenContext.Builder.PositionAtEnd(_resumeBlockPropagator.ResumeBlock);
 
-        // we implicitly return void if else expression is null
+        // we implicitly return void if the else expression is null
         if (ElseExpression is null) return codeGenContext.GetVoid();
 
         return possibleRefItem!;
