@@ -103,16 +103,13 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable, IPat
         {
             IEnumerable<ReturnStatement> GuaranteedReturnStatements(ISyntaxNode node)
             {
-                if (node is IfExpression ifExpression && !ifExpression.EndsWithoutIf)
-                {
-                    yield break;
-                }
+
                 if (node is ReturnStatement returnStatement)
                 {
                     yield return returnStatement;
                 }
 
-                foreach (var i in node.Children)
+                foreach (var i in node.Children.Where(i =>i is not IfExpression || (i is IfExpression ifExpression && ifExpression.EndsWithoutIf)))
                 {
                     foreach (var j in GuaranteedReturnStatements(i) )
                     {
