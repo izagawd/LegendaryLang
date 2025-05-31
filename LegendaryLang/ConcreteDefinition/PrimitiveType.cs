@@ -21,7 +21,7 @@ public abstract class PrimitiveType : Type
 
     public override void AssignTo(CodeGenContext codeGenContext, ValueRefItem value, ValueRefItem ptr)
     {
-        codeGenContext.Builder.BuildStore(value.LoadValForRetOrArg(codeGenContext), ptr.ValueRef);
+        codeGenContext.Builder.BuildStore(value.LoadValue(codeGenContext), ptr.ValueRef);
     }
 
 

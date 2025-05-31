@@ -122,7 +122,7 @@ public class Function : IConcreteDefinition
 
 
         var gennedVal = BlockExpression.DataRefCodeGen(context);
-        var built = context.Builder.BuildRet(gennedVal.LoadValForRetOrArg(context));
+        var built = context.Builder.BuildRet(gennedVal.LoadValue(context));
 
 
         context.PopScope();

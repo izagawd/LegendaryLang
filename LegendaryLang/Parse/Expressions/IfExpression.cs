@@ -197,7 +197,7 @@ public class IfExpression : IExpression
                 if (!DirectlyContainsReturnStatement(ElseExpression))
                     codeGenContext.Builder.BuildBr(_resumeBlockPropagator.ResumeBlock);
                 else
-                    codeGenContext.Builder.BuildRet(codegennedElseVal.LoadValForRetOrArg(codeGenContext));
+                    codeGenContext.Builder.BuildRet(codegennedElseVal.LoadValue(codeGenContext));
             }
         }
 
@@ -210,7 +210,7 @@ public class IfExpression : IExpression
         if (!DirectlyContainsReturnStatement(BodyExpression))
             codeGenContext.Builder.BuildBr(_resumeBlockPropagator.ResumeBlock);
         else
-            codeGenContext.Builder.BuildRet(bodyVal.LoadValForRetOrArg(codeGenContext));
+            codeGenContext.Builder.BuildRet(bodyVal.LoadValue(codeGenContext));
 
         if (IsFirstInIfChain) codeGenContext.Builder.PositionAtEnd(_resumeBlockPropagator.ResumeBlock);
 

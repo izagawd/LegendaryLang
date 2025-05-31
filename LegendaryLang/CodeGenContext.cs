@@ -58,7 +58,12 @@ public class ValueRefItem : IRefItem, IHasType
         return Type.AssignToStack(context, this);
     }
 
-    public LLVMValueRef LoadValForRetOrArg(CodeGenContext context)
+    /// <summary>
+    /// Loads a value 
+    /// </summary>
+    /// <param name="context"></param>
+    /// <returns></returns>
+    public LLVMValueRef LoadValue(CodeGenContext context)
     {
         return Type.LoadValue(context, this);
     }
