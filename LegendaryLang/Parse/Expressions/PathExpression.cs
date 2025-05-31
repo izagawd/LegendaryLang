@@ -1,50 +1,33 @@
 ﻿using LegendaryLang.Lex.Tokens;
-
 using LegendaryLang.Semantics;
-using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse.Expressions;
 
 public class PathExpression : IExpression, IPathHaver
 {
- 
-    public LangPath Path { get; set; }
-
     public PathExpression(LangPath path)
     {
-     
         Path = path;
     }
+
+    public LangPath Path { get; set; }
     public IEnumerable<ISyntaxNode> Children => [];
-    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
-    {
-        Path = Path.GetFromShortCutIfPossible(analyzer);
-    }
 
 
     /// <summary>
-    /// Generates LLVM IR to load the runtime value of the variable
-    /// referenced by the path.
+    ///     Generates LLVM IR to load the runtime value of the variable
+    ///     referenced by the path.
     /// </summary>
     public unsafe ValueRefItem DataRefCodeGen(CodeGenContext context)
     {
+        if (TypePath is null) TypePath = (context.GetRefItemFor(Path) as IHasType).Type.TypePath;
 
-
-        if (TypePath is null)
-        {
-      
-            TypePath = (context.GetRefItemFor(Path) as IHasType).Type.TypePath;
-        }
-        
-        string pathSuffix = Path.ToString();
-        uint* major = null;
-        uint* other = null;
 
         var refItem = context.GetRefItemFor(Path) as ValueRefItem;
         var gotten = refItem.ValueRef;
-           
+
         // 3. Emit a load instruction to get the current value from the variable's pointer.
-        return new ValueRefItem()
+        return new ValueRefItem
         {
             ValueRef = gotten,
             Type = refItem.Type
@@ -52,24 +35,27 @@ public class PathExpression : IExpression, IPathHaver
     }
 
     /// <summary>
-    /// Should be set during semantic analysis
+    ///     Should be set during semantic analysis
     /// </summary>
     public LangPath? TypePath { get; set; }
 
 
     /// <summary>
-    /// During semantic analysis, you would resolve this symbol's definition.
-    /// For example, binding the variable use to its declaration.
+    ///     During semantic analysis, you would resolve this symbol's definition.
+    ///     For example, binding the variable use to its declaration.
     /// </summary>
     public void Analyze(SemanticAnalyzer analyzer)
     {
-
-        TypePath= analyzer.GetVariableTypePath(Path);
+        TypePath = analyzer.GetVariableTypePath(Path);
         if (TypePath is null)
-        {
-            analyzer.AddException(new SemanticException($"Path to variable '{Path}' not found, or the path is not a variable\n{Token.GetLocationStringRepresentation()}"));
-        }
+            analyzer.AddException(new SemanticException(
+                $"Path to variable '{Path}' not found, or the path is not a variable\n{Token.GetLocationStringRepresentation()}"));
     }
 
     public Token Token => Path.FirstIdentifierToken;
+
+    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+    {
+        Path = Path.GetFromShortCutIfPossible(analyzer);
+    }
 }

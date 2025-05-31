@@ -6,8 +6,7 @@ public enum Operator
     Subtract,
     Multiply,
     Divide,
-    Negate,
-    
+    Negate
 }
 
 public static class OperatorExtensions
@@ -32,6 +31,7 @@ public static class OperatorExtensions
                 throw new ArgumentOutOfRangeException(nameof(@operator), @operator, null);
         }
     }
+
     public static int GetPrecedence(this Operator @operator)
     {
         switch (@operator)

@@ -9,14 +9,34 @@ namespace LegendaryLang.Definitions.Types;
 
 public class TupleTypeDefinition : CustomTypeDefinition
 {
+    public TupleTypeDefinition(IEnumerable<Type> otherTypes)
+    {
+        OtherTypes = otherTypes.ToImmutableArray();
+    }
+
+    public override string Name => $"({string.Join(',', OtherTypes.Select(i => i.TypePath))})";
+    public override NormalLangPath Module { get; } = new(null, []);
+
+    public override LangPath TypePath => new TupleLangPath(OtherTypes.Select(i => i.TypePath));
+    public override Token Token { get; }
+    public ImmutableArray<Type> OtherTypes { get; }
+
+    public ImmutableArray<GenericParameter> GenericParameters
+    {
+        get
+        {
+            var genericParameters = new List<GenericParameter>();
+            for (var i = 0; i < OtherTypes.Length; i++) genericParameters.Add(new GenericParameter(i.ToString()));
+            return genericParameters.ToImmutableArray();
+        }
+    }
+
+
+    public override ImmutableArray<LangPath> ComposedTypes => OtherTypes.Select(i => i.TypePath).ToImmutableArray();
+
     public override void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
     {
-    
-        foreach (var i in OtherTypes)
-        {
-            i.SetFullPathOfShortCutsDirectly(analyzer);
-        }
-
+        foreach (var i in OtherTypes) i.SetFullPathOfShortCutsDirectly(analyzer);
     }
 
     public override Type GenerateIncompleteMono(CodeGenContext context, LangPath langPath)
@@ -29,35 +49,7 @@ public class TupleTypeDefinition : CustomTypeDefinition
         throw new NotImplementedException();
     }
 
-    public override string Name => $"({string.Join(',', OtherTypes.Select(i => i.TypePath))})";
-    public override NormalLangPath Module { get; } = new NormalLangPath(null, []);
-
-    public override LangPath TypePath => new TupleLangPath(OtherTypes.Select(i => i.TypePath));
-    public override Token Token { get; }
     public override void Analyze(SemanticAnalyzer analyzer)
     {
-
     }
-    public ImmutableArray<Type> OtherTypes { get; }
-    public TupleTypeDefinition( IEnumerable<Type> otherTypes)
-    {
-        OtherTypes = otherTypes.ToImmutableArray();
-    }
-
-    public ImmutableArray<GenericParameter> GenericParameters
-    {
-        get
-        {
-            List<GenericParameter> genericParameters = new List<GenericParameter>();
-            for (int i = 0; i < OtherTypes.Length; i++)
-            {
-                genericParameters.Add(new GenericParameter(i.ToString()));
-            }
-            return genericParameters.ToImmutableArray();
-        }
-    }
-
-
-
-    public override ImmutableArray<LangPath> ComposedTypes => OtherTypes.Select(i => i.TypePath).ToImmutableArray();
 }

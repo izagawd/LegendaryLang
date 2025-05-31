@@ -17,4 +17,3 @@ public class I32Type : PrimitiveType
 
     public override string Name => "i32";
 }
-

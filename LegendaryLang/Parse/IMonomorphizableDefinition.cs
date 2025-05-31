@@ -1,22 +1,18 @@
-﻿using System.Collections.Immutable;
-using LegendaryLang.Lex.Tokens;
+﻿using LegendaryLang.Lex.Tokens;
 
 namespace LegendaryLang.Parse;
 
-
-
 public class GenericParameter
 {
-    public readonly string Name;
     public readonly IdentifierToken? Identifier;
+    public readonly string Name;
 
     public GenericParameter(string name)
     {
         Name = name;
-
     }
 
-    public GenericParameter( IdentifierToken identifier )
+    public GenericParameter(IdentifierToken identifier)
     {
         Identifier = identifier;
         Name = identifier.Identity;

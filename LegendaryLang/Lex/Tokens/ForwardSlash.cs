@@ -6,6 +6,6 @@ public class ForwardSlash : Token, IOperatorToken
     {
     }
 
-    public override string Symbol  => "/";
+    public override string Symbol => "/";
     public Operator Operator => Operator.Divide;
 }

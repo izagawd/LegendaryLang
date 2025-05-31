@@ -1,8 +1,4 @@
-﻿using LegendaryLang.Parse;
-using LegendaryLang.Parse.Statements;
-using LegendaryLang.Semantics;
-
-namespace LegendaryLang.Lex.Tokens;
+﻿namespace LegendaryLang.Lex.Tokens;
 
 public class ReturnToken : Token, IStatementToken
 {
@@ -11,5 +7,4 @@ public class ReturnToken : Token, IStatementToken
     }
 
     public override string Symbol => "return";
-
 }

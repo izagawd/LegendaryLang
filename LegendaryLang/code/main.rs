@@ -18,9 +18,8 @@ fn main() -> i32{
                      10
              };
              return bruh;
-        
+                bruh
         }
-    bruh
 
 }
 

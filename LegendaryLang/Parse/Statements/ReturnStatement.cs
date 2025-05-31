@@ -6,40 +6,25 @@ namespace LegendaryLang.Parse.Statements;
 
 public class ReturnStatement : IStatement
 {
-    
-    public static ReturnStatement Parse(Parser parser)
-    {
-        var parsed = parser.Pop();
-        if (parsed is not ReturnToken returnToken)
-        {
-            throw new ExpectedParserException(parser, ParseType.ReturnToken,parsed);
-        }
-
-        IExpression? expression = null;
-        if (parser.Peek() is not SemiColonToken)
-        {
-            expression = IExpression.Parse(parser);
-        }
-        return new ReturnStatement(returnToken, expression);
-    }
- 
-    public LangPath TypePath => ToReturn?.TypePath ?? LangPath.VoidBaseLangPath;
-    Token ISyntaxNode.Token   => Token;
-    public ReturnToken Token { get; }
-    public IExpression? ToReturn { get; }
-
     public ReturnStatement(ReturnToken token, IExpression toReturn)
     {
         Token = token;
         ToReturn = toReturn;
     }
 
+    public LangPath TypePath => ToReturn?.TypePath ?? LangPath.VoidBaseLangPath;
+    public ReturnToken Token { get; }
+    public IExpression? ToReturn { get; }
+    Token ISyntaxNode.Token => Token;
+
 
     public IEnumerable<ISyntaxNode> Children
     {
-        get { if (ToReturn is not null) yield return ToReturn; }
+        get
+        {
+            if (ToReturn is not null) yield return ToReturn;
+        }
     }
-
 
 
     public void Analyze(SemanticAnalyzer analyzer)
@@ -48,10 +33,20 @@ public class ReturnStatement : IStatement
     }
 
     /// <summary>
-    /// The <see cref="BlockExpression"/> will handle the codegen
+    ///     The <see cref="BlockExpression" /> will handle the codegen
     /// </summary>
     public void CodeGen(CodeGenContext CodeGenContext)
     {
+    }
 
+    public static ReturnStatement Parse(Parser parser)
+    {
+        var parsed = parser.Pop();
+        if (parsed is not ReturnToken returnToken)
+            throw new ExpectedParserException(parser, ParseType.ReturnToken, parsed);
+
+        IExpression? expression = null;
+        if (parser.Peek() is not SemiColonToken) expression = IExpression.Parse(parser);
+        return new ReturnStatement(returnToken, expression);
     }
 }

@@ -6,23 +6,22 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class TupleCreationExpression : IExpression
 {
-    public IEnumerable<ISyntaxNode> Children => Composites;
     private IExpression _expressionImplementation;
-    public ImmutableArray<IExpression> Composites { get; set; }
+
     public TupleCreationExpression(LeftParenthesisToken token, IEnumerable<IExpression> composites)
     {
         Composites = composites.ToImmutableArray();
         Token = token;
     }
+
+    public ImmutableArray<IExpression> Composites { get; set; }
+    public IEnumerable<ISyntaxNode> Children => Composites;
     public Token Token { get; }
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        foreach (var i in Composites)
-        {
-            i.Analyze(analyzer);
-        }
+        foreach (var i in Composites) i.Analyze(analyzer);
     }
-
 
 
     public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)

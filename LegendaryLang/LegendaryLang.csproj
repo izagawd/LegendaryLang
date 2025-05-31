@@ -9,16 +9,16 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="LLVMSharp" Version="16.0.0" />
+        <PackageReference Include="LLVMSharp" Version="16.0.0"/>
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="code\main.rs">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="code\dark\next.rs">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
+        <None Update="code\main.rs">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="code\dark\next.rs">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
     <PropertyGroup>
         <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>

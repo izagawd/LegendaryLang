@@ -1,67 +1,49 @@
-﻿using System.Reflection;
-using LegendaryLang.Lex.Tokens;
+﻿using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse;
 
 public class UseDefinition : ITopLevel
 {
-    public static UseDefinition Parse(Parser parser)
-    {
-        var usin = parser.Pop();
-        if (usin is not UseToken useToken)
-        {
-            throw new ExpectedParserException(parser, [ParseType.Use], usin);
-        }
-        var path = NormalLangPath.Parse(parser);
-        if (path is not NormalLangPath normalPath)
-        {
-            throw new Exception("d");
-        }
-
-        if (normalPath.PathSegments.Any(i => i is NormalLangPath.GenericTypesPathSegment))
-        {
-            throw new Exception("d");
-        }
-        
-        SemiColon.Parse(parser);
-        return new UseDefinition(normalPath, useToken);
-    }
-    public NormalLangPath PathToUse { get; }
-    public void Analyze(SemanticAnalyzer analyzer)
-    {
-
-    }
-
-    
-
-    public UseToken Token { get; }
-
     public UseDefinition(NormalLangPath pathToUse, UseToken token)
     {
         PathToUse = pathToUse;
         Token = token;
-
     }
 
-    public void RegisterUsings(SemanticAnalyzer analyzer)
+    public NormalLangPath PathToUse { get; }
+
+
+    public UseToken Token { get; }
+
+    public void Analyze(SemanticAnalyzer analyzer)
     {
-        analyzer.AddToDeepestScope(PathToUse.PathSegments.Last(),PathToUse);
     }
 
     public IEnumerable<ISyntaxNode> Children => [];
 
-    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+
+    Token ISyntaxNode.Token => Token;
+
+    public static UseDefinition Parse(Parser parser)
     {
-        
+        var usin = parser.Pop();
+        if (usin is not UseToken useToken) throw new ExpectedParserException(parser, [ParseType.Use], usin);
+        var path = NormalLangPath.Parse(parser);
+        if (path is not NormalLangPath normalPath) throw new Exception("d");
+
+        if (normalPath.PathSegments.Any(i => i is NormalLangPath.GenericTypesPathSegment)) throw new Exception("d");
+
+        SemiColon.Parse(parser);
+        return new UseDefinition(normalPath, useToken);
     }
 
+    public void RegisterUsings(SemanticAnalyzer analyzer)
+    {
+        analyzer.AddToDeepestScope(PathToUse.PathSegments.Last(), PathToUse);
+    }
 
-   Token  ISyntaxNode.Token  => Token;
-
-
-
-
-
-
+    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+    {
+    }
 }

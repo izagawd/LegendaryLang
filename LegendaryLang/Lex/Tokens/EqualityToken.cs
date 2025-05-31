@@ -2,7 +2,7 @@
 
 public class EqualityToken : Token
 {
-    public EqualityToken(File file, int column, int  line) : base(file,column, line)
+    public EqualityToken(File file, int column, int line) : base(file, column, line)
     {
     }
 

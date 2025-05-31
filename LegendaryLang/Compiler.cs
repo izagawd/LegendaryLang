@@ -1,9 +1,7 @@
 ﻿using LegendaryLang.Definitions;
 using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex;
-using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
-using LegendaryLang.Parse.Statements;
 using LegendaryLang.Semantics;
 using File = System.IO.File;
 
@@ -11,22 +9,22 @@ namespace LegendaryLang;
 
 public class Compiler
 {
-
     public const string extension = "rs";
+
     public Func<int>? Compile(string codeDirectory, bool showLLVMIR = false, bool optimized = false)
     {
-        string directoryPath = codeDirectory;
+        var directoryPath = codeDirectory;
 
         const string extensionFinder = $"*.{extension}"; // Change this to your desired extension
         Dictionary<string, string> codeFiles = new();
         if (Directory.Exists(directoryPath))
         {
-            string[] files = Directory.GetFiles(directoryPath, extensionFinder, SearchOption.AllDirectories);
+            var files = Directory.GetFiles(directoryPath, extensionFinder, SearchOption.AllDirectories);
 
-            foreach (string file in files)
+            foreach (var file in files)
             {
                 Console.WriteLine($"Loading code file: {file}");
-                string content = File.ReadAllText(file);
+                var content = File.ReadAllText(file);
                 codeFiles.Add(file, content);
             }
 
@@ -39,37 +37,30 @@ public class Compiler
         }
 
         var mainFileDir = $"{codeDirectory}\\main.{extension}";
-        if (!codeFiles.Any(i => i.Key == mainFileDir))
-        {
-            Console.WriteLine($"No main.{extension} file found!!!");
-        }
+        if (!codeFiles.Any(i => i.Key == mainFileDir)) Console.WriteLine($"No main.{extension} file found!!!");
 
         List<string> parserExceptionsText = [];
-        
-        var parseResults = codeFiles.Select(
-                i =>
+
+        var parseResults = codeFiles.Select(i =>
+            {
+                try
                 {
-                    try
-                    {
-                        return new Parser(Lexer.Lex(i.Value, i.Key)).Parse();
-                    }
-                    catch (Exception e)
-                    {
-                        parserExceptionsText.Add(e.Message);
-                        return null;
-                    }
-                    
-                })
+                    return new Parser(Lexer.Lex(i.Value, i.Key)).Parse();
+                }
+                catch (Exception e)
+                {
+                    parserExceptionsText.Add(e.Message);
+                    return null;
+                }
+            })
             .Append(PrimitiveTypeGenerator.Generate())
             .ToList();
         if (parserExceptionsText.Any())
         {
-            foreach (var i in parserExceptionsText)
-            {
-                Console.WriteLine(i);
-            }
+            foreach (var i in parserExceptionsText) Console.WriteLine(i);
             return null;
         }
+
         var mainFile = parseResults.First(i => i.File!.Path == $"{codeDirectory}\\main.{extension}");
 
         var analysis = new SemanticAnalyzer(parseResults).Analyze();
@@ -96,10 +87,11 @@ public class Compiler
 
         if (mainFn.Arguments.Length != 0)
         {
-            Console.WriteLine($"'fn main' arguments are not empty!!!");
+            Console.WriteLine("'fn main' arguments are not empty!!!");
             return null;
         }
 
-        return new CodeGenContext(parseResults, new NormalLangPath(null, [codeDirectory])).CodeGen(showLLVMIR, optimized);
+        return new CodeGenContext(parseResults, new NormalLangPath(null, [codeDirectory])).CodeGen(showLLVMIR,
+            optimized);
     }
 }

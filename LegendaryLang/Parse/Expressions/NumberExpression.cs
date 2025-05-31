@@ -7,52 +7,41 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class NumberExpression : IExpression
 {
-    public IEnumerable<ISyntaxNode> Children => [];
-    public static NumberToken ParseToken(Parser parser)
+    public NumberExpression(NumberToken token)
     {
-        var gotten = parser.Pop();
-        if (gotten is not NumberToken numberToken)
-        {
-            throw new ExpectedParserException(parser, ParseType.Number, gotten);
-        }
-        return numberToken;
+        Token = token;
     }
-    public static NumberExpression Parse(Parser parser)
-    {
-        return new NumberExpression(NumberExpression.ParseToken(parser));
-    }
+
     public NumberToken Token { get; }
-    Token ISyntaxNode.Token => (Token)Token;
-    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
-    {
-        
-    }
+    public IEnumerable<ISyntaxNode> Children => [];
+    Token ISyntaxNode.Token => Token;
 
 
     public unsafe ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
-        return new ValueRefItem()
+        return new ValueRefItem
         {
             ValueRef = LLVM.ConstInt(LLVM.Int32Type(), ulong.Parse(Token.Number), 0),
             Type = (codeGenContext.GetRefItemFor(TypePath) as TypeRefItem).Type
         };
     }
 
-    public LangPath? TypePath { get; set; }  =new I32TypeDefinition().TypePath;
-
-
-
+    public LangPath? TypePath { get; set; } = new I32TypeDefinition().TypePath;
 
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-
     }
 
-
-
-    public NumberExpression(NumberToken token)
+    public static NumberToken ParseToken(Parser parser)
     {
-        Token = token;
+        var gotten = parser.Pop();
+        if (gotten is not NumberToken numberToken) throw new ExpectedParserException(parser, ParseType.Number, gotten);
+        return numberToken;
+    }
+
+    public static NumberExpression Parse(Parser parser)
+    {
+        return new NumberExpression(ParseToken(parser));
     }
 }

@@ -5,20 +5,14 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class BracketExpression : IExpression
 {
-    
-    public static BracketExpression Parse(Parser parser,LeftParenthesisToken leftParenthesisToken,  IExpression expression)
-    {
- 
-        Parenthesis.ParseRight(parser);
-        return new BracketExpression(leftParenthesisToken, expression);
-    }
-    public IExpression Expression { get; }
-    public LeftParenthesisToken LeftParenthesisToken { get; }
     public BracketExpression(LeftParenthesisToken token, IExpression expression)
     {
         LeftParenthesisToken = token;
         Expression = expression;
     }
+
+    public IExpression Expression { get; }
+    public LeftParenthesisToken LeftParenthesisToken { get; }
     public IEnumerable<ISyntaxNode> Children => [Expression];
 
     public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
@@ -34,4 +28,11 @@ public class BracketExpression : IExpression
 
     public LangPath? TypePath => Expression.TypePath;
     public Token Token => LeftParenthesisToken;
+
+    public static BracketExpression Parse(Parser parser, LeftParenthesisToken leftParenthesisToken,
+        IExpression expression)
+    {
+        Parenthesis.ParseRight(parser);
+        return new BracketExpression(leftParenthesisToken, expression);
+    }
 }

@@ -5,6 +5,5 @@ namespace LegendaryLang.Definitions.Types;
 
 public abstract class CustomTypeDefinition : TypeDefinition
 {
-
     public abstract ImmutableArray<LangPath> ComposedTypes { get; }
 }

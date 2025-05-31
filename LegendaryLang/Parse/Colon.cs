@@ -7,9 +7,6 @@ public class Colon
     public static void Parse(Parser parser)
     {
         var gotten = parser.Pop();
-        if (gotten is not ColonToken)
-        {
-            throw new ExpectedParserException(parser, (ParseType.Colon), gotten);
-        }
+        if (gotten is not ColonToken) throw new ExpectedParserException(parser, ParseType.Colon, gotten);
     }
 }
