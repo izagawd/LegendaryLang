@@ -91,7 +91,7 @@ public class BlockExpression : IExpression, IPathHaver
     {
         var lastValue = context.GetVoid();
         context.AddScope();
-        ValueRefItem? toEvalGenned = null;
+
         // Iterate over each syntax node in the block.
         foreach (var item in BlockSyntaxNodeContainers)
         {
@@ -109,16 +109,22 @@ public class BlockExpression : IExpression, IPathHaver
                 lastValue = context.GetVoid();
                 stmt.CodeGen(context);
             }
-            ReturnStatement? GetFirstNoticedReturn(ISyntaxNode syntaxNode)
+            ReturnStatement? GetFirstNoticedGuaranteedReturn(ISyntaxNode syntaxNode)
             {
+                // an if chain that ends with an "else if" or "if" is not guaranteed to always return a value,
+                // so it is ignored
+                if (syntaxNode is IfExpression ifExpression && !ifExpression.EndsWithoutIf)
+                {
+                    return null;
+                }
                 if (syntaxNode is ReturnStatement returnStatement)
                 {
                     return returnStatement;
                 }
 
-                foreach (var child in syntaxNode.Children.Where(i => i is not IfExpression))
+                foreach (var child in syntaxNode.Children)
                 {
-                    var ret = GetFirstNoticedReturn(child);
+                    var ret = GetFirstNoticedGuaranteedReturn(child);
                     if (ret is not null)
                     {
                         return ret;
@@ -129,7 +135,7 @@ public class BlockExpression : IExpression, IPathHaver
             // if encountering a return statement after recursive checks, ignoring if expressions,
             // put it as the last value and stop looping, since explicit returns ignores the rest of the code in
             // blocks anyways
-            var firstNoticed = GetFirstNoticedReturn(item.Node);
+            var firstNoticed = GetFirstNoticedGuaranteedReturn(item.Node);
             if (firstNoticed is not null)
             {
                

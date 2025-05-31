@@ -272,13 +272,9 @@ public class CodeGenContext
 
     public unsafe static string? FromByte(sbyte* value)
     {
-       
             return Marshal.PtrToStringAnsi((IntPtr)value);
         
-
-      
     }
-
     private unsafe void SetupVoid()
     {
         var emptyTuple = new TupleType([]);
@@ -323,8 +319,7 @@ public class CodeGenContext
 
 
             AddScope();
-
-
+            
             SetupVoid();
 
             var mainDef = definitionsList.OfType<FunctionDefinition>() .First(i =>

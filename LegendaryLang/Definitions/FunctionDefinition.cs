@@ -101,16 +101,20 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable, IPat
         BlockExpression.Analyze(analyzer);
         if (BlockExpression.TypePath != ReturnTypePath)
         {
-            IEnumerable<ReturnStatement> ReturnStatements(ISyntaxNode node)
+            IEnumerable<ReturnStatement> GuaranteedReturnStatements(ISyntaxNode node)
             {
+                if (node is IfExpression ifExpression && !ifExpression.EndsWithoutIf)
+                {
+                    yield break;
+                }
                 if (node is ReturnStatement returnStatement)
                 {
                     yield return returnStatement;
                 }
 
-                foreach (var i in node.Children.Where(i =>i is not IfExpression || (i is IfExpression ifExpression && ifExpression.EndsWithoutIf)))
+                foreach (var i in node.Children)
                 {
-                    foreach (var j in ReturnStatements(i) )
+                    foreach (var j in GuaranteedReturnStatements(i) )
                     {
                         yield return j;
                     }
@@ -119,9 +123,9 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable, IPat
            
             }
 
-            if (ReturnStatements(this).Any())
+            if (GuaranteedReturnStatements(this).Any())
             {
-                var statementsThatDontFollow = ReturnStatements(this)
+                var statementsThatDontFollow = GuaranteedReturnStatements(this)
                     .Where(i => i.TypePath != ReturnTypePath).ToArray();
                 if (statementsThatDontFollow.Length != 0)
                 {
@@ -139,7 +143,7 @@ public class  FunctionDefinition: ITopLevel, IDefinition, IMonomorphizable, IPat
             {
     
                     analyzer.AddException(new SemanticException(
-                        $"Not all paths return a value\n{Token.GetLocationStringRepresentation()}'"));
+                        $"Not all paths return a value of the valid type\n{Token.GetLocationStringRepresentation()}'"));
 
                 
             }
