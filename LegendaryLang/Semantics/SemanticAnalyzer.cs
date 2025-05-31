@@ -123,12 +123,22 @@ public class SemanticAnalyzer
             {
                 if (node is IPathHaver pathHaver)
                 {
+                    
                     pathHaver.SetFullPathOfShortCutsDirectly(this);
                 }
 
                 foreach (var child in node.Children)
                 {
+                    var isBlock = child is BlockExpression;
+                    if (isBlock)
+                    {
+                        AddScope();
+                    }
                     SetFullPathOfShortCutsRecursively(child);
+                    if (isBlock)
+                    {
+                        PopScope();
+                    }
                 }
             }
             foreach (var i in result.TopLevels)

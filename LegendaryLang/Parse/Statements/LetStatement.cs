@@ -122,6 +122,7 @@ public class LetStatement : IStatement, IPathHaver
     public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
     {
         VariableDefinition.TypePath =  VariableDefinition.TypePath?.GetFromShortCutIfPossible(analyzer);
+        analyzer.AddToDeepestScope(VariableDefinition.Name, new NormalLangPath(VariableDefinition.IdentifierToken,[VariableDefinition.Name]));
     }
 
 
@@ -158,6 +159,7 @@ public class LetStatement : IStatement, IPathHaver
         
         ArgumentNullException.ThrowIfNull(TypePath);
  
+
         analyzer.RegisterVariableType(new NormalLangPath(VariableDefinition.IdentifierToken,[VariableDefinition.Name]), TypePath);
     }
 }
