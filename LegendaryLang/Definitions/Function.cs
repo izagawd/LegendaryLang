@@ -131,6 +131,12 @@ public class Function : IConcreteDefinition
     public IEnumerable<ISyntaxNode> Children => [BlockExpression];
 
 
+    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
+    {
+        
+ 
+    }
+
     public Token? Token => Definition.Token;
 
 
@@ -138,7 +144,5 @@ public class Function : IConcreteDefinition
     public NormalLangPath Module => Definition.Module;
     public bool HasBeenGened { get; set; }
 
-    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
-    {
-    }
+
 }

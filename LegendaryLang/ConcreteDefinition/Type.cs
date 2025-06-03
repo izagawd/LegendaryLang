@@ -70,7 +70,7 @@ public abstract class Type : IConcreteDefinition
 
     public abstract void AssignTo(CodeGenContext codeGenContext, ValueRefItem value, ValueRefItem ptr);
 
-    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
     {
     }
 

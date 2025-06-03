@@ -34,9 +34,9 @@ public class TupleTypeDefinition : CustomTypeDefinition
 
     public override ImmutableArray<LangPath> ComposedTypes => OtherTypes.Select(i => i.TypePath).ToImmutableArray();
 
-    public override void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+    public override void SetFullPathOfShortCutsDirectly(PathResolver resolver)
     {
-        foreach (var i in OtherTypes) i.SetFullPathOfShortCutsDirectly(analyzer);
+        foreach (var i in OtherTypes) i.SetFullPathOfShortCutsDirectly(resolver);
     }
 
     public override Type GenerateIncompleteMono(CodeGenContext context, LangPath langPath)

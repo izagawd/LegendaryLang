@@ -18,7 +18,7 @@ public class LetConflictingTypesException : SemanticException
         $" '{Statement.EqualsTo.TypePath}' do not have matching types\n{Statement.LetToken?.GetLocationStringRepresentation()}";
 }
 
-public class LetStatement : IStatement, IPathHaver
+public class LetStatement : IStatement
 {
     public LetStatement(LetToken letToken, VariableDefinition variableDefinition, IExpression? equalsTo)
     {
@@ -36,10 +36,14 @@ public class LetStatement : IStatement, IPathHaver
     // Would be set after semantic analysis
     private LangPath? TypePath { get; set; }
 
-    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
     {
-        VariableDefinition.TypePath = VariableDefinition.TypePath?.GetFromShortCutIfPossible(analyzer);
-        analyzer.AddToDeepestScope(VariableDefinition.Name,
+        VariableDefinition.TypePath = VariableDefinition.TypePath?.GetFromShortCutIfPossible(resolver);
+        foreach (var i in Children)
+        {
+            i.SetFullPathOfShortCutsDirectly(resolver);
+        }
+        resolver.AddToDeepestScope(VariableDefinition.Name,
             new NormalLangPath(VariableDefinition.IdentifierToken, [VariableDefinition.Name]));
     }
 

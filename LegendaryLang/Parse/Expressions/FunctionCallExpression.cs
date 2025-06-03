@@ -5,7 +5,7 @@ using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse.Expressions;
 
-public class FunctionCallExpression : IExpression, IPathHaver
+public class FunctionCallExpression : IExpression
 {
     public FunctionCallExpression(NormalLangPath path, IEnumerable<IExpression> arguments)
     {
@@ -83,9 +83,13 @@ public class FunctionCallExpression : IExpression, IPathHaver
 
     public LangPath? TypePath { get; set; }
 
-    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
     {
-        FunctionPath = (NormalLangPath)FunctionPath.GetFromShortCutIfPossible(analyzer);
+        FunctionPath = (NormalLangPath)FunctionPath.GetFromShortCutIfPossible(resolver);
+        foreach (var i in Children)
+        {
+            i.SetFullPathOfShortCutsDirectly(resolver);
+        }
     }
 
     public static FunctionCallExpression ParseFunctionCallExpression(Parser parser,

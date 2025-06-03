@@ -14,12 +14,13 @@ public class SemanticException : Exception
     }
 }
 
+
 public class SemanticAnalyzer
 {
     private readonly Dictionary<LangPath, IDefinition> DefinitionsMap = [];
     private readonly List<SemanticException> Exceptions = [];
 
-    private readonly Stack<Dictionary<string, NormalLangPath>> ScopeItems = new();
+    
     private readonly Stack<Dictionary<LangPath, LangPath>> VariableToTypeMapper = new();
     public Stack<ParseResult> ParseResults = new();
 
@@ -64,30 +65,36 @@ public class SemanticAnalyzer
 
     public void AddScope()
     {
-        ScopeItems.Push(new Dictionary<string, NormalLangPath>());
+
         VariableToTypeMapper.Push(new Dictionary<LangPath, LangPath>());
     }
 
-    public NormalLangPath? GetFullPathOfShortcut(string shortcut)
-    {
-        foreach (var scope in ScopeItems)
-            if (scope.TryGetValue(shortcut, out var symbol))
-                return symbol;
+    
 
-        return null;
-    }
-
-    public void AddToDeepestScope(string map, NormalLangPath to)
-    {
-        ScopeItems.Peek().Add(map, to);
-    }
 
     public void PopScope()
     {
-        ScopeItems.Pop();
+     
         VariableToTypeMapper.Pop();
     }
 
+    private void ResolvePaths()
+    {
+        var pathShortcutContext = new PathResolver();
+        foreach (var result in ParseResults)
+        {
+            pathShortcutContext. AddScope();
+            foreach (var useDefinition in result.TopLevels.OfType<UseDefinition>())
+            {
+                useDefinition.RegisterUsings(pathShortcutContext);
+            }
+            foreach (var i in result.TopLevels)
+            {
+                i.SetFullPathOfShortCutsDirectly(pathShortcutContext);
+            }
+            pathShortcutContext.PopScope();
+        }
+    }
     /// <returns>Collection of semantic errors that occured</returns>
     public SemanticException[] Analyze()
     {
@@ -95,35 +102,14 @@ public class SemanticAnalyzer
         foreach (var i in ParseResults.SelectMany(i => i.TopLevels.OfType<IDefinition>()))
             RegisterDefinition(i.FullPath, i);
 
-        foreach (var result in ParseResults)
-        {
-            AddScope();
-            foreach (var i in result.TopLevels.OfType<UseDefinition>()) i.RegisterUsings(this);
 
-            void SetFullPathOfShortCutsRecursively(ISyntaxNode node)
-            {
-                if (node is IPathHaver pathHaver) pathHaver.SetFullPathOfShortCutsDirectly(this);
-
-                foreach (var child in node.Children)
-                {
-                    var isBlock = child is BlockExpression;
-                    if (isBlock) AddScope();
-                    SetFullPathOfShortCutsRecursively(child);
-                    if (isBlock) PopScope();
-                }
-            }
-
-            foreach (var i in result.TopLevels) SetFullPathOfShortCutsRecursively(i);
-            PopScope();
-        }
-
+        ResolvePaths();
         foreach (var result in ParseResults)
         {
             AddScope();
             foreach (var i in result.TopLevels) i.Analyze(this);
             PopScope();
         }
-
         return Exceptions.ToArray();
     }
 }

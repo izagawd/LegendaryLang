@@ -6,7 +6,7 @@ using StructType = LegendaryLang.ConcreteDefinition.StructType;
 
 namespace LegendaryLang.Parse.Expressions;
 
-public class StructCreationExpression : IExpression, IPathHaver
+public class StructCreationExpression : IExpression
 {
     public StructCreationExpression(LangPath typePath, IEnumerable<AssignedField> assignVariableExpressions)
     {
@@ -103,9 +103,13 @@ public class StructCreationExpression : IExpression, IPathHaver
 
     public LangPath TypePath { get; protected set; }
 
-    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
     {
-        TypePath = TypePath.GetFromShortCutIfPossible(analyzer);
+        TypePath = TypePath.GetFromShortCutIfPossible(resolver);
+        foreach (var i in Children)
+        {
+            i.SetFullPathOfShortCutsDirectly(resolver);
+        }
     }
 
     public static StructCreationExpression Parse(Parser parser, NormalLangPath path)

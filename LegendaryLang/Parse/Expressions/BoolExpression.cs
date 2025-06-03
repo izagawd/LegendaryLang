@@ -39,9 +39,7 @@ public class BoolExpression : IExpression
     {
     }
 
-    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
-    {
-    }
+
 
 
     public static BoolExpression Parse(Parser parser)

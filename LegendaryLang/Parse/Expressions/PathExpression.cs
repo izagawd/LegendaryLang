@@ -3,7 +3,7 @@ using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse.Expressions;
 
-public class PathExpression : IExpression, IPathHaver
+public class PathExpression : IExpression
 {
     public PathExpression(LangPath path)
     {
@@ -12,7 +12,7 @@ public class PathExpression : IExpression, IPathHaver
 
     public LangPath Path { get; set; }
     public IEnumerable<ISyntaxNode> Children => [];
-
+    
 
     /// <summary>
     ///     Generates LLVM IR to load the runtime value of the variable
@@ -54,8 +54,9 @@ public class PathExpression : IExpression, IPathHaver
 
     public Token Token => Path.FirstIdentifierToken;
 
-    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
     {
-        Path = Path.GetFromShortCutIfPossible(analyzer);
+        Path = Path.GetFromShortCutIfPossible(resolver);
+
     }
 }

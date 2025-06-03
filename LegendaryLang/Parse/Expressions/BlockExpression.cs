@@ -6,7 +6,7 @@ using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse.Expressions;
 
-public class BlockExpression : IExpression, IPathHaver
+public class BlockExpression : IExpression
 {
     public BlockExpression(LeftCurlyBraceToken leftCurlyBraceToken, RightCurlyBraceToken rightCurlyBraceToken,
         IEnumerable<BlockSyntaxNodeContainer> syntaxNodes, LangPath? expectedReturnType)
@@ -159,9 +159,14 @@ public class BlockExpression : IExpression, IPathHaver
 
     public Token Token => RightCurlyBraceToken;
 
-    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
     {
-        if (ExpectedReturnType is not null) ExpectedReturnType = ExpectedReturnType.GetFromShortCutIfPossible(analyzer);
+        if (ExpectedReturnType is not null) 
+            ExpectedReturnType = ExpectedReturnType.GetFromShortCutIfPossible(resolver);
+        foreach (var i in Children)
+        {
+            i.SetFullPathOfShortCutsDirectly(resolver);
+        }
     }
 
 

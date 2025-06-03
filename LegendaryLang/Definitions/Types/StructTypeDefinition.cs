@@ -35,11 +35,11 @@ public class StructTypeDefinition : CustomTypeDefinition
     public ImmutableArray<GenericParameter> GenericParameters { get; init; }
 
 
-    public override void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+    public override void SetFullPathOfShortCutsDirectly(PathResolver resolver)
     {
         var list = new List<VariableDefinition>();
         foreach (var i in Fields)
-            list.Add(new VariableDefinition(i.IdentifierToken, i.TypePath.GetFromShortCutIfPossible(analyzer)));
+            list.Add(new VariableDefinition(i.IdentifierToken, i.TypePath.GetFromShortCutIfPossible(resolver)));
 
         Fields = list.ToImmutableArray();
     }

@@ -6,6 +6,7 @@ namespace LegendaryLang.Parse.Expressions;
 
 public interface IExpression : ISyntaxNode, IAnalyzable
 {
+    
     /// <summary>
     ///     Should not be null after semantic analysis
     /// </summary>

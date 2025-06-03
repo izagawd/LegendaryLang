@@ -38,12 +38,9 @@ public class UseDefinition : ITopLevel
         return new UseDefinition(normalPath, useToken);
     }
 
-    public void RegisterUsings(SemanticAnalyzer analyzer)
+    public void RegisterUsings(PathResolver resolver)
     {
-        analyzer.AddToDeepestScope(PathToUse.PathSegments.Last(), PathToUse);
+        resolver.AddToDeepestScope(PathToUse.PathSegments.Last(), PathToUse);
     }
 
-    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
-    {
-    }
 }

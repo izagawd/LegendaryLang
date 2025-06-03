@@ -10,7 +10,7 @@ namespace LegendaryLang.Definitions.Types;
 /// <summary>
 ///     A type definition, meaning its not monomorphized yet. so it cant be used in code
 /// </summary>
-public abstract class TypeDefinition : ITopLevel, IDefinition, IMonomorphizable, IPathHaver
+public abstract class TypeDefinition : ITopLevel, IDefinition, IMonomorphizable
 {
     public abstract LangPath TypePath { get; }
 
@@ -35,7 +35,7 @@ public abstract class TypeDefinition : ITopLevel, IDefinition, IMonomorphizable,
 
     public abstract ImmutableArray<LangPath>? GetGenericArguments(LangPath path);
 
-    public virtual void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+    public virtual void SetFullPathOfShortCutsDirectly(PathResolver resolver)
     {
     }
 

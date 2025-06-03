@@ -7,7 +7,7 @@ using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Definitions;
 
-public class FunctionDefinition : ITopLevel, IDefinition, IMonomorphizable, IPathHaver
+public class FunctionDefinition : ITopLevel, IDefinition, IMonomorphizable
 {
     public readonly ImmutableArray<VariableDefinition> Arguments;
 
@@ -75,10 +75,12 @@ public class FunctionDefinition : ITopLevel, IDefinition, IMonomorphizable, IPat
         return Monomorphize(context, langPath);
     }
 
-    public void SetFullPathOfShortCutsDirectly(SemanticAnalyzer analyzer)
+    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
     {
-        ReturnTypePath = ReturnTypePath.GetFromShortCutIfPossible(analyzer);
-        foreach (var i in Arguments) i.TypePath = i.TypePath?.GetFromShortCutIfPossible(analyzer);
+        BlockExpression.SetFullPathOfShortCutsDirectly(resolver);
+        ReturnTypePath = ReturnTypePath.GetFromShortCutIfPossible(resolver);
+        foreach (var i in Arguments)
+            i.TypePath = i.TypePath?.GetFromShortCutIfPossible(resolver);
     }
 
 
