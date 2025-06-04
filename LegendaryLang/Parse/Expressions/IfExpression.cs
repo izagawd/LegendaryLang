@@ -200,7 +200,7 @@ public class IfExpression : IExpression
                     codeGenContext.Builder.BuildRet(codegennedElseVal.LoadValue(codeGenContext));
             }
         }
-
+        codeGenContext.Builder.PositionAtEnd(thenBB);
         var bodyVal = BodyExpression.DataRefCodeGen(codeGenContext);
         codeGenContext.Builder.PositionAtEnd(thenBB);
         expressionType.AssignTo(codeGenContext, bodyVal, possibleRefItem);
