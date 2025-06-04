@@ -7,12 +7,24 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="libLLVM" Version="16.0.6" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0"/>
         <PackageReference Include="NUnit" Version="4.3.2"/>
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="LLVMSharp" Version="16.0.0" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\LegendaryLang\LegendaryLang.csproj"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="compiler_tests\if_tests\if_implicit_return\main.rs">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+    <PropertyGroup>
+        <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
+    </PropertyGroup>
 </Project>
