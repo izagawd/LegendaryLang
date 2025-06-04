@@ -131,7 +131,7 @@ public class Function : IConcreteDefinition
     public IEnumerable<ISyntaxNode> Children => [BlockExpression];
 
 
-    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
+    public void ResolvePaths(PathResolver resolver)
     {
         
  

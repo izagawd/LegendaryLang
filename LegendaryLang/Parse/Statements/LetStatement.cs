@@ -36,12 +36,12 @@ public class LetStatement : IStatement
     // Would be set after semantic analysis
     private LangPath? TypePath { get; set; }
 
-    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
+    public void ResolvePaths(PathResolver resolver)
     {
         VariableDefinition.TypePath = VariableDefinition.TypePath?.GetFromShortCutIfPossible(resolver);
         foreach (var i in Children)
         {
-            i.SetFullPathOfShortCutsDirectly(resolver);
+            i.ResolvePaths(resolver);
         }
         resolver.AddToDeepestScope(VariableDefinition.Name,
             new NormalLangPath(VariableDefinition.IdentifierToken, [VariableDefinition.Name]));

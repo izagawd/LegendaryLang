@@ -75,9 +75,9 @@ public class FunctionDefinition : ITopLevel, IDefinition, IMonomorphizable
         return Monomorphize(context, langPath);
     }
 
-    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
+    public void ResolvePaths(PathResolver resolver)
     {
-        BlockExpression.SetFullPathOfShortCutsDirectly(resolver);
+        BlockExpression.ResolvePaths(resolver);
         ReturnTypePath = ReturnTypePath.GetFromShortCutIfPossible(resolver);
         foreach (var i in Arguments)
             i.TypePath = i.TypePath?.GetFromShortCutIfPossible(resolver);
@@ -92,6 +92,7 @@ public class FunctionDefinition : ITopLevel, IDefinition, IMonomorphizable
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        analyzer.AddScope();
         foreach (var i in Arguments)
             analyzer.RegisterVariableType(new NormalLangPath(i.IdentifierToken, [i.Name]), i.TypePath);
         BlockExpression.Analyze(analyzer);
@@ -122,6 +123,7 @@ public class FunctionDefinition : ITopLevel, IDefinition, IMonomorphizable
                     $"Not all paths return a value of the valid type\n{Token.GetLocationStringRepresentation()}'"));
             }
         }
+        analyzer.PopScope();
     }
 
     public Function? Monomorphize(CodeGenContext codeGenContext, LangPath ident)

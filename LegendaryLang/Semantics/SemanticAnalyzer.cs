@@ -90,7 +90,7 @@ public class SemanticAnalyzer
             }
             foreach (var i in result.TopLevels)
             {
-                i.SetFullPathOfShortCutsDirectly(pathShortcutContext);
+                i.ResolvePaths(pathShortcutContext);
             }
             pathShortcutContext.PopScope();
         }
@@ -107,7 +107,10 @@ public class SemanticAnalyzer
         foreach (var result in ParseResults)
         {
             AddScope();
-            foreach (var i in result.TopLevels) i.Analyze(this);
+            foreach (var i in result.TopLevels)
+            {
+                i.Analyze(this);
+            }
             PopScope();
         }
         return Exceptions.ToArray();

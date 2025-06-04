@@ -35,7 +35,7 @@ public class StructTypeDefinition : CustomTypeDefinition
     public ImmutableArray<GenericParameter> GenericParameters { get; init; }
 
 
-    public override void SetFullPathOfShortCutsDirectly(PathResolver resolver)
+    public override void ResolvePaths(PathResolver resolver)
     {
         var list = new List<VariableDefinition>();
         foreach (var i in Fields)

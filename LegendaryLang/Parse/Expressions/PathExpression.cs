@@ -54,7 +54,7 @@ public class PathExpression : IExpression
 
     public Token Token => Path.FirstIdentifierToken;
 
-    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
+    public void ResolvePaths(PathResolver resolver)
     {
         Path = Path.GetFromShortCutIfPossible(resolver);
 

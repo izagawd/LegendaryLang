@@ -27,6 +27,7 @@ public class FunctionCallExpression : IExpression
     public void Analyze(SemanticAnalyzer analyzer)
     {
         var def = analyzer.GetDefinition(FunctionPath);
+        var popped = FunctionPath.Pop();
         if (def is null) def = analyzer.GetDefinition(FunctionPath.Pop());
         if (def is FunctionDefinition fd)
         {
@@ -83,12 +84,12 @@ public class FunctionCallExpression : IExpression
 
     public LangPath? TypePath { get; set; }
 
-    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
+    public void ResolvePaths(PathResolver resolver)
     {
         FunctionPath = (NormalLangPath)FunctionPath.GetFromShortCutIfPossible(resolver);
         foreach (var i in Children)
         {
-            i.SetFullPathOfShortCutsDirectly(resolver);
+            i.ResolvePaths(resolver);
         }
     }
 

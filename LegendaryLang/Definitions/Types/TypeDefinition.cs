@@ -35,7 +35,7 @@ public abstract class TypeDefinition : ITopLevel, IDefinition, IMonomorphizable
 
     public abstract ImmutableArray<LangPath>? GetGenericArguments(LangPath path);
 
-    public virtual void SetFullPathOfShortCutsDirectly(PathResolver resolver)
+    public virtual void ResolvePaths(PathResolver resolver)
     {
     }
 

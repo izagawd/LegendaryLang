@@ -14,7 +14,8 @@ public class PathResolver
         foreach (var scope in ScopeItems)
             if (scope.TryGetValue(shortcut, out var symbol))
                 return symbol;
-
+            
+        
         return null;
     }
 

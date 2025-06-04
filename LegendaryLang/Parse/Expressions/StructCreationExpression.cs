@@ -103,12 +103,12 @@ public class StructCreationExpression : IExpression
 
     public LangPath TypePath { get; protected set; }
 
-    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
+    public void ResolvePaths(PathResolver resolver)
     {
         TypePath = TypePath.GetFromShortCutIfPossible(resolver);
         foreach (var i in Children)
         {
-            i.SetFullPathOfShortCutsDirectly(resolver);
+            i.ResolvePaths(resolver);
         }
     }
 

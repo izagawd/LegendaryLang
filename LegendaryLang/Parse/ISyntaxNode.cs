@@ -8,11 +8,11 @@ public interface ISyntaxNode
     public IEnumerable<ISyntaxNode> Children { get; }
     public bool NeedsSemiColonAfterIfNotLastInBlock => true;
 
-    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
+    public void ResolvePaths(PathResolver resolver)
     {
         foreach (var i in Children)
         {
-            i.SetFullPathOfShortCutsDirectly(resolver);
+            i.ResolvePaths(resolver);
         }
     }
     /// <summary>

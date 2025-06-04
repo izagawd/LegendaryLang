@@ -159,13 +159,13 @@ public class BlockExpression : IExpression
 
     public Token Token => RightCurlyBraceToken;
 
-    public void SetFullPathOfShortCutsDirectly(PathResolver resolver)
+    public void ResolvePaths(PathResolver resolver)
     {
         if (ExpectedReturnType is not null) 
             ExpectedReturnType = ExpectedReturnType.GetFromShortCutIfPossible(resolver);
         foreach (var i in Children)
         {
-            i.SetFullPathOfShortCutsDirectly(resolver);
+            i.ResolvePaths(resolver);
         }
     }
 
