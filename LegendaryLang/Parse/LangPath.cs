@@ -39,9 +39,9 @@ public class TupleLangPath : LangPath
     }
 
 
-    public override LangPath GetFromShortCutIfPossible(PathResolver resolver)
+    public override LangPath Resolve(PathResolver resolver)
     {
-        return new TupleLangPath(TypePaths.Select(i => i.GetFromShortCutIfPossible(resolver)));
+        return new TupleLangPath(TypePaths.Select(i => i.Resolve(resolver)));
     }
 }
 
@@ -65,7 +65,7 @@ public abstract class LangPath
     ///     use std::primitive::i32;
     ///     is declared. provide it with i32, and its should return std::primitive::i32
     /// </summary>
-    public abstract LangPath GetFromShortCutIfPossible(PathResolver resolver);
+    public abstract LangPath Resolve(PathResolver resolver);
 
     public static bool operator ==(LangPath? path1, LangPath? path2)
     {

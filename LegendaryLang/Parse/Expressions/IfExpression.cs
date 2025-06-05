@@ -118,10 +118,11 @@ public class IfExpression : IExpression
         ValueRefItem? possibleRefItem = null;
 
 
-        var thenBB = codeGenContext.Module.LastFunction.AppendBasicBlock("then");
+
+        var thenBB = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("then");
         var elseBB = ElseExpression is null
             ? default(LLVMBasicBlockRef?)
-            : codeGenContext.Module.LastFunction.AppendBasicBlock("else");
+            :codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("else");
         if (_resumeBlockPropagator is null)
         {
             _resumeBlockPropagator = new ResumeBlockPropagator();
@@ -154,7 +155,7 @@ public class IfExpression : IExpression
         possibleRefItem = _resumeBlockPropagator.ImplicitReturnValue;
 
         if (IsLastIfInChain)
-            _resumeBlockPropagator.ResumeBlock = codeGenContext.Module.LastFunction.AppendBasicBlock("resume");
+            _resumeBlockPropagator.ResumeBlock = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("resume");
 
         var condCodeGen = CondExpression.DataRefCodeGen(codeGenContext);
         codeGenContext.Builder.BuildCondBr(condCodeGen.ValueRef, thenBB, elseBB ?? _resumeBlockPropagator.ResumeBlock);

@@ -78,9 +78,9 @@ public class FunctionDefinition : IItem, IDefinition, IMonomorphizable, IAnalyza
     public void ResolvePaths(PathResolver resolver)
     {
         BlockExpression.ResolvePaths(resolver);
-        ReturnTypePath = ReturnTypePath.GetFromShortCutIfPossible(resolver);
+        ReturnTypePath = ReturnTypePath.Resolve(resolver);
         foreach (var i in Arguments)
-            i.TypePath = i.TypePath?.GetFromShortCutIfPossible(resolver);
+            i.TypePath = i.TypePath?.Resolve(resolver);
     }
 
 

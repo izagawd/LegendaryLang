@@ -113,7 +113,7 @@ public class StructCreationExpression : IExpression
 
     public void ResolvePaths(PathResolver resolver)
     {
-        TypePath = TypePath.GetFromShortCutIfPossible(resolver);
+        TypePath = TypePath.Resolve(resolver);
         foreach (var i in Children.OfType<IPathResolvable>())
         {
             i.ResolvePaths(resolver);

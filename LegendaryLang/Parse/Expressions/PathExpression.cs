@@ -56,7 +56,7 @@ public class PathExpression : IExpression
 
     public void ResolvePaths(PathResolver resolver)
     {
-        Path = Path.GetFromShortCutIfPossible(resolver);
+        Path = Path.Resolve(resolver);
 
     }
 }

@@ -176,7 +176,7 @@ public class BlockExpression : IExpression
     {
         resolver.AddScope();
         if (ExpectedReturnType is not null)
-            ExpectedReturnType = ExpectedReturnType.GetFromShortCutIfPossible(resolver);
+            ExpectedReturnType = ExpectedReturnType.Resolve(resolver);
     
         foreach (var useDefinition in Children.OfType<UseDefinition>())
         {

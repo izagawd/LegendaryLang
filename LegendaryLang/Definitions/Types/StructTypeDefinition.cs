@@ -39,7 +39,7 @@ public class StructTypeDefinition : CustomTypeDefinition
     {
         var list = new List<VariableDefinition>();
         foreach (var i in Fields)
-            list.Add(new VariableDefinition(i.IdentifierToken, i.TypePath.GetFromShortCutIfPossible(resolver)));
+            list.Add(new VariableDefinition(i.IdentifierToken, i.TypePath.Resolve(resolver)));
 
         Fields = list.ToImmutableArray();
     }

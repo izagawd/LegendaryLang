@@ -53,7 +53,7 @@ public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
         return new NormalLangPath(FirstIdentifierToken, newSegments);
     }
 
-    public override LangPath GetFromShortCutIfPossible(PathResolver resolver)
+    public override LangPath Resolve(PathResolver resolver)
     {
         IEnumerable<PathSegment>? toWorkWith =
             resolver.GetFullPathOfShortcut(PathSegments.First().ToString())?.PathSegments;
@@ -66,14 +66,32 @@ public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
             if (i is GenericTypesPathSegment genericTypesPathSegment)
             {
                 var shortcutted = genericTypesPathSegment.TypePaths
-                    .Select(j => j.GetFromShortCutIfPossible(resolver));
+                    .Select(j => j.Resolve(resolver));
                 newSegments.Add(new GenericTypesPathSegment(shortcutted));
             }
             else
             {
                 newSegments.Add(i);
             }
-
+        
+        
+        // VERY
+        for(int i = 0; i < newSegments.Count(); i++)
+        {
+            if (newSegments[i] is UntypableSegment untypableSegment)
+            {
+                if (!untypableSegment.HasBeenChecked)
+                {
+                    untypableSegment.HasBeenChecked = true;
+                }
+                else
+                {
+                    newSegments[i] = new UntypableSegment();
+                    ((UntypableSegment) newSegments[i]).HasBeenChecked = true;
+                }
+        
+            }
+        }
         return new NormalLangPath(FirstIdentifierToken, newSegments);
     }
 
@@ -220,16 +238,27 @@ public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
         }
     }
 
+    /// <summary>
+    /// used for local definitions (eg local structs, local functions and so)
+    /// </summary>
     public class UntypableSegment : PathSegment
     {
+        public bool HasBeenChecked = false;
+        public static ulong UntypableCount = 0;
+
+        private ulong UntypableId = 0;
         public override string ToString()
         {
-            return "#UNTYPABLE";
+            return $"#UNTYPABLE{UntypableId}";
         }
 
+        public UntypableSegment()
+        {
+            UntypableId = UntypableCount++;
+        }
         public override bool Equals(object obj)
         {
-            return obj is UntypableSegment;
+            return (object) obj == this;
         }
     }
     public class NormalPathSegment : PathSegment
