@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
@@ -36,6 +37,8 @@ public class Function : IConcreteDefinition,  IPathResolvable
     public unsafe void CodeGen(CodeGenContext context)
     {
         context.AddScope();
+        
+   
         for (var i = 0; i < GenericArguments.Length; i++)
         {
             var argument = GenericArguments[i];
@@ -134,7 +137,7 @@ public class Function : IConcreteDefinition,  IPathResolvable
     public void ResolvePaths(PathResolver resolver)
     {
         
- 
+        
     }
 
     public Token? Token => Definition.Token;

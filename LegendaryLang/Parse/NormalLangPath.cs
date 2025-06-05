@@ -74,24 +74,7 @@ public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
                 newSegments.Add(i);
             }
         
-        
-        // VERY
-        for(int i = 0; i < newSegments.Count(); i++)
-        {
-            if (newSegments[i] is UntypableSegment untypableSegment)
-            {
-                if (!untypableSegment.HasBeenChecked)
-                {
-                    untypableSegment.HasBeenChecked = true;
-                }
-                else
-                {
-                    newSegments[i] = new UntypableSegment();
-                    ((UntypableSegment) newSegments[i]).HasBeenChecked = true;
-                }
-        
-            }
-        }
+
         return new NormalLangPath(FirstIdentifierToken, newSegments);
     }
 

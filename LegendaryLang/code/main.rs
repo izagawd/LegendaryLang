@@ -11,7 +11,7 @@ fn kk<T>(bruh: T) -> i32{
     return made.kk;
 }
 fn main() -> i32{
-    let booll = kk::<i32>(5);
+    let booll = kk::<bool>(true);
  
     if (true){
             kk::<i32>(5)
