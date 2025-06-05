@@ -102,8 +102,8 @@ public class FunctionDefinition : IItem, IDefinition, IMonomorphizable, IAnalyza
             {
                 if (node is ReturnStatement returnStatement) yield return returnStatement;
 
-                foreach (var i in node.Children.Where(i =>
-                             i is not IfExpression || (i is IfExpression ifExpression && ifExpression.EndsWithoutIf))
+                foreach (var i in node.Children.Where(i => 
+                                 i is ICanHaveExplicitReturn canHaveExplicitReturn && canHaveExplicitReturn.HasGuaranteedExplicitReturn)
                              .Where(i => i is not IItem))
                 foreach (var j in GuaranteedReturnStatements(i))
                     yield return j;
