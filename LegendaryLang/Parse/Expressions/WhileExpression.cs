@@ -59,7 +59,7 @@ public class WhileExpression : IExpression
         codeGenContext.Builder.BuildCondBr(valPtr, loop, resume);
         codeGenContext.Builder.PositionAtEnd(loop);
         var genned = ToExecute.DataRefCodeGen(codeGenContext);
-        codeGenContext.Builder.PositionAtEnd(loop);
+      
         if (ToExecute.HasGuaranteedExplicitReturn)
         {
             codeGenContext.Builder.BuildRet(genned.Type.LoadValue(codeGenContext,genned));

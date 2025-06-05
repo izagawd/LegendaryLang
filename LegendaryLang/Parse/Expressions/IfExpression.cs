@@ -167,9 +167,8 @@ public class IfExpression : IExpression
         ReturnStatement? DirectReturnStatement(ISyntaxNode syntaxNode)
         {
             if (syntaxNode is ReturnStatement returnStatement) return returnStatement;
-            
-            // we ignore if expressions, as they handle their own terminator instructions
-            foreach (var child in syntaxNode.Children.Where(i => i is not IfExpression and not IItem and not WhileExpression))
+         
+            foreach (var child in syntaxNode.Children.Where(i => i is not IItem))
                 if (DirectReturnStatement(child) is not null)
                     return DirectReturnStatement(child);
 
@@ -189,7 +188,7 @@ public class IfExpression : IExpression
             codeGenContext.Builder.PositionAtEnd(elseBB!.Value);
 
             var codegennedElseVal = ElseExpression.DataRefCodeGen(codeGenContext);
-            codeGenContext.Builder.PositionAtEnd(elseBB!.Value);
+
 
             if (IsLastIfInChain)
             {
@@ -206,7 +205,7 @@ public class IfExpression : IExpression
         }
         codeGenContext.Builder.PositionAtEnd(thenBB);
         var bodyVal = BodyExpression.DataRefCodeGen(codeGenContext);
-        codeGenContext.Builder.PositionAtEnd(thenBB);
+
         expressionType.AssignTo(codeGenContext, bodyVal, possibleRefItem);
 
         // if there is no direct return statement then we can safety branch to the resume block from the then block

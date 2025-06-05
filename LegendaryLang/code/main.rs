@@ -5,8 +5,11 @@ struct Bro{}
 
 fn kk(bruh: bool) -> i32{
     while (bruh){
-            let a : i32 = 6;
-            return a;
+            if true{
+                return  5;
+                } else{
+                    10;
+                    };
         }
     6
 }
