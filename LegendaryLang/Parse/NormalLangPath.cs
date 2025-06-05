@@ -226,19 +226,13 @@ public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
     /// </summary>
     public class UntypableSegment : PathSegment
     {
-        public bool HasBeenChecked = false;
-        public static ulong UntypableCount = 0;
+  
 
-        private ulong UntypableId = 0;
         public override string ToString()
         {
-            return $"#UNTYPABLE{UntypableId}";
+            return $"#UNTYPABLE";
         }
-
-        public UntypableSegment()
-        {
-            UntypableId = UntypableCount++;
-        }
+        
         public override bool Equals(object obj)
         {
             return (object) obj == this;
