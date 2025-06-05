@@ -48,7 +48,7 @@ public class StructTypeDefinition : CustomTypeDefinition
     {
     }
 
-    public static StructTypeDefinition Parse(Parser parser)
+    public static StructTypeDefinition Parse(Parser parser, NormalLangPath module)
     {
         var token = parser.Pop();
         if (token is StructToken structToken)
@@ -77,7 +77,7 @@ public class StructTypeDefinition : CustomTypeDefinition
 
             CurlyBrace.Parseight(parser);
 
-            return new StructTypeDefinition(structIdentifier.Identity, parser.File.Module, structToken, fields);
+            return new StructTypeDefinition(structIdentifier.Identity, module, structToken, fields);
         }
 
         throw new ExpectedParserException(parser, ParseType.Struct, token);

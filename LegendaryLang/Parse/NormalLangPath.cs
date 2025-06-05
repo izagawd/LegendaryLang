@@ -220,6 +220,18 @@ public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
         }
     }
 
+    public class UntypableSegment : PathSegment
+    {
+        public override string ToString()
+        {
+            return "#UNTYPABLE";
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is UntypableSegment;
+        }
+    }
     public class NormalPathSegment : PathSegment
     {
         public readonly string Text;

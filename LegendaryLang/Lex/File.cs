@@ -16,7 +16,7 @@ public class File
     }
 
     public NormalLangPath Module => new(null,
-        Path.Split("\\").SkipLast(1).Select(i => (NormalLangPath.PathSegment)i.Replace($".{Compiler.extension}", "")));
+        Path.Split("\\").Select(i => (NormalLangPath.PathSegment)i.Replace($".{Compiler.extension}", "")));
 
     public string Path { get; }
 

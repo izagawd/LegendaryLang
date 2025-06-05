@@ -4,7 +4,7 @@ using LegendaryLang.Parse.Statements;
 
 namespace LegendaryLang.Parse.Expressions;
 
-public interface IExpression : ISyntaxNode, IAnalyzable
+public interface IExpression : ISyntaxNode, IAnalyzable, IPathResolvable
 {
     
     /// <summary>

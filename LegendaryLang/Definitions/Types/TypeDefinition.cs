@@ -10,7 +10,7 @@ namespace LegendaryLang.Definitions.Types;
 /// <summary>
 ///     A type definition, meaning its not monomorphized yet. so it cant be used in code
 /// </summary>
-public abstract class TypeDefinition : ITopLevel, IDefinition, IMonomorphizable
+public abstract class TypeDefinition : IItem, IDefinition, IMonomorphizable, IAnalyzable,  IPathResolvable
 {
     public abstract LangPath TypePath { get; }
 

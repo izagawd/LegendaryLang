@@ -2,7 +2,7 @@
 
 namespace LegendaryLang.Parse.Statements;
 
-public interface IStatement : ISyntaxNode, IAnalyzable
+public interface IStatement : ISyntaxNode, IAnalyzable,  IPathResolvable
 {
     public static IStatement Parse(Parser parser)
     {

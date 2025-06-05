@@ -75,14 +75,15 @@ public class CodeGenContext
 
     private ValueRefItem Void;
 
+    private List<IDefinition> TopLevelDefinitions;
     public CodeGenContext(IEnumerable<IDefinition> definitions, NormalLangPath mainLangModule)
     {
         MainLangModule = mainLangModule;
-        definitionsList = definitions.ToList();
+        TopLevelDefinitions = definitions.ToList();
     }
 
     public CodeGenContext(IEnumerable<ParseResult> results, NormalLangPath mainLangModule) : this(
-        results.SelectMany(i => i.TopLevels.OfType<IDefinition>()), mainLangModule)
+        results.SelectMany(i => i.Items.OfType<IDefinition>()), mainLangModule)
     {
     }
 
@@ -97,7 +98,22 @@ public class CodeGenContext
     public Dictionary<LangPath, StructTypeDefinition> TypeMap { get; } = new();
 
 
-    public List<IDefinition> definitionsList { get; } = new();
+    private readonly Stack<List<IDefinition>> DefinitionsStack = new();
+
+    public IEnumerable<IDefinition> DefinitionsCollection
+    {
+        get
+        {
+
+            foreach (var i in DefinitionsStack)
+            {
+                foreach (var j in i)
+                {
+                    yield return j;
+                }
+            }
+        }
+    }
 
     public void CodeGen(IConcreteDefinition definition)
     {
@@ -129,7 +145,7 @@ public class CodeGenContext
                 return symbol;
 
         {
-            var first = definitionsList.OfType<IMonomorphizable>().FirstOrDefault(i =>
+            var first = DefinitionsCollection.OfType<IMonomorphizable>().FirstOrDefault(i =>
             {
                 var gotten = i.GetGenericArguments(ident);
                 return i.GetGenericArguments(ident) is not null;
@@ -198,7 +214,10 @@ public class CodeGenContext
     {
         ScopeItems.Peek().Add(symb, refItem);
     }
-
+    public void AddToDeepestScope(IDefinition definition)
+    {
+        DefinitionsStack.Peek().Add(definition);
+    }
     /// <summary>
     /// </summary>
     /// <param name="symb"></param>
@@ -208,7 +227,7 @@ public class CodeGenContext
     {
         ScopeItems.Reverse().Skip(scope).First().Add(symb, refItem);
     }
-
+    
     public int? GetScope(LangPath path)
     {
         var scope = 0;
@@ -230,12 +249,14 @@ public class CodeGenContext
 
     public void AddScope()
     {
+        DefinitionsStack.Push(new List<IDefinition>());
         ScopeItems.Push(new Dictionary<LangPath, IRefItem>());
     }
 
-    public Dictionary<LangPath, IRefItem> PopScope()
+    public void PopScope()
     {
-        return ScopeItems.Pop();
+        ScopeItems.Pop();
+        DefinitionsStack.Pop();
     }
 
 
@@ -278,10 +299,13 @@ public class CodeGenContext
 
 
         AddScope();
-
+        foreach (var i in TopLevelDefinitions)
+        {
+            AddToDeepestScope(i);
+        }
         SetupVoid();
 
-        var mainDef = definitionsList.OfType<FunctionDefinition>().First(i =>
+        var mainDef = DefinitionsCollection.OfType<FunctionDefinition>().First(i =>
         {
             return i.Module == MainLangModule && i.Name == "main";
         });

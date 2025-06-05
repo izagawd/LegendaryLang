@@ -165,7 +165,7 @@ public class IfExpression : IExpression
             if (syntaxNode is ReturnStatement returnStatement) return returnStatement;
             
             // we ignore if expressions, as they handle their own terminator instructions
-            foreach (var child in syntaxNode.Children.Where(i => i is not IfExpression))
+            foreach (var child in syntaxNode.Children.Where(i => i is not IfExpression and not IItem))
                 if (DirectReturnStatement(child) is not null)
                     return DirectReturnStatement(child);
 

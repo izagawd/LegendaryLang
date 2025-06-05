@@ -71,7 +71,7 @@ public class Compiler
             return null;
         }
 
-        var mainFn = mainFile.TopLevels.OfType<FunctionDefinition>().FirstOrDefault(i => i.Name == "main");
+        var mainFn = mainFile.Items.OfType<FunctionDefinition>().FirstOrDefault(i => i.Name == "main");
         if (mainFn == null)
         {
             Console.WriteLine($"'fn main' function not found in {mainFileDir}!!!");
@@ -91,7 +91,7 @@ public class Compiler
             return null;
         }
 
-        return new CodeGenContext(parseResults, new NormalLangPath(null, [codeDirectory])).CodeGen(showLLVMIR,
+        return new CodeGenContext(parseResults, new NormalLangPath(null, [codeDirectory,"main"])).CodeGen(showLLVMIR,
             optimized);
     }
 }

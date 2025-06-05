@@ -3,9 +3,9 @@ using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse;
 
-public class UseDefinition : ITopLevel
+public class UseDefinition : IItem
 {
-    public UseDefinition(NormalLangPath pathToUse, UseToken token)
+    public UseDefinition(NormalLangPath pathToUse, Token token)
     {
         PathToUse = pathToUse;
         Token = token;
@@ -14,7 +14,7 @@ public class UseDefinition : ITopLevel
     public NormalLangPath PathToUse { get; }
 
 
-    public UseToken Token { get; }
+    public Token Token { get; }
 
     public void Analyze(SemanticAnalyzer analyzer)
     {

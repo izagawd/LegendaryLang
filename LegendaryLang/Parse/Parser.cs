@@ -62,7 +62,7 @@ public class ExpectedParserException : ParseException
 public class ParseResult
 {
     public File? File { get; init; }
-    public required List<ITopLevel> TopLevels { get; init; }
+    public required List<IItem> Items { get; init; }
 }
 
 public class Parser
@@ -95,24 +95,16 @@ public class Parser
 
     public ParseResult Parse()
     {
-        var topLevels = new List<ITopLevel>();
+        var items = new List<IItem>();
 
         while (tokens.Count > 0)
         {
-            var gotten = Peek();
-            if (gotten is FnToken)
-                topLevels.Add(FunctionDefinition.Parse(this));
-            else if (gotten is StructToken)
-                topLevels.Add(StructTypeDefinition.Parse(this));
-            else if (gotten is UseToken)
-                topLevels.Add(UseDefinition.Parse(this));
-            else
-                throw new ExpectedParserException(this, [ParseType.Struct, ParseType.Fn], gotten);
+            items.Add(IItem.Parse(this, File.Module));
         }
 
         return new ParseResult
         {
-            TopLevels = topLevels,
+            Items = items,
             File = File
         };
     }

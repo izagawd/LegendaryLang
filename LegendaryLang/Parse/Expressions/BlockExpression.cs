@@ -33,8 +33,12 @@ public class BlockExpression : IExpression
         var lastValue = context.GetVoid();
         context.AddScope();
 
+        foreach (var i in SyntaxNodes.OfType<IDefinition>())
+        {
+            context.AddToDeepestScope(i);
+        }
         // Iterate over each syntax node in the block.
-        foreach (var item in BlockSyntaxNodeContainers)
+        foreach (var item in BlockSyntaxNodeContainers.Where(i => i.Node is not IItem)) 
         {
             // If the node is an expression, use its ValueRefCodeGen.
             if (item.Node is IExpression expr)
@@ -58,12 +62,16 @@ public class BlockExpression : IExpression
 
             ReturnStatement? GetFirstNoticedGuaranteedReturn(ISyntaxNode syntaxNode)
             {
+                if (syntaxNode is IItem)
+                {
+                    return null;
+                }
                 // an if chain that ends with an "else if" or "if" is not guaranteed to always return a value,
                 // so it is ignored
                 if (syntaxNode is IfExpression ifExpression && !ifExpression.EndsWithoutIf) return null;
                 if (syntaxNode is ReturnStatement returnStatement) return returnStatement;
 
-                foreach (var child in syntaxNode.Children)
+                foreach (var child in syntaxNode.Children.Where(i => i is not IItem))
                 {
                     var ret = GetFirstNoticedGuaranteedReturn(child);
                     if (ret is not null) return ret;
@@ -116,9 +124,13 @@ public class BlockExpression : IExpression
         void SetExpectedReturnTypesRecursively(ISyntaxNode syntaxNode)
         {
             if (syntaxNode is BlockExpression block) block.ExpectedReturnType = ExpectedReturnType;
-            foreach (var i in syntaxNode.Children) SetExpectedReturnTypesRecursively(i);
+            foreach (var i in syntaxNode.Children.Where(i => i is not IItem)) SetExpectedReturnTypesRecursively(i);
         }
 
+        foreach (var i in BlockSyntaxNodeContainers.Select(i => i.Node).OfType<IDefinition>() )
+        {
+            analyzer.RegisterDefinitionAtDeepestScope(i.FullPath,i);
+        }
         SetExpectedReturnTypesRecursively(this);
         foreach (var item in SyntaxNodes.OfType<IAnalyzable>()) item.Analyze(analyzer);
 
@@ -158,15 +170,29 @@ public class BlockExpression : IExpression
     }
 
     public Token Token => RightCurlyBraceToken;
+    
 
     public void ResolvePaths(PathResolver resolver)
     {
-        if (ExpectedReturnType is not null) 
+        resolver.AddScope();
+        if (ExpectedReturnType is not null)
             ExpectedReturnType = ExpectedReturnType.GetFromShortCutIfPossible(resolver);
-        foreach (var i in Children)
+    
+        foreach (var useDefinition in Children.OfType<UseDefinition>())
+        {
+            useDefinition.RegisterUsings(resolver);
+        }
+
+        foreach (var i in Children.OfType<IDefinition>() )
+        {
+            var usings = new UseDefinition(i.FullPath, i.Token);
+            usings.RegisterUsings(resolver);
+        }
+        foreach (var i in Children.OfType<IPathResolvable>())
         {
             i.ResolvePaths(resolver);
         }
+        resolver.PopScope();
     }
 
 
@@ -192,6 +218,10 @@ public class BlockExpression : IExpression
                 parsed = IStatement.Parse(parser);
                 // has semi colon after set to true sice statements are forced to have a semi colon after anyways
                 syntaxNodes.Add(new BlockSyntaxNodeContainer { Node = parsed, HasSemiColonAfter = true });
+            } else if (IItem.NextTokenIsItem(parser))
+            {
+                parsed = IItem.Parse(parser, new NormalLangPath(null,[new NormalLangPath.UntypableSegment()]));
+                syntaxNodes.Add(new BlockSyntaxNodeContainer { Node = parsed, HasSemiColonAfter = parser.Peek() is SemiColonToken });
             }
             else
             {

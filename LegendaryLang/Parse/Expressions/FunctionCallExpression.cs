@@ -87,7 +87,7 @@ public class FunctionCallExpression : IExpression
     public void ResolvePaths(PathResolver resolver)
     {
         FunctionPath = (NormalLangPath)FunctionPath.GetFromShortCutIfPossible(resolver);
-        foreach (var i in Children)
+        foreach (var i in Children.OfType<IPathResolvable>())
         {
             i.ResolvePaths(resolver);
         }

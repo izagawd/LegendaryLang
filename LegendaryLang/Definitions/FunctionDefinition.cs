@@ -7,7 +7,7 @@ using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Definitions;
 
-public class FunctionDefinition : ITopLevel, IDefinition, IMonomorphizable
+public class FunctionDefinition : IItem, IDefinition, IMonomorphizable, IAnalyzable, IPathResolvable
 {
     public readonly ImmutableArray<VariableDefinition> Arguments;
 
@@ -103,7 +103,8 @@ public class FunctionDefinition : ITopLevel, IDefinition, IMonomorphizable
                 if (node is ReturnStatement returnStatement) yield return returnStatement;
 
                 foreach (var i in node.Children.Where(i =>
-                             i is not IfExpression || (i is IfExpression ifExpression && ifExpression.EndsWithoutIf)))
+                             i is not IfExpression || (i is IfExpression ifExpression && ifExpression.EndsWithoutIf))
+                             .Where(i => i is not IItem))
                 foreach (var j in GuaranteedReturnStatements(i))
                     yield return j;
             }
@@ -148,7 +149,7 @@ public class FunctionDefinition : ITopLevel, IDefinition, IMonomorphizable
         return ReturnTypePath;
     }
 
-    public static FunctionDefinition Parse(Parser parser)
+    public static FunctionDefinition Parse(Parser parser, NormalLangPath module)
     {
         var genericParameters = new List<GenericParameter>();
         var token = parser.Pop();
@@ -204,7 +205,7 @@ public class FunctionDefinition : ITopLevel, IDefinition, IMonomorphizable
             }
 
             return new FunctionDefinition(name, variables, returnTyp, BlockExpression.Parse(parser, returnTyp),
-                parser.File.Module, genericParameters, nameToken);
+                module, genericParameters, nameToken);
         }
 
         throw new ExpectedParserException(parser, ParseType.Fn, token);

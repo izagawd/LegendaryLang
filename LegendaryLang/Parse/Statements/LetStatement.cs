@@ -39,7 +39,7 @@ public class LetStatement : IStatement
     public void ResolvePaths(PathResolver resolver)
     {
         VariableDefinition.TypePath = VariableDefinition.TypePath?.GetFromShortCutIfPossible(resolver);
-        foreach (var i in Children)
+        foreach (var i in Children.OfType<IPathResolvable>())
         {
             i.ResolvePaths(resolver);
         }

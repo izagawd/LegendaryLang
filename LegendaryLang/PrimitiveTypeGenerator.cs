@@ -10,9 +10,9 @@ public class PrimitiveTypeGenerator
     {
         return new ParseResult
         {
-            TopLevels = Assembly.GetExecutingAssembly().GetTypes()
+            Items = Assembly.GetExecutingAssembly().GetTypes()
                 .Where(t => t.IsAssignableTo(typeof(PrimitiveTypeDefinition)) && !t.IsAbstract)
-                .Select(i => (ITopLevel)Activator.CreateInstance(i)).ToList(),
+                .Select(i => (IItem)Activator.CreateInstance(i)).ToList(),
             File = null
         };
     }

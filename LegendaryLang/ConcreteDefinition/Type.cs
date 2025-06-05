@@ -7,7 +7,7 @@ using LLVMSharp.Interop;
 
 namespace LegendaryLang.ConcreteDefinition;
 
-public abstract class Type : IConcreteDefinition
+public abstract class Type : IConcreteDefinition,  IPathResolvable
 {
     public Type(TypeDefinition definition)
     {

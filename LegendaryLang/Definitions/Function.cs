@@ -9,7 +9,7 @@ using Type = LegendaryLang.ConcreteDefinition.Type;
 
 namespace LegendaryLang.Definitions;
 
-public class Function : IConcreteDefinition
+public class Function : IConcreteDefinition,  IPathResolvable
 {
     public Function(FunctionDefinition functionDefinition, IEnumerable<LangPath> genericArguments)
     {

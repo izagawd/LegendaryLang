@@ -41,12 +41,20 @@ public class StructCreationExpression : IExpression
             return;
         }
 
-        if (AssignFields.Length != asStruct.Fields.Length)
+        if (AssignFields.Length < asStruct.Fields.Length)
             analyzer.AddException(new SemanticException(
                 $"Not all fields are assigned to the instance '{TypePath}'\nthe following fields are missing:\n" +
                 $"{string.Join("\n", asStruct.Fields.AsEnumerable().Where(i => !AssignFields.Select(j => j.FieldToken.Identity).Contains(i.Name))
                     .Select(i => $"{i.Name}: {i.TypePath}"))}\n\n" +
                 $"{Token.GetLocationStringRepresentation()}"));
+        else if (AssignFields.Length > asStruct.Fields.Length)
+        {
+            analyzer.AddException(new SemanticException(
+                $"The following fields do not exist for '{TypePath}'\n" +
+                $"{string.Join("\n", AssignFields.AsEnumerable().Where(i => !asStruct.Fields.AsEnumerable().Select(j => j.Name).Contains(i.FieldToken.Identity))
+                    .Select(i => $"{i.FieldToken.Identity}"))}\n\n" +
+                $"{Token.GetLocationStringRepresentation()}"));
+        }
 
         var invalidFields = new List<AssignedField>();
         foreach (var field in AssignFields)
@@ -106,7 +114,7 @@ public class StructCreationExpression : IExpression
     public void ResolvePaths(PathResolver resolver)
     {
         TypePath = TypePath.GetFromShortCutIfPossible(resolver);
-        foreach (var i in Children)
+        foreach (var i in Children.OfType<IPathResolvable>())
         {
             i.ResolvePaths(resolver);
         }

@@ -1,4 +1,5 @@
-﻿using LegendaryLang.Parse;
+﻿using LegendaryLang.Definitions.Types;
+using LegendaryLang.Parse;
 using LegendaryLang.Parse.Expressions;
 
 namespace LegendaryLang.Semantics;
@@ -17,7 +18,7 @@ public class SemanticException : Exception
 
 public class SemanticAnalyzer
 {
-    private readonly Dictionary<LangPath, IDefinition> DefinitionsMap = [];
+    private readonly Stack<Dictionary<LangPath, IDefinition>> DefinitionsStackMap = [];
     private readonly List<SemanticException> Exceptions = [];
 
     
@@ -37,7 +38,10 @@ public class SemanticAnalyzer
 
     public IDefinition? GetDefinition(LangPath langPath)
     {
-        if (DefinitionsMap.TryGetValue(langPath, out var definition)) return definition;
+        foreach (var def in DefinitionsStackMap)
+        {
+            if (def.TryGetValue(langPath, out var definition)) return definition;
+        }
         return null;
     }
 
@@ -58,14 +62,16 @@ public class SemanticAnalyzer
             VariableToTypeMapper.Reverse().Skip(scope.Value).First().Add(variableLangPath, typPath);
     }
 
-    public void RegisterDefinition(LangPath path, IDefinition definition)
+    public void RegisterDefinitionAtDeepestScope(LangPath path, IDefinition definition)
     {
-        DefinitionsMap[path] = definition;
+        DefinitionsStackMap.Peek()[path] = definition;
+
     }
 
     public void AddScope()
     {
 
+        DefinitionsStackMap.Push(new ());
         VariableToTypeMapper.Push(new Dictionary<LangPath, LangPath>());
     }
 
@@ -73,7 +79,8 @@ public class SemanticAnalyzer
 
 
     public void PopScope()
-    {
+    {   
+        DefinitionsStackMap.Pop();
      
         VariableToTypeMapper.Pop();
     }
@@ -81,38 +88,57 @@ public class SemanticAnalyzer
     private void ResolvePaths()
     {
         var pathShortcutContext = new PathResolver();
+        
+        pathShortcutContext.AddScope();
+        var primitiveParsed = ParseResults.First(i => i.Items.Any(j => j is I32TypeDefinition));
+        foreach (var i in primitiveParsed.Items.OfType<PrimitiveTypeDefinition>())
+        {
+            var usings = new UseDefinition((NormalLangPath)i.TypePath, null);
+            usings.RegisterUsings(pathShortcutContext);
+        }
         foreach (var result in ParseResults)
         {
-            pathShortcutContext. AddScope();
-            foreach (var useDefinition in result.TopLevels.OfType<UseDefinition>())
+            pathShortcutContext.AddScope();
+            foreach (var i in result.Items.OfType<IDefinition>())
+            {
+                var usings = new UseDefinition(i.FullPath, null);
+                usings.RegisterUsings(pathShortcutContext);
+            }
+            foreach (var useDefinition in result.Items.OfType<UseDefinition>())
             {
                 useDefinition.RegisterUsings(pathShortcutContext);
             }
-            foreach (var i in result.TopLevels)
+            foreach (var i in result.Items.OfType<IPathResolvable>())
             {
                 i.ResolvePaths(pathShortcutContext);
             }
             pathShortcutContext.PopScope();
         }
+        pathShortcutContext.PopScope();
     }
     /// <returns>Collection of semantic errors that occured</returns>
     public SemanticException[] Analyze()
     {
+        AddScope();
         // registers path mapping
-        foreach (var i in ParseResults.SelectMany(i => i.TopLevels.OfType<IDefinition>()))
-            RegisterDefinition(i.FullPath, i);
+        foreach (var i in ParseResults.SelectMany(i => i.Items.OfType<IDefinition>()))
+            RegisterDefinitionAtDeepestScope(i.FullPath, i);
 
 
         ResolvePaths();
+
         foreach (var result in ParseResults)
         {
             AddScope();
-            foreach (var i in result.TopLevels)
+      
+            foreach (var i in result.Items.OfType<IAnalyzable>())
             {
                 i.Analyze(this);
             }
             PopScope();
         }
+        PopScope();
+
         return Exceptions.ToArray();
     }
 }
