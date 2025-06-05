@@ -157,8 +157,9 @@ public class IfExpression : IExpression
         if (IsLastIfInChain)
             _resumeBlockPropagator.ResumeBlock = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("resume");
 
-        var condCodeGen = CondExpression.DataRefCodeGen(codeGenContext);
-        codeGenContext.Builder.BuildCondBr(condCodeGen.ValueRef, thenBB, elseBB ?? _resumeBlockPropagator.ResumeBlock);
+        var condCodeGen =  CondExpression.DataRefCodeGen(codeGenContext);
+        var valToCompare = condCodeGen.Type.LoadValue(codeGenContext,condCodeGen);
+        codeGenContext.Builder.BuildCondBr(valToCompare, thenBB, elseBB ?? _resumeBlockPropagator.ResumeBlock);
 
 
         ReturnStatement? DirectReturnStatement(ISyntaxNode syntaxNode)
