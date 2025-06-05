@@ -28,6 +28,7 @@ public class BlockExpression : IExpression
     public IEnumerable<ISyntaxNode> Children => SyntaxNodes;
 
 
+    public bool HasGuaranteedExplicitReturn => SyntaxNodes.Where(i => i is not IItem).OfType<ICanHaveExplicitReturn>().Any(i => i.HasGuaranteedExplicitReturn);
     public ValueRefItem DataRefCodeGen(CodeGenContext context)
     {
         var lastValue = context.GetVoid();
@@ -68,7 +69,7 @@ public class BlockExpression : IExpression
                 }
                 // an if chain that ends with an "else if" or "if" is not guaranteed to always return a value,
                 // so it is ignored
-                if (syntaxNode is IfExpression ifExpression && !ifExpression.EndsWithoutIf) return null;
+                if (syntaxNode is ICanHaveExplicitReturn can && !can.HasGuaranteedExplicitReturn) return null;
                 if (syntaxNode is ReturnStatement returnStatement) return returnStatement;
 
                 foreach (var child in syntaxNode.Children.Where(i => i is not IItem))

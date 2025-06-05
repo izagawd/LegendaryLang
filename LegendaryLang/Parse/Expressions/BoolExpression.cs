@@ -49,4 +49,6 @@ public class BoolExpression : IExpression
 
         return new BoolExpression(boolToken);
     }
+
+    public bool HasGuaranteedExplicitReturn => false;
 }

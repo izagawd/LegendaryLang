@@ -49,4 +49,6 @@ public class ReturnStatement : IStatement
         if (parser.Peek() is not SemiColonToken) expression = IExpression.Parse(parser);
         return new ReturnStatement(returnToken, expression);
     }
+
+    public bool HasGuaranteedExplicitReturn => true;
 }

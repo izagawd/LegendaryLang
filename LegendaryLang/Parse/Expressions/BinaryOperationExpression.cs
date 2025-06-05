@@ -22,6 +22,8 @@ public class BinaryOperationExpression : IExpression
 
     public IEnumerable<ISyntaxNode> Children => [Left, Right];
 
+    public bool HasGuaranteedExplicitReturn => Left.HasGuaranteedExplicitReturn || Right.HasGuaranteedExplicitReturn;
+
     public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         var leftVal = Left.DataRefCodeGen(codeGenContext);

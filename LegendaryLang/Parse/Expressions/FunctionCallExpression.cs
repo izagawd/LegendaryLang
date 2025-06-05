@@ -114,4 +114,6 @@ public class FunctionCallExpression : IExpression
         Parenthesis.ParseRight(parser);
         return new FunctionCallExpression(normalLangPath, expressions);
     }
+
+    public bool HasGuaranteedExplicitReturn => Arguments.Any(i => i.HasGuaranteedExplicitReturn);
 }

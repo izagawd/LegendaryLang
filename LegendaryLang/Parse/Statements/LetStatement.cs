@@ -160,4 +160,6 @@ public class LetStatement : IStatement
             $"No type was declared and no expression was set for the let statement, so unable to determine the" +
             $" type of the let\n{Statement.LetToken.GetLocationStringRepresentation()}";
     }
+
+    public bool HasGuaranteedExplicitReturn => EqualsTo?.HasGuaranteedExplicitReturn ?? false;
 }

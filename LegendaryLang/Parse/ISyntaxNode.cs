@@ -3,8 +3,14 @@ using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse;
 
+
+public interface ICanHaveExplicitReturn : ISyntaxNode
+{
+    public bool HasGuaranteedExplicitReturn { get; }
+}
 public interface ISyntaxNode
 {
+    
     public IEnumerable<ISyntaxNode> Children { get; }
     public bool NeedsSemiColonAfterIfNotLastInBlock => true;
 

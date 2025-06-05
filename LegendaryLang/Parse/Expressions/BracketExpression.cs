@@ -35,4 +35,6 @@ public class BracketExpression : IExpression
         Parenthesis.ParseRight(parser);
         return new BracketExpression(leftParenthesisToken, expression);
     }
+
+    public bool HasGuaranteedExplicitReturn => Expression.HasGuaranteedExplicitReturn;
 }

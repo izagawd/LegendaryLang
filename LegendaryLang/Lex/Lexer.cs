@@ -192,6 +192,9 @@ public static class Lexer
                         case "true":
                             file.AddToken(new True(file, column, line));
                             break;
+                        case "while":
+                            file.AddToken(new WhileToken(file, column, line));
+                            break;
                         case "struct":
                             file.AddToken(new StructToken(file, column, line));
                             break;

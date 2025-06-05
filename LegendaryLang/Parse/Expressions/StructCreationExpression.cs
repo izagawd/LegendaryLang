@@ -76,7 +76,7 @@ public class StructCreationExpression : IExpression
         }
     }
 
-
+    public bool HasGuaranteedExplicitReturn => AssignFields.Any(i => i.EqualsTo.HasGuaranteedExplicitReturn);
     public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
     {
         var typeRef = codeGenContext.GetRefItemFor(TypePath) as TypeRefItem;

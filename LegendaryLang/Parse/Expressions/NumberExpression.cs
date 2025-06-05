@@ -44,4 +44,6 @@ public class NumberExpression : IExpression
     {
         return new NumberExpression(ParseToken(parser));
     }
+
+    public bool HasGuaranteedExplicitReturn => false;
 }

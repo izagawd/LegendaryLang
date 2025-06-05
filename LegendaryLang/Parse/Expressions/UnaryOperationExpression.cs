@@ -59,4 +59,6 @@ public class UnaryOperationExpression : IExpression
         var expr = IExpression.ParsePrimary(parser);
         return new UnaryOperationExpression(expr, oper);
     }
+
+    public bool HasGuaranteedExplicitReturn => Expression.HasGuaranteedExplicitReturn;
 }

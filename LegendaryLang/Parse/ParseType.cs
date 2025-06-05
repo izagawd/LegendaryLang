@@ -28,5 +28,6 @@ public enum ParseType
     GreaterThan,
     ReturnToken,
     If,
-    Else
+    Else,
+    While
 }

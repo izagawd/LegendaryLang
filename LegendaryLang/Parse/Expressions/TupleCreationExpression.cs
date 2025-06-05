@@ -30,4 +30,5 @@ public class TupleCreationExpression : IExpression
     }
 
     public LangPath? TypePath { get; }
+    public bool HasGuaranteedExplicitReturn => Composites.Any(i => i.HasGuaranteedExplicitReturn);
 }

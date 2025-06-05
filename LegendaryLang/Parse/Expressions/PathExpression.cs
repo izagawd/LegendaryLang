@@ -39,7 +39,7 @@ public class PathExpression : IExpression
     /// </summary>
     public LangPath? TypePath { get; set; }
 
-
+    public bool HasGuaranteedExplicitReturn => false;
     /// <summary>
     ///     During semantic analysis, you would resolve this symbol's definition.
     ///     For example, binding the variable use to its declaration.

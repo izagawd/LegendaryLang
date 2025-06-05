@@ -79,4 +79,6 @@ public class FieldAccessExpression : IExpression
 
         return field;
     }
+
+    public bool HasGuaranteedExplicitReturn => Caller.HasGuaranteedExplicitReturn;
 }

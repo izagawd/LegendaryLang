@@ -6,6 +6,8 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class AssignVariableExpression : IExpression
 {
+    public bool HasGuaranteedExplicitReturn => EqualsTo.HasGuaranteedExplicitReturn;
+
     public AssignVariableExpression(IExpression assigner, IExpression equalsTo, EqualityToken equalityToken)
     {
         Assigner = assigner;

@@ -4,7 +4,7 @@ using LegendaryLang.Parse.Statements;
 
 namespace LegendaryLang.Parse.Expressions;
 
-public interface IExpression : ISyntaxNode, IAnalyzable, IPathResolvable
+public interface IExpression : ISyntaxNode, IAnalyzable, IPathResolvable, ICanHaveExplicitReturn
 {
     
     /// <summary>
@@ -13,6 +13,7 @@ public interface IExpression : ISyntaxNode, IAnalyzable, IPathResolvable
     public LangPath? TypePath { get; }
 
 
+ 
     /// <summary>
     ///     SHOULD ONLY BE CALLED ONCE PER OBJECT
     /// </summary>
@@ -83,6 +84,9 @@ public interface IExpression : ISyntaxNode, IAnalyzable, IPathResolvable
 
         switch (token)
         {
+            case WhileToken:
+                expression = WhileExpression.Parse(parser);
+                break;
             // Block and grouping
             case LeftCurlyBraceToken:
                 expression = BlockExpression.Parse(parser, null);

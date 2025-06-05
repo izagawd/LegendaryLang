@@ -34,6 +34,8 @@ public class ElseExpression : IExpression
     ///     Else expression is a unique expression in which it doesnt directly hav4 a type path
     /// </summary>
     public LangPath? TypePath => null;
+
+    public bool HasGuaranteedExplicitReturn => Body.HasGuaranteedExplicitReturn;
 }
 
 public class IfExpression : IExpression
@@ -46,7 +48,7 @@ public class IfExpression : IExpression
         BodyExpression = body;
         ElseExpression = elseExpression;
     }
-
+    
     public bool EndsWithoutIf
     {
         get
@@ -167,7 +169,7 @@ public class IfExpression : IExpression
             if (syntaxNode is ReturnStatement returnStatement) return returnStatement;
             
             // we ignore if expressions, as they handle their own terminator instructions
-            foreach (var child in syntaxNode.Children.Where(i => i is not IfExpression and not IItem))
+            foreach (var child in syntaxNode.Children.Where(i => i is not IfExpression and not IItem and not WhileExpression))
                 if (DirectReturnStatement(child) is not null)
                     return DirectReturnStatement(child);
 
@@ -265,4 +267,6 @@ public class IfExpression : IExpression
 
         public LLVMBasicBlockRef ResumeBlock { get; set; }
     }
+
+    public bool HasGuaranteedExplicitReturn => CondExpression.HasGuaranteedExplicitReturn ||  (EndsWithoutIf && BodyExpression.HasGuaranteedExplicitReturn && ElseExpression!.HasGuaranteedExplicitReturn);
 }
