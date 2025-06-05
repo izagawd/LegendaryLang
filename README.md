@@ -6,6 +6,7 @@ Here is some example code
 struct Human{
     age: i32   
 }
+
 fn make_human_with_age(inputtedAge: i32) -> Human{
     Human{
         age = inputtedAge  // unlike rust, we use = instead of :  when assigning fields to a struct during construction
@@ -36,5 +37,7 @@ fn loops(input: i32) -> i32{
     }
     input // or "return input';"
 }
+// functions can also return void
 
+fn returning_void() {}
 ```
