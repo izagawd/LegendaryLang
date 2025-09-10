@@ -9,7 +9,7 @@ public class IfTests
     [Test]
     public void IfImplicitReturnTest()
     {
-        var compiled =new Compiler().Compile("compiler_tests/if_tests/if_implicit_return",false,false);
+        var compiled =Compiler.Compile("compiler_tests/if_tests/if_implicit_return",false,false);
         if (compiled() != 9)
         {
             throw new Exception();

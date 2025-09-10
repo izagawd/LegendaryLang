@@ -11,7 +11,7 @@ public class Compiler
 {
     public const string extension = "rs";
 
-    public Func<int>? Compile(string codeDirectory, bool showLLVMIR = false, bool optimized = false)
+    public static Func<int>? Compile(string codeDirectory, bool showLLVMIR = false, bool optimized = false)
     {
         var directoryPath = codeDirectory;
 
@@ -45,7 +45,7 @@ public class Compiler
             {
                 try
                 {
-                    return new Parser(Lexer.Lex(i.Value, i.Key)).Parse();
+                    return Parser.Parse(Lexer.Lex(i.Value, i.Key));
                 }
                 catch (Exception e)
                 {
@@ -91,7 +91,7 @@ public class Compiler
             return null;
         }
 
-        return new CodeGenContext(parseResults, new NormalLangPath(null, [codeDirectory,"main"])).CodeGen(showLLVMIR,
+        return CodeGenContext.CodeGenMain(parseResults, new NormalLangPath(null, [codeDirectory, "main"]), showLLVMIR,
             optimized);
     }
 }

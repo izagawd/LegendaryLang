@@ -69,12 +69,17 @@ public class Parser
 {
     private readonly Queue<Token> tokens = new();
 
-    public Parser(File file)
+    private Parser(File file)
     {
         File = file;
         tokens = new Queue<Token>(file.Tokens.ToArray());
     }
 
+    public static ParseResult Parse(File file)
+    {
+        var parser = new Parser(file);
+        return parser.Parse();
+    }
     public Token? LastToken => File.Tokens.ToArray().Last();
     public File File { get; }
 
@@ -93,7 +98,7 @@ public class Parser
         return null;
     }
 
-    public ParseResult Parse()
+    private ParseResult Parse()
     {
         var items = new List<IItem>();
 

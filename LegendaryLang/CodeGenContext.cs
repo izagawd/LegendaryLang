@@ -76,13 +76,13 @@ public class CodeGenContext
     private ValueRefItem Void;
 
     private List<IDefinition> TopLevelDefinitions;
-    public CodeGenContext(IEnumerable<IDefinition> definitions, NormalLangPath mainLangModule)
+    CodeGenContext(IEnumerable<IDefinition> definitions, NormalLangPath mainLangModule)
     {
         MainLangModule = mainLangModule;
         TopLevelDefinitions = definitions.ToList();
     }
 
-    public CodeGenContext(IEnumerable<ParseResult> results, NormalLangPath mainLangModule) : this(
+    CodeGenContext(IEnumerable<ParseResult> results, NormalLangPath mainLangModule) : this(
         results.SelectMany(i => i.Items.OfType<IDefinition>()), mainLangModule)
     {
     }
@@ -288,8 +288,14 @@ public class CodeGenContext
         };
     }
 
-
-    public unsafe Func<int>? CodeGen(bool showLLVMIR = false, bool optimized = false)
+    public static Func<int>? CodeGenMain(IEnumerable<ParseResult> results, NormalLangPath mainLangModule,
+        bool showLLVMIR = false, bool optimized = false)
+    {
+        var context = new CodeGenContext(results, mainLangModule);
+        return context.CodeGenInst(showLLVMIR, optimized);
+    }
+    
+    private unsafe Func<int>? CodeGenInst(bool showLLVMIR = false, bool optimized = false)
     {
         const string MODULE_NAME = "LEGENDARY_LANGUAGE";
         Module = LLVM.ModuleCreateWithName(MODULE_NAME.ToCString());
