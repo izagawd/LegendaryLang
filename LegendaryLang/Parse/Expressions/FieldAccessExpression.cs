@@ -39,9 +39,9 @@ public class FieldAccessExpression : IExpression
     /// <summary>
     ///     Returns the pointer to the accessed field
     /// </summary>
-    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
-        var variableRef = Caller.DataRefCodeGen(codeGenContext);
+        var variableRef = Caller.CodeGen(codeGenContext);
 
 
         var structType = variableRef?.Type as StructType;

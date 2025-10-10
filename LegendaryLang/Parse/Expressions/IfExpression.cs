@@ -25,9 +25,9 @@ public class ElseExpression : IExpression
         Body.Analyze(analyzer);
     }
 
-    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
-        return Body.DataRefCodeGen(codeGenContext);
+        return Body.CodeGen(codeGenContext);
     }
 
     /// <summary>
@@ -111,7 +111,7 @@ public class IfExpression : IExpression
         }
     }
 
-    public unsafe ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public unsafe ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         // used to help make if/else expression return implicitly (if the else is not null of course)
 
@@ -159,7 +159,7 @@ public class IfExpression : IExpression
         if (IsLastIfInChain)
             _resumeBlockPropagator.ResumeBlock = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("resume");
 
-        var condCodeGen =  CondExpression.DataRefCodeGen(codeGenContext);
+        var condCodeGen =  CondExpression.CodeGen(codeGenContext);
         var valToCompare = condCodeGen.Type.LoadValue(codeGenContext,condCodeGen);
         codeGenContext.Builder.BuildCondBr(valToCompare, thenBB, elseBB ?? _resumeBlockPropagator.ResumeBlock);
 
@@ -187,7 +187,7 @@ public class IfExpression : IExpression
         {
             codeGenContext.Builder.PositionAtEnd(elseBB!.Value);
 
-            var codegennedElseVal = ElseExpression.DataRefCodeGen(codeGenContext);
+            var codegennedElseVal = ElseExpression.CodeGen(codeGenContext);
 
 
             if (IsLastIfInChain)
@@ -204,7 +204,7 @@ public class IfExpression : IExpression
             }
         }
         codeGenContext.Builder.PositionAtEnd(thenBB);
-        var bodyVal = BodyExpression.DataRefCodeGen(codeGenContext);
+        var bodyVal = BodyExpression.CodeGen(codeGenContext);
 
         expressionType.AssignTo(codeGenContext, bodyVal, possibleRefItem);
 

@@ -4,7 +4,7 @@ using LegendaryLang.Parse.Statements;
 
 namespace LegendaryLang.Parse.Expressions;
 
-public interface IExpression : ISyntaxNode, IAnalyzable, IPathResolvable, ICanHaveExplicitReturn
+public interface IExpression : IStatement
 {
     
     /// <summary>
@@ -19,8 +19,12 @@ public interface IExpression : ISyntaxNode, IAnalyzable, IPathResolvable, ICanHa
     /// </summary>
     /// <param name="codeGenContext"></param>
     /// <returns></returns>
-    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext);
+    public ValueRefItem CodeGen(CodeGenContext codeGenContext);
 
+    void IStatement.CodeGen(CodeGenContext codeGenContext)
+    {
+        CodeGen(codeGenContext);
+    }
     /// <summary>
     ///     Parses field access, struct creation, variable assignment, etc. pretty much anything after a
     ///     path (NOTE: a path can be a local or global var. a::b::c is considered a path)
@@ -92,7 +96,7 @@ public interface IExpression : ISyntaxNode, IAnalyzable, IPathResolvable, ICanHa
                 expression = BlockExpression.Parse(parser, null);
                 break;
             // Literals and identifiers
-            case ExclamationMarkToken:
+            case OperatorToken {OperatorType: Operator.ExclamationMark}:
                 expression = UnaryOperationExpression.Parse(parser);
                 break;
             case IfToken:
@@ -101,8 +105,8 @@ public interface IExpression : ISyntaxNode, IAnalyzable, IPathResolvable, ICanHa
             case NumberToken:
                 expression = NumberExpression.Parse(parser);
                 break;
-            case IOperatorToken:
-                var operatorToken = IOperatorToken.Parse(parser);
+            case OperatorToken:
+                var operatorToken = OperatorToken.Parse(parser);
                 expression = Parse(parser);
                 expression = new UnaryOperationExpression(expression, operatorToken);
                 break;
@@ -144,10 +148,10 @@ public interface IExpression : ISyntaxNode, IAnalyzable, IPathResolvable, ICanHa
             var nextToken = parser.Peek();
 
             // Check if the token is an operator token.
-            if (!(nextToken is IOperatorToken opToken))
+            if (!(nextToken is OperatorToken opToken))
                 break;
 
-            var prec = opToken.Operator.GetPrecedence();
+            var prec = opToken.OperatorType.GetPrecedence();
             if (prec < minPrec)
                 break;
 

@@ -1,4 +1,5 @@
-﻿using LegendaryLang.Definitions.Types;
+﻿using LegendaryLang.ConcreteDefinition;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Semantics;
@@ -8,7 +9,7 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class BinaryOperationExpression : IExpression
 {
-    public BinaryOperationExpression(IExpression left, IOperatorToken operatorToken, IExpression right)
+    public BinaryOperationExpression(IExpression left, OperatorToken operatorToken, IExpression right)
     {
         Left = left;
         Right = right;
@@ -17,25 +18,24 @@ public class BinaryOperationExpression : IExpression
 
     public IExpression Left { get; }
     public IExpression Right { get; }
-    public IOperatorToken OperatorToken { get; }
+    public OperatorToken OperatorToken { get; }
 
 
     public IEnumerable<ISyntaxNode> Children => [Left, Right];
 
     public bool HasGuaranteedExplicitReturn => Left.HasGuaranteedExplicitReturn || Right.HasGuaranteedExplicitReturn;
 
-    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
-        var leftVal = Left.DataRefCodeGen(codeGenContext);
-        var rightVal = Right.DataRefCodeGen(codeGenContext);
+        var leftVal = Left.CodeGen(codeGenContext);
+        var rightVal = Right.CodeGen(codeGenContext);
         ;
         LLVMValueRef valueRef = null;
         var type = leftVal.Type;
 
         var leftValRef = type.LoadValue(codeGenContext, leftVal);
         var rightValRef = type.LoadValue(codeGenContext, rightVal);
-
-        switch (OperatorToken.Operator)
+        switch (OperatorToken.OperatorType)
         {
             case Operator.Add:
                 valueRef = codeGenContext.Builder.BuildAdd(leftValRef, rightValRef);
@@ -49,8 +49,23 @@ public class BinaryOperationExpression : IExpression
             case Operator.Divide:
                 valueRef = codeGenContext.Builder.BuildFDiv(leftValRef, rightValRef);
                 break;
+            case Operator.LessThan:
+                valueRef = codeGenContext.Builder.BuildICmp(LLVMIntPredicate.LLVMIntSLT, leftValRef, rightValRef);
+                break;
+            case Operator.GreaterThan:
+                valueRef = codeGenContext.Builder.BuildICmp(LLVMIntPredicate.LLVMIntSGT, leftValRef, rightValRef);
+                break;
             default:
                 throw new ArgumentOutOfRangeException();
+        }
+        // if less than or greater thanm should return a bool, if not return an int
+        if (OperatorToken.OperatorType is Operator.LessThan or Operator.GreaterThan)
+        {
+            return new ValueRefItem()
+            {
+                ValueRef = valueRef,
+                Type = new BoolType(new BoolTypeDefinition())
+            };
         }
 
         return new ValueRefItem
@@ -58,9 +73,24 @@ public class BinaryOperationExpression : IExpression
             ValueRef = valueRef,
             Type = type
         };
+    
     }
-
-    public LangPath? TypePath { get; } = new I32TypeDefinition().TypePath;
+    private static BoolTypeDefinition BoolDef = new BoolTypeDefinition();
+    private static I32TypeDefinition i32Def = new I32TypeDefinition();
+    public LangPath? TypePath
+    {
+        get
+        {
+            if (OperatorToken.OperatorType is Operator.LessThan or Operator.GreaterThan)
+            {
+                return BoolDef.TypePath;
+            }
+            else
+            {
+                return i32Def.TypePath;
+            }
+        }
+    }
 
 
     public void Analyze(SemanticAnalyzer analyzer)
@@ -68,18 +98,27 @@ public class BinaryOperationExpression : IExpression
         Left.Analyze(analyzer);
         Right.Analyze(analyzer);
 
-        if (Left.TypePath != TypePath)
-            analyzer.AddException(
-                new SemanticException($"Both operands must be i32s!\n{Left.Token.GetLocationStringRepresentation()}"));
-        if (Right.TypePath != TypePath)
-            analyzer.AddException(
-                new SemanticException($"Both operands must be i32s!\n{Right.Token.GetLocationStringRepresentation()}"));
+        if (OperatorToken.OperatorType != Operator.LessThan && OperatorToken.OperatorType != Operator.GreaterThan)
+        {
+            if (Left.TypePath != TypePath)
+                analyzer.AddException(
+                    new SemanticException($"Both operands must be i32s!\n{Left.Token.GetLocationStringRepresentation()}"));
+            if (Right.TypePath != TypePath)
+                analyzer.AddException(
+                    new SemanticException($"Both operands must be i32s!\n{Right.Token.GetLocationStringRepresentation()}"));
 
+        } else if (Left.TypePath != Right.TypePath)
+        {
+            analyzer.AddException(
+                new SemanticException($"Both operands must be the same!\n{Left.TypePath} is not the same as {Right.TypePath}!\n {Right.Token.GetLocationStringRepresentation()}"));
+        }
+        
+        
 
-        if (!new[] { Operator.Add, Operator.Divide, Operator.Multiply, Operator.Subtract }.Contains(OperatorToken
-                .Operator))
+        if (!new[] { Operator.Add, Operator.Divide, Operator.Multiply, Operator.Subtract, Operator.LessThan, Operator.GreaterThan }.Contains(OperatorToken
+                .OperatorType))
             analyzer.AddException(new SemanticException(
-                $"Operator '{OperatorToken.Operator}' is not supported with binary expressions\n{Token.GetLocationStringRepresentation()}"));
+                $"Operator '{OperatorToken.OperatorType}' is not supported with binary expressions\n{Token.GetLocationStringRepresentation()}"));
     }
 
     public Token Token => (Token)OperatorToken;

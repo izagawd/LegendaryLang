@@ -51,7 +51,7 @@ public class LetStatement : IStatement
     {
         if (EqualsTo is not null)
         {
-            var genedVal = EqualsTo.DataRefCodeGen(context);
+            var genedVal = EqualsTo.CodeGen(context);
             var stackPtr = genedVal.StackAllocate(context);
 
             context.AddToDeepestScope(new NormalLangPath(null, [VariableDefinition.Name]), new ValueRefItem

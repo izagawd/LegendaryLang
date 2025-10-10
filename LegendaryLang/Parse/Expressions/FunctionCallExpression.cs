@@ -55,14 +55,14 @@ public class FunctionCallExpression : IExpression
         foreach (var i in Arguments) i.Analyze(analyzer);
     }
 
-    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         var zaPath = codeGenContext.GetRefItemFor(FunctionPath) as FunctionRefItem;
         var callResult = codeGenContext.Builder.BuildCall2(zaPath.Function.FunctionType,
             zaPath.Function.FunctionValueRef,
             Arguments.Select(i =>
             {
-                var gened = i.DataRefCodeGen(codeGenContext);
+                var gened = i.CodeGen(codeGenContext);
                 return gened.Type.LoadValue(codeGenContext, gened);
             }).ToArray()
         );

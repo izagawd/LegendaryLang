@@ -29,7 +29,7 @@ public class BlockExpression : IExpression
 
 
     public bool HasGuaranteedExplicitReturn => SyntaxNodes.Where(i => i is not IItem).OfType<ICanHaveExplicitReturn>().Any(i => i.HasGuaranteedExplicitReturn);
-    public ValueRefItem DataRefCodeGen(CodeGenContext context)
+    public ValueRefItem CodeGen(CodeGenContext context)
     {
         var lastValue = context.GetVoid();
         context.AddScope();
@@ -44,13 +44,13 @@ public class BlockExpression : IExpression
             // If the node is an expression, use its ValueRefCodeGen.
             if (item.Node is IExpression expr)
             {
-                lastValue = expr.DataRefCodeGen(context);
+                lastValue = expr.CodeGen(context);
             }
             // return statements are special, as when you encounter one theres no
             // point in code genning the rest of the nodes
             else if (item.Node is ReturnStatement ret)
             {
-                lastValue = ret.ToReturn?.DataRefCodeGen(context) ?? context.GetVoid();
+                lastValue = ret.ToReturn?.CodeGen(context) ?? context.GetVoid();
                 break;
             }
             // If the node is a statement, simply generate code.

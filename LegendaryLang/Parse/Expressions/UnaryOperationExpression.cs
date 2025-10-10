@@ -8,20 +8,20 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class UnaryOperationExpression : IExpression
 {
-    public UnaryOperationExpression(IExpression expression, IOperatorToken operatorToken)
+    public UnaryOperationExpression(IExpression expression, OperatorToken operatorToken)
     {
         Expression = expression;
         OperatorToken = operatorToken;
     }
 
     public IExpression Expression { get; }
-    public IOperatorToken OperatorToken { get; }
+    public OperatorToken OperatorToken { get; }
     public IEnumerable<ISyntaxNode> Children => [Expression];
 
-    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
-        var gottenVal = Expression.DataRefCodeGen(codeGenContext);
-        if (OperatorToken.Operator == Operator.Add) return gottenVal;
+        var gottenVal = Expression.CodeGen(codeGenContext);
+        if (OperatorToken.OperatorType == Operator.Add) return gottenVal;
 
         var zero = LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, 0);
         var loaded = gottenVal.Type.LoadValue(codeGenContext, gottenVal);
@@ -41,11 +41,11 @@ public class UnaryOperationExpression : IExpression
     public void Analyze(SemanticAnalyzer analyzer)
     {
         Expression.Analyze(analyzer);
-        if (Expression.TypePath != new BoolTypeDefinition().TypePath && OperatorToken is ExclamationMarkToken)
+        if (Expression.TypePath != new BoolTypeDefinition().TypePath && OperatorToken.OperatorType == Operator.ExclamationMark)
             analyzer.AddException(new SemanticException(
                 $"Type '{Expression.TypePath}' is not a bool, so it cannot be used with the operator '{(OperatorToken as Token)!.Symbol}\n{Token.GetLocationStringRepresentation()}"));
         else if (Expression.TypePath == new I32TypeDefinition().TypePath &&
-                 !(OperatorToken is Plus || OperatorToken is Minus))
+                 !(OperatorToken.OperatorType == Operator.Add || OperatorToken.OperatorType == Operator.Subtract))
             analyzer.AddException(new SemanticException(
                 $"Type '{Expression.TypePath}' cannot be used with the operator cannot be used with the operator '{(OperatorToken as Token)!.Symbol}' in a unary expression" +
                 $"\n{Token.GetLocationStringRepresentation()}"));
@@ -55,7 +55,7 @@ public class UnaryOperationExpression : IExpression
     public static UnaryOperationExpression Parse(Parser parser)
     {
         var token = parser.Pop();
-        if (token is not IOperatorToken oper) throw new ExpectedParserException(parser, ParseType.Operator, token);
+        if (token is not OperatorToken oper) throw new ExpectedParserException(parser, ParseType.Operator, token);
         var expr = IExpression.ParsePrimary(parser);
         return new UnaryOperationExpression(expr, oper);
     }

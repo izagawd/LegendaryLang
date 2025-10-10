@@ -325,21 +325,9 @@ public class CodeGenContext
         mainConc.CodeGen(this);
         if (optimized)
         {
-            var passManager = LLVM.CreatePassManager();
-
-            LLVM.AddFunctionInliningPass(passManager);
-
-
-            LLVM.AddDeadStoreEliminationPass(passManager);
-
-            LLVM.AddInstructionCombiningPass(passManager);
-            LLVM.AddReassociatePass(passManager);
-            LLVM.AddGVNPass(passManager);
-            LLVM.AddCFGSimplificationPass(passManager);
-
-
-            LLVM.AddDeadStoreEliminationPass(passManager);
-            LLVM.RunPassManager(passManager, Module);
+            var passManager = LLVMPassManagerRef.Create();
+        
+            passManager.Run(Module);
         }
 
         if (showLLVMIR) Console.WriteLine(FromByte(LLVM.PrintModuleToString(Module)));

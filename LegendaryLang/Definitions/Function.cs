@@ -124,7 +124,7 @@ public class Function : IConcreteDefinition,  IPathResolvable
         // sets arguments post monomorphization (eg converting T to i32)
 
 
-        var gennedVal = BlockExpression.DataRefCodeGen(context);
+        var gennedVal = BlockExpression.CodeGen(context);
         var built = context.Builder.BuildRet(gennedVal.LoadValue(context));
 
 

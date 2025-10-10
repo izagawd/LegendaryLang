@@ -50,15 +50,15 @@ public class WhileExpression : IExpression
     }
 
     public LangPath TypePath => LangPath.VoidBaseLangPath;
-    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         var loop = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("loop");
         var resume = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("resume");
-        var iffed = Condition.DataRefCodeGen(codeGenContext);
+        var iffed = Condition.CodeGen(codeGenContext);
         var valPtr = iffed.Type.LoadValue(codeGenContext,iffed);
         codeGenContext.Builder.BuildCondBr(valPtr, loop, resume);
         codeGenContext.Builder.PositionAtEnd(loop);
-        var genned = ToExecute.DataRefCodeGen(codeGenContext);
+        var genned = ToExecute.CodeGen(codeGenContext);
       
         if (ToExecute.HasGuaranteedExplicitReturn)
         {

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Semantics;
 
@@ -113,11 +114,11 @@ public abstract class LangPath
         while (parser.Peek() is DoubleColonToken)
         {
             parser.Pop();
-            if (parser.Peek() is LessThanToken)
+            if (parser.Peek() is OperatorToken{OperatorType: Operator.LessThan})
             {
                 parser.Pop();
                 var arguments = new List<LangPath>();
-                while (parser.Peek() is not GreaterThanToken)
+                while (parser.Peek() is not OperatorToken{OperatorType: Operator.GreaterThan})
                 {
                     arguments.Add(Parse(parser));
                     if (parser.Peek() is CommaToken)

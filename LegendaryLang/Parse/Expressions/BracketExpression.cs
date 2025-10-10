@@ -15,9 +15,9 @@ public class BracketExpression : IExpression
     public LeftParenthesisToken LeftParenthesisToken { get; }
     public IEnumerable<ISyntaxNode> Children => [Expression];
 
-    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
-        return Expression.DataRefCodeGen(codeGenContext);
+        return Expression.CodeGen(codeGenContext);
     }
 
 

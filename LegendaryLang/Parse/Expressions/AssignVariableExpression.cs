@@ -38,11 +38,11 @@ public class AssignVariableExpression : IExpression
     }
 
 
-    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
-        var valueToEq = EqualsTo.DataRefCodeGen(codeGenContext);
+        var valueToEq = EqualsTo.CodeGen(codeGenContext);
 
-        var variableRef = Assigner.DataRefCodeGen(codeGenContext);
+        var variableRef = Assigner.CodeGen(codeGenContext);
         if (variableRef.ValueRef.TypeOf.Kind != LLVMTypeKind.LLVMPointerTypeKind)
             throw new Exception("Assigner should not be RValue");
 

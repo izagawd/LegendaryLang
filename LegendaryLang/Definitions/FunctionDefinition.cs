@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
 using LegendaryLang.Parse.Expressions;
@@ -159,11 +160,11 @@ public class FunctionDefinition : IItem, IDefinition, IMonomorphizable, IAnalyza
             var nameToken = Identifier.Parse(parser);
             var name = nameToken.Identity;
             var nextToken = parser.Peek();
-            if (nextToken is LessThanToken)
+            if (nextToken is OperatorToken {OperatorType: Operator.LessThan})
             {
                 parser.Pop();
                 nextToken = parser.Peek();
-                while (nextToken is not GreaterThanToken)
+                while (nextToken is not OperatorToken {OperatorType: Operator.GreaterThan})
                 {
                     var paramIdentifier = Identifier.Parse(parser);
                     nextToken = parser.Peek();

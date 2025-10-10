@@ -77,7 +77,7 @@ public class StructCreationExpression : IExpression
     }
 
     public bool HasGuaranteedExplicitReturn => AssignFields.Any(i => i.EqualsTo.HasGuaranteedExplicitReturn);
-    public ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         var typeRef = codeGenContext.GetRefItemFor(TypePath) as TypeRefItem;
         var structType = typeRef?.Type as StructType;
@@ -90,7 +90,7 @@ public class StructCreationExpression : IExpression
             // assigns each field pretty much
             var gotten = AssignFields
                 .First(j => j.FieldToken.Identity == structType.Fields[i].Name);
-            var data = gotten.EqualsTo.DataRefCodeGen(codeGenContext);
+            var data = gotten.EqualsTo.CodeGen(codeGenContext);
             var fieldPtr = codeGenContext.Builder.BuildStructGEP2(structType.TypeRef, structPtr, (uint)i);
 
             data.Type.AssignTo(codeGenContext, data, new ValueRefItem

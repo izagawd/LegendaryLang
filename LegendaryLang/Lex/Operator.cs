@@ -6,7 +6,9 @@ public enum Operator
     Subtract,
     Multiply,
     Divide,
-    Negate
+    ExclamationMark,
+    GreaterThan,
+    LessThan,
 }
 
 public static class OperatorExtensions
@@ -17,16 +19,18 @@ public static class OperatorExtensions
         {
             case Operator.Add:
                 return "+";
-                break;
+            case Operator.ExclamationMark:
+                return "-";
             case Operator.Subtract:
                 return "-";
-                break;
             case Operator.Multiply:
                 return "*";
-                break;
             case Operator.Divide:
                 return "/";
-                break;
+            case Operator.LessThan:
+                return "<";
+            case Operator.GreaterThan:
+                return ">";
             default:
                 throw new ArgumentOutOfRangeException(nameof(@operator), @operator, null);
         }
@@ -43,6 +47,9 @@ public static class OperatorExtensions
                 return 2;
             case Operator.Divide:
                 return 3; // Higher precedence.
+            case Operator.GreaterThan:
+            case Operator.LessThan:
+                return 4;
             default:
                 throw new ArgumentOutOfRangeException(nameof(@operator), @operator, "Unsupported operator.");
         }

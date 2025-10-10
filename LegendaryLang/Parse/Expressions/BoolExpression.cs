@@ -20,7 +20,7 @@ public class BoolExpression : IExpression
 
     Token ISyntaxNode.Token => (Token)Token;
 
-    public unsafe ValueRefItem DataRefCodeGen(CodeGenContext context)
+    public unsafe ValueRefItem CodeGen(CodeGenContext context)
     {
         // Assume IBoolToken has a property "Value" that holds a Boolean.
         var value = Token.Bool; // e.g., true or false

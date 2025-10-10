@@ -72,27 +72,27 @@ public static class Lexer
                     }
                     else
                     {
-                        file.AddToken(new Minus(file, column, line));
+                        file.AddToken(new OperatorToken(file,column,line,Operator.Subtract));
                     }
 
                     break;
                 case '+':
-                    file.AddToken(new Plus(file, column, line));
+                    file.AddToken(new OperatorToken(file,column,line,Operator.Add));
                     break;
                 case '/':
-                    file.AddToken(new ForwardSlash(file, column, line));
+                    file.AddToken(new OperatorToken(file,column,line,Operator.Divide));
                     break;
                 case '*':
-                    file.AddToken(new Star(file, column, line));
+                    file.AddToken(new OperatorToken(file,column,line,Operator.Multiply));
                     break;
                 case '<':
-                    file.AddToken(new LessThanToken(file, column, line));
+                    file.AddToken(new OperatorToken(file,column,line,Operator.LessThan));
                     break;
                 case '>':
-                    file.AddToken(new GreaterThanToken(file, column, line));
+                    file.AddToken(new OperatorToken(file,column,line,Operator.GreaterThan));
                     break;
                 case '!':
-                    file.AddToken(new ExclamationMarkToken(file, column, line));
+                    file.AddToken(new OperatorToken(file,column,line,Operator.ExclamationMark));
                     break;
                 case ':':
                     if (index + 1 < code.Length && code[index + 1] == ':')

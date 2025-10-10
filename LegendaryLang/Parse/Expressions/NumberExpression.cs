@@ -17,7 +17,7 @@ public class NumberExpression : IExpression
     Token ISyntaxNode.Token => Token;
 
 
-    public unsafe ValueRefItem DataRefCodeGen(CodeGenContext codeGenContext)
+    public unsafe ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         return new ValueRefItem
         {

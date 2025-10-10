@@ -1,20 +1,21 @@
-﻿using LegendaryLang.Lex.Tokens;
+﻿using LegendaryLang.Lex;
+using LegendaryLang.Lex.Tokens;
 
 namespace LegendaryLang.Parse;
 
 public class Comparator
 {
-    public static LessThanToken ParseLess(Parser parser)
+    public static OperatorToken ParseLess(Parser parser)
     {
         var gotten = parser.Pop();
-        if (gotten is not LessThanToken dotToken) throw new ExpectedParserException(parser, ParseType.LessThan, gotten);
-        return dotToken;
+        if (gotten is not OperatorToken operatorToken || operatorToken.OperatorType != Operator.LessThan) throw new ExpectedParserException(parser, ParseType.LessThan, gotten);
+        return operatorToken;
     }
 
-    public static GreaterThanToken ParseGreater(Parser parser)
+    public static OperatorToken ParseGreater(Parser parser)
     {
         var gotten = parser.Pop();
-        if (gotten is not GreaterThanToken dotToken)
+        if (gotten is not OperatorToken dotToken || dotToken.OperatorType != Operator.GreaterThan) 
             throw new ExpectedParserException(parser, ParseType.GreaterThan, gotten);
         return dotToken;
     }
