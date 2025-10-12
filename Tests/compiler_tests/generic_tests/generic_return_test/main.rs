@@ -1,8 +1,4 @@
 ﻿
-use code::dark::next;
-
-struct Bro{}
-
 fn kk<T>(bruh: T) -> T{
     if (true){
         bruh

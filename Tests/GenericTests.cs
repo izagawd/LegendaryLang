@@ -14,4 +14,13 @@ public class GenericTests
             throw new Exception();
         }
     }
+    [Test]
+    public void GenericReturnTests()
+    {
+        var compiled =Compiler.Compile("compiler_tests/generic_tests/generic_return_test",false,false);
+        if (compiled() != 5)
+        {
+            throw new Exception();
+        }
+    }
 }
