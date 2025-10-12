@@ -10,6 +10,9 @@ namespace LegendaryLang.Definitions;
 /// </summary>
 public interface IConcreteDefinition : IDefinition
 {
+    /// <summary>
+    /// Original definition of this item, pre monomorphizatino
+    /// </summary>
     public IDefinition? Definition { get; }
 
     /// <summary>

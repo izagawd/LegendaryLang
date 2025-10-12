@@ -14,6 +14,11 @@ public class EmptyPathException(LangPath paths) : ParseException
 
 public class TupleLangPath : LangPath
 {
+    public override bool IsMonomorphizedFrom(LangPath langPath)
+    {
+        return langPath is TupleLangPath tupleLangPath && tupleLangPath.TypePaths.Length == this.TypePaths.Length;
+    }
+
     public override ImmutableArray<LangPath> GetGenericArguments()
     {
         return TypePaths;
@@ -44,7 +49,7 @@ public class TupleLangPath : LangPath
         return false;
     }
 
-
+    
     public override LangPath Resolve(PathResolver resolver)
     {
         return new TupleLangPath(TypePaths.Select(i => i.Resolve(resolver)));
@@ -53,9 +58,15 @@ public class TupleLangPath : LangPath
 
 /// <summary>
 ///     Used to represent a path. could be a path to a variable, function or type
+/// Premonomorphized paths will not contain generic arguments
 /// </summary>
 public abstract class LangPath
 {
+    /// <summary>
+    /// Useful when checking if a function/type was monomorphized from another
+    /// </summary>
+    /// <returns></returns>
+    public abstract bool IsMonomorphizedFrom(LangPath langPath);
     public abstract ImmutableArray<LangPath> GetGenericArguments();
     public static NormalLangPath PrimitivePath = new(null, ["std", "primitive"]);
     public static TupleLangPath VoidBaseLangPath { get; } = new([]);

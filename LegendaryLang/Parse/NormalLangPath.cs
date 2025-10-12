@@ -7,6 +7,16 @@ namespace LegendaryLang.Parse;
 
 public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
 {
+    public override bool IsMonomorphizedFrom(LangPath langPath)
+    {
+        var poppedPath = this;
+        if (GetLastPathSegment() is NormalLangPath.GenericTypesPathSegment)
+        {
+            poppedPath = Pop();
+        }
+        return poppedPath == langPath;
+    }
+
     public override ImmutableArray<LangPath> GetGenericArguments()
     {
         var segment = GetLastPathSegment();

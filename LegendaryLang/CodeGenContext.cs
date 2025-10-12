@@ -143,18 +143,11 @@ public class CodeGenContext
     public 
     IRefItem? SetupIfPossible(LangPath ident)
     {
-        var noArgIdent = ident;
-        if (noArgIdent is NormalLangPath normalLangPath &&
-            
-            // removing generic types segment cuz we just wanna check if they are from the same source, not if they have the same generic params
-            normalLangPath.GetLastPathSegment() is NormalLangPath.GenericTypesPathSegment)
-        {
-            noArgIdent = normalLangPath.Pop();
-        }
+
         var first = DefinitionsCollection.OfType<IMonomorphizable>().FirstOrDefault(i =>
         {
             
-            return noArgIdent == i.FullPath;
+            return ident.IsMonomorphizedFrom(i.FullPath);
         });
         if (first == null && ident is TupleLangPath tupleLangPath)
         {
@@ -214,17 +207,12 @@ public class CodeGenContext
     public int? GetScope(LangPath path)
     {
         var scope = 0;
-        var poppedPath = path;
-        if (path is NormalLangPath normalLangPath &&
-            normalLangPath.GetLastPathSegment() is NormalLangPath.GenericTypesPathSegment)
-        {
-            poppedPath = normalLangPath.Pop();
-        }
+
         foreach (var i in DefinitionsStack.Reverse())
         {
             foreach (var j in i )
             {
-                if (j.FullPath == poppedPath)
+                if (path.IsMonomorphizedFrom(j.FullPath))
                 {
                     return scope;
                 }
