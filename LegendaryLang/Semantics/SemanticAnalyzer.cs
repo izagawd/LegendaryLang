@@ -101,7 +101,7 @@ public class SemanticAnalyzer
             pathShortcutContext.AddScope();
             foreach (var i in result.Items.OfType<IDefinition>())
             {
-                var usings = new UseDefinition(i.FullPath, null);
+                var usings = new UseDefinition((NormalLangPath) i.FullPath, null);
                 usings.RegisterUsings(pathShortcutContext);
             }
             foreach (var useDefinition in result.Items.OfType<UseDefinition>())

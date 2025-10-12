@@ -7,12 +7,21 @@ namespace LegendaryLang.Parse;
 
 public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
 {
+    public override ImmutableArray<LangPath> GetGenericArguments()
+    {
+        var segment = GetLastPathSegment();
+        if (segment is not GenericTypesPathSegment genericTypesPathSegment) return [];
+
+        return genericTypesPathSegment.TypePaths;
+    }
+
     public NormalLangPath(IdentifierToken? firstIdentifierToken, IEnumerable<PathSegment> path)
     {
         FirstIdentifierToken = firstIdentifierToken;
         PathSegments = path.ToImmutableArray();
     }
 
+    
     public ImmutableArray<PathSegment> PathSegments { get; }
 
     IEnumerator IEnumerable.GetEnumerator()

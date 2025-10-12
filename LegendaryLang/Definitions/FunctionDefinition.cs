@@ -5,10 +5,12 @@ using LegendaryLang.Parse;
 using LegendaryLang.Parse.Expressions;
 using LegendaryLang.Parse.Statements;
 using LegendaryLang.Semantics;
+using LLVMSharp.Interop;
+using Type = LegendaryLang.ConcreteDefinition.Type;
 
 namespace LegendaryLang.Definitions;
 
-public class FunctionDefinition : IItem, IDefinition, IMonomorphizable, IAnalyzable, IPathResolvable
+public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable, IMonomorphizable
 {
     public readonly ImmutableArray<VariableDefinition> Arguments;
 
@@ -38,43 +40,60 @@ public class FunctionDefinition : IItem, IDefinition, IMonomorphizable, IAnalyza
     /// </summary>
     public LangPath ReturnTypePath { get; protected set; }
 
+    public LangPath FullPath => Module.Append(Name);
     public NormalLangPath Module { get; }
     public bool HasBeenGened { get; set; }
     public string Name { get; }
 
-    public ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
-    {
-        var fullPath = (this as IDefinition).FullPath;
-        if (fullPath == path) return [];
 
-        if (path is NormalLangPath normalLangPath)
+
+
+    public IRefItem CreateRefDefinition(CodeGenContext context, ImmutableArray<LangPath> genericArguments)
+    {
+        unsafe
         {
-            var segment = normalLangPath.GetLastPathSegment();
-            if (segment is not NormalLangPath.GenericTypesPathSegment genericTypesPathSegment) return null;
-
-            if (genericTypesPathSegment.TypePaths.Length != GenericParameters.Length) return null;
-
-            if (genericTypesPathSegment.TypePaths.Length == GenericParameters.Length)
+            for (var i = 0; i < genericArguments.Length; i++)
             {
-                var popped = normalLangPath.Pop();
+                var argument = genericArguments[i];
 
-                if (popped is not null && popped == (this as IDefinition).FullPath)
+                context.AddToDeepestScope(new NormalLangPath(null,
+                    [GenericParameters[i].Name]), new TypeRefItem
                 {
-                    var last = normalLangPath.GetLastPathSegment() as NormalLangPath.GenericTypesPathSegment;
-                    return last.TypePaths;
-                }
-
-                return null;
+                    Type = (context.GetRefItemFor(argument) as TypeRefItem).Type ?? throw new NullReferenceException()
+                });
             }
+        
+            var ReturnType = (context.GetRefItemFor(ReturnTypePath) as TypeRefItem).Type;
+
+            var FullPath = Module.Append(Name, new NormalLangPath.GenericTypesPathSegment(
+                GenericParameters.Select(i => (context.GetRefItemFor(new NormalLangPath(null,
+                    [i.Name])) as TypeRefItem).Type.TypePath)));
+
+            // 1. Determine the LLVM return type.
+            var llvmReturnType = (context.GetRefItemFor(ReturnTypePath) as TypeRefItem).TypeRef;
+            // 2. Gather LLVM types for each parameter.
+            var paramTypes = new LLVMTypeRef[Arguments.Length];
+            for (var i = 0; i < Arguments.Length; i++)
+                paramTypes[i] = (context.GetRefItemFor(Arguments[i].TypePath) as TypeRefItem).TypeRef;
+
+            LLVMTypeRef functionType;
+            // 3. Create the function type and add the function to the module.
+            fixed (LLVMTypeRef* llvmFunctionType = paramTypes)
+            {
+                functionType = LLVM.FunctionType(llvmReturnType, (LLVMOpaqueType**)llvmFunctionType,
+                    (uint)paramTypes.Length, 0);
+            }
+            
+            LLVMValueRef function = context.Module.AddFunction(FullPath.ToString(), functionType);
+
+            var FunctionValueRef = function;
+            return new FunctionRefItem()
+            {
+                Function = new Function(this, genericArguments,FunctionValueRef,functionType,ReturnType, FullPath)
+            };
         }
-
-        return null;
     }
 
-    IConcreteDefinition IMonomorphizable.Monomorphize(CodeGenContext context, LangPath langPath)
-    {
-        return Monomorphize(context, langPath);
-    }
 
     public void ResolvePaths(PathResolver resolver)
     {
@@ -128,17 +147,14 @@ public class FunctionDefinition : IItem, IDefinition, IMonomorphizable, IAnalyza
         analyzer.PopScope();
     }
 
-    public Function? Monomorphize(CodeGenContext codeGenContext, LangPath ident)
+    public void ImplementMonomorphized(CodeGenContext codeGenContext, Function function)
     {
-        var genericArguments = GetGenericArguments(ident);
-        if (genericArguments is null) return null;
-        var func = new Function(this, genericArguments.Value);
-        return func;
+        function.CodeGen(codeGenContext);
     }
 
     public LangPath? GetMonomorphizedReturnTypePath(NormalLangPath functionLangPath)
     {
-        if (!(this as IDefinition).FullPath.Contains(functionLangPath.PopGenerics())) return null;
+        if (! ((NormalLangPath) (this as IDefinition).FullPath).Contains(functionLangPath.PopGenerics())) return null;
         var genericArgs = functionLangPath.GetFrontGenerics();
         if (genericArgs.Length != GenericParameters.Length) return null;
         for (var i = 0; i < GenericParameters.Length; i++)

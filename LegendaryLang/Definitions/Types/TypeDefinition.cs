@@ -10,8 +10,9 @@ namespace LegendaryLang.Definitions.Types;
 /// <summary>
 ///     A type definition, meaning its not monomorphized yet. so it cant be used in code
 /// </summary>
-public abstract class TypeDefinition : IItem, IDefinition, IMonomorphizable, IAnalyzable,  IPathResolvable
+public abstract class TypeDefinition : IItem,  IMonomorphizable, IAnalyzable,  IPathResolvable
 {
+    public virtual LangPath FullPath => Module.Append(Name);
     public abstract LangPath TypePath { get; }
 
     /// <summary>
@@ -27,16 +28,14 @@ public abstract class TypeDefinition : IItem, IDefinition, IMonomorphizable, IAn
 
     public abstract NormalLangPath Module { get; }
     public bool HasBeenGened { get; set; } = false;
+    public abstract IRefItem CreateRefDefinition(CodeGenContext context, ImmutableArray<LangPath> genericArguments);
 
-    IConcreteDefinition? IMonomorphizable.Monomorphize(CodeGenContext context, LangPath langPath)
-    {
-        return Monomorphize(context, langPath);
-    }
 
     public abstract ImmutableArray<LangPath>? GetGenericArguments(LangPath path);
 
     public virtual void ResolvePaths(PathResolver resolver)
     {
+        
     }
 
     public IEnumerable<ISyntaxNode> Children => [];
@@ -53,17 +52,10 @@ public abstract class TypeDefinition : IItem, IDefinition, IMonomorphizable, IAn
     /// <param name="context"></param>
     /// <param name="langPath"></param>
     /// <returns></returns>
-    public Type? Monomorphize(CodeGenContext context, LangPath langPath)
+    public void ImplementMonomorphized(CodeGenContext context, Type typeDefinition)
     {
-        if (GetGenericArguments(langPath) is not null)
-        {
-            var str = GenerateIncompleteMono(context, langPath);
+        typeDefinition.CodeGen(context);
 
-            return str;
-        }
-
-        return null;
     }
 
-    public abstract Type GenerateIncompleteMono(CodeGenContext context, LangPath langPath);
 }

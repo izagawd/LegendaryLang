@@ -3,6 +3,7 @@ using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
 using LegendaryLang.Semantics;
+using LLVMSharp.Interop;
 using Type = LegendaryLang.ConcreteDefinition.Type;
 
 namespace LegendaryLang.Definitions.Types;
@@ -14,6 +15,7 @@ public class TupleTypeDefinition : CustomTypeDefinition
         OtherTypes = otherTypes.ToImmutableArray();
     }
 
+    public override LangPath FullPath => new TupleLangPath([] /**TO CHANGE LATER**/);
     public override string Name => $"({string.Join(',', OtherTypes.Select(i => i.TypePath))})";
     public override NormalLangPath Module { get; } = new(null, []);
 
@@ -39,11 +41,19 @@ public class TupleTypeDefinition : CustomTypeDefinition
         foreach (var i in OtherTypes) i.ResolvePaths(resolver);
     }
 
-    public override Type GenerateIncompleteMono(CodeGenContext context, LangPath langPath)
-    {
-        return new TupleType(OtherTypes);
-    }
 
+    public override IRefItem CreateRefDefinition(CodeGenContext context, ImmutableArray<LangPath> genericArguments)
+    {
+        var structt = LLVMTypeRef.CreateStruct([], true);
+        return new TypeRefItem()
+        {
+            Type = new TupleType(OtherTypes, structt)
+            {
+                TypeDefinition = { }
+            }
+        };
+    }
+    
     public override ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
     {
         throw new NotImplementedException();

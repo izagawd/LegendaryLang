@@ -7,8 +7,9 @@ namespace LegendaryLang.ConcreteDefinition;
 
 public class StructType : CustomType
 {
-    public StructType(StructTypeDefinition definition) : base(definition)
+    public StructType(StructTypeDefinition definition, LLVMTypeRef typeRef) : base(definition)
     {
+        TypeRef = typeRef;
     }
 
     public StructTypeDefinition StructTypeDefinition => (StructTypeDefinition)TypeDefinition;

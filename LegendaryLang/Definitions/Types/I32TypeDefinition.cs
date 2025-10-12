@@ -20,9 +20,13 @@ public class I32TypeDefinition : PrimitiveTypeDefinition
 
     public override string Name => "i32";
 
-    public override Type GenerateIncompleteMono(CodeGenContext context, LangPath langPath)
+
+    public override IRefItem CreateRefDefinition(CodeGenContext context, ImmutableArray<LangPath> genericArguments)
     {
-        return new I32Type(this);
+        return new TypeRefItem()
+        {
+            Type = new I32Type(this),
+        };
     }
 
     public override ImmutableArray<LangPath>? GetGenericArguments(LangPath path)

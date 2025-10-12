@@ -12,72 +12,38 @@ namespace LegendaryLang.Definitions;
 
 public class Function : IConcreteDefinition,  IPathResolvable
 {
-    public Function(FunctionDefinition functionDefinition, IEnumerable<LangPath> genericArguments)
+    public Function(FunctionDefinition functionDefinition, IEnumerable<LangPath> genericArguments, LLVMValueRef functionValueRef, LLVMTypeRef functionTypeRef, Type returnType,
+        NormalLangPath fullPath)
     {
         Definition = functionDefinition;
-
+        FunctionValueRef = functionValueRef;
+        FunctionType = functionTypeRef;
         GenericArguments = genericArguments.ToImmutableArray();
+        ReturnType = returnType;
+        FullPath = fullPath;
     }
 
     public FunctionDefinition Definition { get; }
-    public Type ReturnType { get; set; }
+    
+    public Type ReturnType { get; }
 
     public ImmutableArray<Variable> Arguments { get; set; }
 
     public BlockExpression BlockExpression => Definition.BlockExpression;
-    public LLVMTypeRef FunctionType { get; set; }
-    public LLVMValueRef FunctionValueRef { get; set; }
+    public LLVMTypeRef FunctionType { get;  }
+    public LLVMValueRef FunctionValueRef { get;  }
 
 
     public ImmutableArray<LangPath> GenericArguments { get; }
     IDefinition? IConcreteDefinition.Definition => Definition;
 
     public NormalLangPath FullPath { get; private set; }
-
+    LangPath IDefinition.FullPath => FullPath;
     public unsafe void CodeGen(CodeGenContext context)
     {
         context.AddScope();
-        
-   
-        for (var i = 0; i < GenericArguments.Length; i++)
-        {
-            var argument = GenericArguments[i];
-
-            context.AddToDeepestScope(new NormalLangPath(null,
-                [Definition.GenericParameters[i].Name]), new TypeRefItem
-            {
-                Type = (context.GetRefItemFor(argument) as TypeRefItem).Type ?? throw new NullReferenceException()
-            });
-        }
-
-        ReturnType = (context.GetRefItemFor(Definition.ReturnTypePath) as TypeRefItem).Type;
-
-        FullPath = Module.Append(Name, new NormalLangPath.GenericTypesPathSegment(
-            Definition.GenericParameters.Select(i => (context.GetRefItemFor(new NormalLangPath(null,
-                [i.Name])) as TypeRefItem).Type.TypePath)));
-
-        // 1. Determine the LLVM return type.
-        var llvmReturnType = (context.GetRefItemFor(Definition.ReturnTypePath) as TypeRefItem).TypeRef;
-        // 2. Gather LLVM types for each parameter.
-        var paramTypes = new LLVMTypeRef[Definition.Arguments.Length];
-        for (var i = 0; i < Definition.Arguments.Length; i++)
-            paramTypes[i] = (context.GetRefItemFor(Definition.Arguments[i].TypePath) as TypeRefItem).TypeRef;
-
-        LLVMTypeRef functionType;
-        // 3. Create the function type and add the function to the module.
-        fixed (LLVMTypeRef* llvmFunctionType = paramTypes)
-        {
-            functionType = LLVM.FunctionType(llvmReturnType, (LLVMOpaqueType**)llvmFunctionType,
-                (uint)paramTypes.Length, 0);
-            FunctionType = functionType;
-        }
-
-        LLVMValueRef function = LLVM.AddFunction(context.Module, (this as IDefinition).FullPath.ToString().ToCString(),
-            functionType);
-
-        FunctionValueRef = function;
-
-        LLVMBasicBlockRef entryBlock = LLVM.AppendBasicBlock(function, "entry".ToCString());
+    
+        LLVMBasicBlockRef entryBlock = LLVM.AppendBasicBlock(FunctionValueRef, "entry".ToCString());
         LLVM.PositionBuilderAtEnd(context.Builder, entryBlock);
 
         var argumentsToMonomorphize = new Variable[Definition.Arguments.Length];
@@ -93,17 +59,19 @@ public class Function : IConcreteDefinition,  IPathResolvable
             };
         }
 
+        
         Arguments = argumentsToMonomorphize.ToImmutableArray();
+        var paramTypes = Arguments.Select(i => i.Type.TypeRef).ToImmutableArray();
         // 6. For each parameter, allocate space and store the parameter into it.
         for (uint i = 0; i < (uint)Definition.Arguments.Length; i++)
         {
             var argument = argumentsToMonomorphize[i];
 
             // Get the function parameter.
-            LLVMValueRef param = LLVM.GetParam(function, i);
+            LLVMValueRef param = LLVM.GetParam(FunctionValueRef, i);
 
             // Allocate space for the parameter in the entry block.
-            LLVMValueRef alloca = LLVM.BuildAlloca(context.Builder, paramTypes[i], argument.Name.ToCString());
+            LLVMValueRef alloca = LLVM.BuildAlloca(context.Builder, paramTypes[(int) i], argument.Name.ToCString());
             argument.Type.AssignTo(context, new ValueRefItem
             {
                 Type = argument.Type,

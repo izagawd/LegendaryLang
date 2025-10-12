@@ -186,7 +186,7 @@ public class BlockExpression : IExpression
 
         foreach (var i in Children.OfType<IDefinition>() )
         {
-            var usings = new UseDefinition(i.FullPath, i.Token);
+            var usings = new UseDefinition((NormalLangPath) i.FullPath, i.Token);
             usings.RegisterUsings(resolver);
         }
         foreach (var i in Children.OfType<IPathResolvable>())

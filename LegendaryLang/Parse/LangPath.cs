@@ -14,6 +14,11 @@ public class EmptyPathException(LangPath paths) : ParseException
 
 public class TupleLangPath : LangPath
 {
+    public override ImmutableArray<LangPath> GetGenericArguments()
+    {
+        return TypePaths;
+    }
+
     public TupleLangPath(IEnumerable<LangPath> paths, IdentifierToken? firstIdentifierToken = null)
     {
         FirstIdentifierToken = firstIdentifierToken;
@@ -51,6 +56,7 @@ public class TupleLangPath : LangPath
 /// </summary>
 public abstract class LangPath
 {
+    public abstract ImmutableArray<LangPath> GetGenericArguments();
     public static NormalLangPath PrimitivePath = new(null, ["std", "primitive"]);
     public static TupleLangPath VoidBaseLangPath { get; } = new([]);
 

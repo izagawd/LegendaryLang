@@ -3,6 +3,7 @@ using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
 using LegendaryLang.Semantics;
+using LLVMSharp.Interop;
 using Type = LegendaryLang.ConcreteDefinition.Type;
 
 namespace LegendaryLang.Definitions.Types;
@@ -100,9 +101,18 @@ public class StructTypeDefinition : CustomTypeDefinition
     }
 
 
-    public override Type GenerateIncompleteMono(CodeGenContext context, LangPath langPath)
+
+
+    public override IRefItem CreateRefDefinition(CodeGenContext context, ImmutableArray<LangPath> genericArguments)
     {
-        return new StructType(this);
+        var structt = LLVMTypeRef.CreateStruct([], true);
+        return new TypeRefItem()
+        {
+            Type = new StructType(this, structt)
+            {
+                TypeDefinition = { }
+            }
+        };
     }
 
     public override ImmutableArray<LangPath>? GetGenericArguments(LangPath path)

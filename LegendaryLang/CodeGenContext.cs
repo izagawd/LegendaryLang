@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Definitions;
@@ -23,8 +24,9 @@ public static class Extensions
 ///     Bar.Foo. that wouldb e the type. if Foo has a static variable Dog, it will be in
 ///     Bar.Foo.Dog. that would be a variable ref
 /// </summary>
-public abstract class IRefItem
+public interface IRefItem
 {
+
 }
 
 public interface IHasType
@@ -34,7 +36,9 @@ public interface IHasType
 
 public class FunctionRefItem : IRefItem
 {
+ 
     public required Function Function { get; init; }
+
 }
 
 public class TypeRefItem : IRefItem, IHasType
@@ -71,6 +75,7 @@ public class ValueRefItem : IRefItem, IHasType
 
 public class CodeGenContext
 {
+
     private readonly Stack<Dictionary<LangPath, IRefItem>> ScopeItems = new();
 
     private ValueRefItem Void;
@@ -115,12 +120,6 @@ public class CodeGenContext
         }
     }
 
-    public void CodeGen(IConcreteDefinition definition)
-    {
-        if (!definition.HasBeenGened) definition.CodeGen(this);
-        definition.HasBeenGened = true;
-    }
-
     public int GetScope(IDefinition definition)
     {
         return 0;
@@ -136,77 +135,113 @@ public class CodeGenContext
         return false;
     }
 
+    public Dictionary<LangPath,object> ToMonomorphize {get; private set;} = new();
+
+
+    public Stack<IRefItem> UnimplementedItems = new();
+
+    public 
+    IRefItem? SetupIfPossible(LangPath ident)
+    {
+        var noArgIdent = ident;
+        if (noArgIdent is NormalLangPath normalLangPath &&
+            
+            // removing generic types segment cuz we just wanna check if they are from the same source
+            normalLangPath.GetLastPathSegment() is NormalLangPath.GenericTypesPathSegment)
+        {
+            noArgIdent = normalLangPath.Pop();
+        }
+        var first = DefinitionsCollection.OfType<IMonomorphizable>().FirstOrDefault(i =>
+        {
+            
+            return noArgIdent == i.FullPath;
+        });
+        if (first == null && ident is TupleLangPath tupleLangPath)
+        {
+            first = new TupleTypeDefinition(tupleLangPath.TypePaths.Select(i =>((TypeRefItem) GetRefItemFor(i)).Type));
+            DefinitionsStack.Last().Add(first);
+        } 
+        // generate and store the type if not already, and it is defined
+        if (first != null)
+        {
+          
+            var genericArguments = ident.GetGenericArguments();
+            var refItem = first.CreateRefDefinition(this,genericArguments);
+            UnimplementedItems.Push(refItem);
+            var scope = GetScope(ident).Value;
+            AddToScope(ident, refItem,scope);
+            return refItem;
+            /**
+            var monod = first.Monomorphize(this, ident);
+            if (monod is Function function)
+                AddToScope(ident, new FunctionRefItem
+                {
+                    Function = function
+                }, GetScope(function.Definition));
+            else if (monod is Type type)
+                AddToScope(ident, new TypeRefItem
+                {
+                    Type = type
+                }, GetScope(type.TypeDefinition));
+
+            // codegen may change the insert block. this is to preserve and set it back
+            var prevBuilder = Builder.InsertBlock;
+            monod.CodeGen(this);
+            unsafe
+            {
+                LLVM.PositionBuilderAtEnd(Builder, prevBuilder);
+            }
+
+            return GetRefItemFor(ident);
+            */
+        }
+    
+
+        /**
+        if (ident is TupleLangPath tuplePath)
+        {
+            var types = new List<Type>();
+            foreach (var i in tuplePath.TypePaths)
+            {
+                var type = GetRefItemFor(i) as TypeRefItem;
+                if (type != null) types.Add(type.Type);
+
+                return null;
+            }
+
+            var tuple = new TupleType(types);
+            AddToScope(ident, new TypeRefItem
+            {
+                Type = tuple
+            }, 0);
+            // codegen may change the insert block. this is to preserve and set it back
+            var prevBuilder = Builder.InsertBlock;
+            CodeGen(tuple);
+            unsafe
+            {
+                LLVM.PositionBuilderAtEnd(Builder, prevBuilder);
+            }
+
+            return GetRefItemFor(ident);
+        }
+        */
+        return null;
+        
+    }
+    
     public IRefItem? GetRefItemFor(LangPath ident, bool monomorphizePath = true)
     {
         if (monomorphizePath) ident = ident.Monomorphize(this) ?? ident;
 
         foreach (var scope in ScopeItems)
+        {
             if (scope.TryGetValue(ident, out var symbol))
                 return symbol;
 
-        {
-            var first = DefinitionsCollection.OfType<IMonomorphizable>().FirstOrDefault(i =>
-            {
-                var gotten = i.GetGenericArguments(ident);
-                return i.GetGenericArguments(ident) is not null;
-            });
-            // generate and store the type if not already, and it is defined
-            if (first != null)
-            {
-                var monod = first.Monomorphize(this, ident);
-                if (monod is Function function)
-                    AddToScope(ident, new FunctionRefItem
-                    {
-                        Function = function
-                    }, GetScope(function.Definition));
-                else if (monod is Type type)
-                    AddToScope(ident, new TypeRefItem
-                    {
-                        Type = type
-                    }, GetScope(type.TypeDefinition));
-
-                // codegen may change the insert block. this is to preserve and set it back
-                var prevBuilder = Builder.InsertBlock;
-                monod.CodeGen(this);
-                unsafe
-                {
-                    LLVM.PositionBuilderAtEnd(Builder, prevBuilder);
-                }
-
-                return GetRefItemFor(ident);
-            }
         }
+          
+        return SetupIfPossible(ident);
 
-        {
-            if (ident is TupleLangPath tuplePath)
-            {
-                var types = new List<Type>();
-                foreach (var i in tuplePath.TypePaths)
-                {
-                    var type = GetRefItemFor(i) as TypeRefItem;
-                    if (type != null) types.Add(type.Type);
-
-                    return null;
-                }
-
-                var tuple = new TupleType(types);
-                AddToScope(ident, new TypeRefItem
-                {
-                    Type = tuple
-                }, 0);
-                // codegen may change the insert block. this is to preserve and set it back
-                var prevBuilder = Builder.InsertBlock;
-                CodeGen(tuple);
-                unsafe
-                {
-                    LLVM.PositionBuilderAtEnd(Builder, prevBuilder);
-                }
-
-                return GetRefItemFor(ident);
-            }
-
-            return null;
-        }
     }
 
 
@@ -231,9 +266,22 @@ public class CodeGenContext
     public int? GetScope(LangPath path)
     {
         var scope = 0;
-        foreach (var i in ScopeItems.Reverse())
+        var poppedPath = path;
+        if (path is NormalLangPath normalLangPath &&
+            normalLangPath.GetLastPathSegment() is NormalLangPath.GenericTypesPathSegment)
         {
-            if (i.TryGetValue(path, out var symbol)) return scope;
+            poppedPath = normalLangPath.Pop();
+        }
+        foreach (var i in DefinitionsStack.Reverse())
+        {
+            foreach (var j in i )
+            {
+                if (j.FullPath == poppedPath)
+                {
+                    return scope;
+                }
+            }
+        
             scope++;
         }
 
@@ -277,14 +325,14 @@ public class CodeGenContext
 
     private void SetupVoid()
     {
-        var emptyTuple = new TupleType([]);
-        CodeGen(emptyTuple);
 
 
-        Void = new ValueRefItem
+        var typeRef =(TypeRefItem) GetRefItemFor(new TupleLangPath([]));
+      
+        Void = new ValueRefItem()
         {
-            ValueRef = null,
-            Type = emptyTuple
+            Type = typeRef.Type,
+            ValueRef = LLVMValueRef.CreateConstStruct([],false)
         };
     }
 
@@ -315,14 +363,22 @@ public class CodeGenContext
         {
             return i.Module == MainLangModule && i.Name == "main";
         });
-
-        var mainConc = mainDef.Monomorphize(this, new NormalLangPath(null, [..MainLangModule, "main"]));
-        AddToDeepestScope(new NormalLangPath(null, [..MainLangModule, "main"]), new FunctionRefItem
+        var mainDefRefItem = (FunctionRefItem) mainDef.CreateRefDefinition(this,[]);
+        AddToDeepestScope(new NormalLangPath(null, [..MainLangModule, "main"]), mainDefRefItem);
+         mainDef.ImplementMonomorphized(this,mainDefRefItem.Function);
+        
+        while (UnimplementedItems.Count > 0)
         {
-            Function = mainConc
-        });
-
-        mainConc.CodeGen(this);
+            var get = UnimplementedItems.Pop();
+            if (get is TypeRefItem typeRef)
+            {
+                typeRef.Type.TypeDefinition.ImplementMonomorphized(this, typeRef.Type);
+                
+            } else if (get is FunctionRefItem functionRef)
+            {
+                functionRef.Function.Definition.ImplementMonomorphized(this,functionRef.Function);
+            }
+        }
         if (optimized)
         {
             var passManager = LLVMPassManagerRef.Create();
@@ -344,7 +400,7 @@ public class CodeGenContext
         var engine = Module.CreateExecutionEngine();
 
 
-        var mainFnPath = (mainConc as IDefinition).FullPath;
+        var mainFnPath = mainDefRefItem.Function.FullPath;
         Console.WriteLine(mainFnPath);
         Console.WriteLine(engine == null);
         LLVMValueRef mainFnPtr = LLVM.GetNamedFunction(Module, mainFnPath.ToString().ToCString());

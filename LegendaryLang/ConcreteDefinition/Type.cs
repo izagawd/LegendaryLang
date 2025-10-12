@@ -9,6 +9,8 @@ namespace LegendaryLang.ConcreteDefinition;
 
 public abstract class Type : IConcreteDefinition,  IPathResolvable
 {
+    public LangPath FullPath => Module.Append(Name);
+
     public Type(TypeDefinition definition)
     {
         TypeDefinition = definition;
@@ -74,7 +76,4 @@ public abstract class Type : IConcreteDefinition,  IPathResolvable
     {
     }
 
-    public void Analyze(SemanticAnalyzer analyzer)
-    {
-    }
 }

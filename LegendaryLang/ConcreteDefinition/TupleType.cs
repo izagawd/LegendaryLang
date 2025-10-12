@@ -7,8 +7,9 @@ namespace LegendaryLang.ConcreteDefinition;
 
 public class TupleType : CustomType
 {
-    public TupleType(IEnumerable<Type> types) : base(new TupleTypeDefinition(types))
+    public TupleType(IEnumerable<Type> types, LLVMTypeRef typeRef) : base(new TupleTypeDefinition(types))
     {
+        TypeRef = typeRef;
     }
 
     public ImmutableArray<Type> OtherTypes => ((TupleTypeDefinition)TypeDefinition).OtherTypes;

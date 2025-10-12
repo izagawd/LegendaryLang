@@ -9,14 +9,19 @@ namespace LegendaryLang.Definitions.Types;
 
 public class BoolTypeDefinition : PrimitiveTypeDefinition
 {
+    public override IRefItem CreateRefDefinition(CodeGenContext context, ImmutableArray<LangPath> genericArguments)
+    {
+        
+        return new TypeRefItem()
+        {
+            Type = new BoolType(this)
+        };
+    }
+
     public override string Name => "bool";
 
     public override Token Token => null;
 
-    public override Type GenerateIncompleteMono(CodeGenContext context, LangPath langPath)
-    {
-        return new BoolType(this);
-    }
 
     public override ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
     {
