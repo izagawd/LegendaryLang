@@ -12,6 +12,7 @@ namespace LegendaryLang.Definitions.Types;
 /// </summary>
 public abstract class TypeDefinition : IItem,  IMonomorphizable, IAnalyzable,  IPathResolvable
 {
+    public bool ImplementsLater => false;
     public virtual LangPath FullPath => Module.Append(Name);
     public abstract LangPath TypePath { get; }
 
@@ -26,8 +27,12 @@ public abstract class TypeDefinition : IItem,  IMonomorphizable, IAnalyzable,  I
 
     public abstract string Name { get; }
 
+   
     public abstract NormalLangPath Module { get; }
     public bool HasBeenGened { get; set; } = false;
+    /// <summary>
+    /// For types, no need to just define it. fully codegen it! If its not fully codegenned it will lead to issues
+    /// </summary>
     public abstract IRefItem CreateRefDefinition(CodeGenContext context, ImmutableArray<LangPath> genericArguments);
 
 
@@ -46,16 +51,6 @@ public abstract class TypeDefinition : IItem,  IMonomorphizable, IAnalyzable,  I
 
     public abstract void Analyze(SemanticAnalyzer analyzer);
 
-    /// <summary>
-    ///     Monomprhize and codegen for a specific generic variant
-    /// </summary>
-    /// <param name="context"></param>
-    /// <param name="langPath"></param>
-    /// <returns></returns>
-    public void ImplementMonomorphized(CodeGenContext context, Type typeDefinition)
-    {
-        typeDefinition.CodeGen(context);
 
-    }
 
 }

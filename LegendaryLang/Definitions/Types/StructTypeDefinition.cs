@@ -105,7 +105,12 @@ public class StructTypeDefinition : CustomTypeDefinition
 
     public override IRefItem CreateRefDefinition(CodeGenContext context, ImmutableArray<LangPath> genericArguments)
     {
-        var structt = LLVMTypeRef.CreateStruct([], true);
+        var structt 
+            = context.LLVMContext.CreateNamedStruct(((NormalLangPath) FullPath).Append(new NormalLangPath.GenericTypesPathSegment(genericArguments)).ToString());
+        structt.StructSetBody(
+            Fields.Select(i => ((TypeRefItem) context.GetRefItemFor(i.TypePath)).TypeRef)
+                .ToArray()
+            ,false);
         return new TypeRefItem()
         {
             Type = new StructType(this, structt)
@@ -121,6 +126,8 @@ public class StructTypeDefinition : CustomTypeDefinition
 
         return [];
     }
+
+
 
     public class FieldNotFoundException : Exception
     {

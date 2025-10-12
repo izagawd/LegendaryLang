@@ -151,6 +151,8 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         function.CodeGen(codeGenContext);
     }
 
+    public bool ImplementsLater => true;
+
     public LangPath? GetMonomorphizedReturnTypePath(NormalLangPath functionLangPath)
     {
         if (! ((NormalLangPath) (this as IDefinition).FullPath).Contains(functionLangPath.PopGenerics())) return null;

@@ -11,7 +11,7 @@ public interface IMonomorphizable : IDefinition
 
 
     /// <summary>
-    /// Creates a definition,does not the implementation, of an Item. It will contain a pointer to the definition.
+    /// Creates a definition,does not do the implementation for most kinds of items. It will contain a pointer to the definition.
     /// </summary>
     /// <param name="context"></param>
     /// <param name="genericArguments"></param>

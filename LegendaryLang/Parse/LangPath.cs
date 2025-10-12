@@ -163,5 +163,6 @@ public abstract class LangPath
     public abstract override bool Equals(object? obj);
     public abstract override string ToString();
 
+
     public abstract LangPath Monomorphize(CodeGenContext codeGen);
 }

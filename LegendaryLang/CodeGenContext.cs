@@ -47,7 +47,9 @@ public class TypeRefItem : IRefItem, IHasType
 
     public required Type Type { get; init; }
 }
-
+/// <summary>
+/// Represents a value. eg: a variable
+/// </summary>
 public class ValueRefItem : IRefItem, IHasType
 {
     public required LLVMValueRef ValueRef { get; init; }
@@ -138,7 +140,7 @@ public class CodeGenContext
     public Dictionary<LangPath,object> ToMonomorphize {get; private set;} = new();
 
 
-    public Stack<IRefItem> UnimplementedItems = new();
+    public Stack<FunctionRefItem> UnimplementedFunctions = new();
 
     public 
     IRefItem? SetupIfPossible(LangPath ident)
@@ -160,7 +162,11 @@ public class CodeGenContext
 
             var genericArguments = ident.GetGenericArguments();
             var refItem = first.CreateRefDefinition(this, genericArguments);
-            UnimplementedItems.Push(refItem);
+            if (refItem is FunctionRefItem functionRefItem)
+            {
+                UnimplementedFunctions.Push(functionRefItem);
+            }
+
             var scope = GetScope(ident).Value;
             AddToScope(ident, refItem, scope);
             return refItem;
@@ -279,13 +285,15 @@ public class CodeGenContext
         return context.CodeGenInst(showLLVMIR, optimized);
     }
     
+    public LLVMContextRef LLVMContext {get; private set; }
     private unsafe Func<int>? CodeGenInst(bool showLLVMIR = false, bool optimized = false)
     {
         const string MODULE_NAME = "LEGENDARY_LANGUAGE";
         Module = LLVM.ModuleCreateWithName(MODULE_NAME.ToCString());
 
-        var Context = LLVM.ContextCreate();
-        Builder = LLVM.CreateBuilderInContext(Context);
+        LLVMContext = LLVM.ContextCreate();
+        Builder = LLVM.CreateBuilderInContext(LLVMContext);
+        
 
 
         AddScope();
@@ -305,15 +313,11 @@ public class CodeGenContext
          mainDef.ImplementMonomorphized(this,mainDefRefItem.Function);
     
         
-        while (UnimplementedItems.Count > 0)
+        while (UnimplementedFunctions.Count > 0)
         {
-            var get = UnimplementedItems.Pop();
+            var get = UnimplementedFunctions.Pop();
  
-            if (get is TypeRefItem typeRef)
-            {
-                typeRef.Type.TypeDefinition.ImplementMonomorphized(this, typeRef.Type);
-                
-            } else if (get is FunctionRefItem functionRef)
+            if (get is FunctionRefItem functionRef)
             {
                 functionRef.Function.Definition.ImplementMonomorphized(this,functionRef.Function);
             }

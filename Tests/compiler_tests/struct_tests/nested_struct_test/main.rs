@@ -1,6 +1,4 @@
-﻿
-
-struct Bro{val: i32}
+﻿struct Bro{val: i32}
 struct Dd{ bro: Bro}
 fn kk<T>(bruh: T) -> T{
     if (true){

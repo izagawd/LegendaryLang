@@ -10,6 +10,7 @@ namespace LegendaryLang.Parse;
 /// </summary>
 public interface IItem : ISyntaxNode
 {
+    bool ImplementsLater {get;}
     bool ISyntaxNode.NeedsSemiColonAfterIfNotLastInBlock => false;
 
     public static bool NextTokenIsItem(Parser parser)

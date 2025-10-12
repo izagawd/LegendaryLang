@@ -5,6 +5,8 @@ namespace LegendaryLang.Parse;
 
 public class UseDefinition : IItem
 {
+    public bool ImplementsLater => false;
+
     public UseDefinition(NormalLangPath pathToUse, Token token)
     {
         PathToUse = pathToUse;
