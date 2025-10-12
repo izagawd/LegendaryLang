@@ -52,22 +52,11 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
     {
         unsafe
         {
-            for (var i = 0; i < genericArguments.Length; i++)
-            {
-                var argument = genericArguments[i];
 
-                context.AddToDeepestScope(new NormalLangPath(null,
-                    [GenericParameters[i].Name]), new TypeRefItem
-                {
-                    Type = (context.GetRefItemFor(argument) as TypeRefItem).Type ?? throw new NullReferenceException()
-                });
-            }
-        
             var ReturnType = (context.GetRefItemFor(ReturnTypePath) as TypeRefItem).Type;
 
             var FullPath = Module.Append(Name, new NormalLangPath.GenericTypesPathSegment(
-                GenericParameters.Select(i => (context.GetRefItemFor(new NormalLangPath(null,
-                    [i.Name])) as TypeRefItem).Type.TypePath)));
+                genericArguments.Select(i => i.Monomorphize(context))));
 
             // 1. Determine the LLVM return type.
             var llvmReturnType = (context.GetRefItemFor(ReturnTypePath) as TypeRefItem).TypeRef;

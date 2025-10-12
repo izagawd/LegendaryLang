@@ -125,6 +125,7 @@ public class IfExpression : IExpression
         var elseBB = ElseExpression is null
             ? default(LLVMBasicBlockRef?)
             :codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("else");
+        
         if (_resumeBlockPropagator is null)
         {
             _resumeBlockPropagator = new ResumeBlockPropagator();
@@ -185,7 +186,8 @@ public class IfExpression : IExpression
 
         if (ElseExpression is not null)
         {
-            codeGenContext.Builder.PositionAtEnd(elseBB!.Value);
+            
+            codeGenContext.Builder.PositionAtEnd(elseBB.Value);
 
             var codegennedElseVal = ElseExpression.CodeGen(codeGenContext);
 
@@ -220,6 +222,8 @@ public class IfExpression : IExpression
         // we implicitly return void if the else expression is null
         if (ElseExpression is null) return codeGenContext.GetVoid();
 
+        _resumeBlockPropagator = null;
+        // MUST be set to null when done
         return possibleRefItem!;
     }
 

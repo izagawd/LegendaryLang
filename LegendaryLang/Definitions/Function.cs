@@ -42,7 +42,11 @@ public class Function : IConcreteDefinition,  IPathResolvable
     public unsafe void CodeGen(CodeGenContext context)
     {
         context.AddScope();
-    
+        for (int i = 0; i < GenericArguments.Length; i++)
+        {
+            context.AddToDeepestScope(new NormalLangPath(null,[ Definition.GenericParameters[i].Name]),
+                context.GetRefItemFor(GenericArguments[i]));
+        }
         LLVMBasicBlockRef entryBlock = LLVM.AppendBasicBlock(FunctionValueRef, "entry".ToCString());
         LLVM.PositionBuilderAtEnd(context.Builder, entryBlock);
 
