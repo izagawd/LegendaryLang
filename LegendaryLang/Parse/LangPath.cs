@@ -63,10 +63,10 @@ public class TupleLangPath : LangPath
 public abstract class LangPath
 {
     /// <summary>
-    /// Useful when checking if a function/type was monomorphized from another
+    /// Useful when checking if a function/type was monomorphized from a definition
     /// </summary>
     /// <returns></returns>
-    public abstract bool IsMonomorphizedFrom(LangPath langPath);
+    public abstract bool IsMonomorphizedFrom(LangPath definitionLangPath);
     public abstract ImmutableArray<LangPath> GetGenericArguments();
     public static NormalLangPath PrimitivePath = new(null, ["std", "primitive"]);
     public static TupleLangPath VoidBaseLangPath { get; } = new([]);
