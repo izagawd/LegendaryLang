@@ -30,7 +30,7 @@ public abstract class Type : IConcreteDefinition,  IPathResolvable
     public IDefinition? Definition => TypeDefinition;
 
 
-    public abstract void CodeGen(CodeGenContext context);
+   
 
     public unsafe LLVMValueRef CreateUninitialized(CodeGenContext context)
     {

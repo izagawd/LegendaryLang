@@ -7,22 +7,18 @@ namespace LegendaryLang.ConcreteDefinition;
 
 public class TupleType : CustomType
 {
-    public TupleType(IEnumerable<Type> types, LLVMTypeRef typeRef) : base(new TupleTypeDefinition(types))
+    public TupleType(TupleTypeDefinition definition, IEnumerable<Type> types, LLVMTypeRef typeRef) : base(definition)
     {
         TypeRef = typeRef;
+     
     }
 
-    public ImmutableArray<Type> OtherTypes => ((TupleTypeDefinition)TypeDefinition).OtherTypes;
+  
 
     public override LLVMTypeRef TypeRef { get; protected set; }
-    public override LangPath TypePath => new TupleLangPath(OtherTypes.Select(i => i.TypePath));
-    public override string Name => $"({string.Join(',', OtherTypes.Select(i => i.Name))})";
+    public override LangPath TypePath => new TupleLangPath(ComposedTypesAsPaths);
+    public override string Name => $"Tuple{TypePath}";
 
-    public override void CodeGen(CodeGenContext context)
+    
 
-    {
-        TypeRef = LLVMTypeRef.CreateStruct(
-            OtherTypes.Select(i => (context.GetRefItemFor(i.TypePath) as TypeRefItem).TypeRef).ToArray(),
-            false);
-    }
 }

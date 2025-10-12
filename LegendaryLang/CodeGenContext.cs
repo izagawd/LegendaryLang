@@ -153,7 +153,7 @@ public class CodeGenContext
         });
         if (first == null && ident is TupleLangPath tupleLangPath)
         {
-            first = new TupleTypeDefinition(tupleLangPath.TypePaths.Select(i =>((TypeRefItem) GetRefItemFor(i)).Type));
+            first = new TupleTypeDefinition(tupleLangPath.TypePaths);
             DefinitionsStack.Last().Add(first);
         } 
         // generate and store the type if not already, and it is defined
@@ -284,14 +284,20 @@ public class CodeGenContext
         var context = new CodeGenContext(results, mainLangModule);
         return context.CodeGenInst(showLLVMIR, optimized);
     }
-    
-    public LLVMContextRef LLVMContext {get; private set; }
+
+    void HandleOptimizations()
+    {
+        var passManager = LLVMPassManagerRef.Create();
+
+        passManager.Run(Module);
+    }
+    public LLVMContextRef LLVMContext => Module.Context;
     private unsafe Func<int>? CodeGenInst(bool showLLVMIR = false, bool optimized = false)
     {
         const string MODULE_NAME = "LEGENDARY_LANGUAGE";
         Module = LLVM.ModuleCreateWithName(MODULE_NAME.ToCString());
 
-        LLVMContext = LLVM.ContextCreate();
+      
         Builder = LLVM.CreateBuilderInContext(LLVMContext);
         
 
@@ -309,6 +315,7 @@ public class CodeGenContext
             return i.Module == MainLangModule && i.Name == "main";
         });
         var mainDefRefItem = (FunctionRefItem) mainDef.CreateRefDefinition(this,[]);
+        
         AddToDeepestScope(new NormalLangPath(null, [..MainLangModule, "main"]), mainDefRefItem);
          mainDef.ImplementMonomorphized(this,mainDefRefItem.Function);
     
@@ -325,12 +332,11 @@ public class CodeGenContext
         }
         if (optimized)
         {
-            var passManager = LLVMPassManagerRef.Create();
-        
-            passManager.Run(Module);
+               HandleOptimizations();
         }
 
-        if (showLLVMIR) Console.WriteLine(FromByte(LLVM.PrintModuleToString(Module)));
+        if (showLLVMIR) 
+            Console.WriteLine(FromByte(LLVM.PrintModuleToString(Module)));
 
         sbyte* idk;
         if (LLVM.VerifyModule(Module, LLVMVerifierFailureAction.LLVMPrintMessageAction, &idk) != 0)

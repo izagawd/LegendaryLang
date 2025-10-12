@@ -43,7 +43,5 @@ public abstract class PrimitiveType : Type
         return allocated;
     }
 
-    public override void CodeGen(CodeGenContext context)
-    {
-    }
+
 }

@@ -47,7 +47,8 @@ public class Function : IConcreteDefinition,  IPathResolvable
             context.AddToDeepestScope(new NormalLangPath(null,[ Definition.GenericParameters[i].Name]),
                 context.GetRefItemFor(GenericArguments[i]));
         }
-        LLVMBasicBlockRef entryBlock = LLVM.AppendBasicBlock(FunctionValueRef, "entry".ToCString());
+
+        LLVMBasicBlockRef entryBlock = FunctionValueRef.AppendBasicBlock("entry"); 
         LLVM.PositionBuilderAtEnd(context.Builder, entryBlock);
 
         var argumentsToMonomorphize = new Variable[Definition.Arguments.Length];
@@ -75,7 +76,7 @@ public class Function : IConcreteDefinition,  IPathResolvable
             LLVMValueRef param = LLVM.GetParam(FunctionValueRef, i);
 
             // Allocate space for the parameter in the entry block.
-            LLVMValueRef alloca = LLVM.BuildAlloca(context.Builder, paramTypes[(int) i], argument.Name.ToCString());
+            LLVMValueRef alloca = context.Builder.BuildAlloca(paramTypes[(int)i], argument.Name);
             argument.Type.AssignTo(context, new ValueRefItem
             {
                 Type = argument.Type,

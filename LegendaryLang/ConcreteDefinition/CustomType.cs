@@ -7,18 +7,19 @@ namespace LegendaryLang.ConcreteDefinition;
 
 public abstract class CustomType : Type
 {
+
     public CustomType(CustomTypeDefinition definition) : base(definition)
     {
     }
 
 
-    public ImmutableArray<LangPath> ComposedTypes => ((CustomTypeDefinition)TypeDefinition).ComposedTypes;
+    public ImmutableArray<LangPath> ComposedTypesAsPaths => ((CustomTypeDefinition)TypeDefinition).ComposedTypes;
 
     public override void AssignTo(CodeGenContext codeGenContext, ValueRefItem value, ValueRefItem ptr)
     {
-        for (var i = 0; i < ComposedTypes.Length; i++)
+        for (var i = 0; i < ComposedTypesAsPaths.Length; i++)
         {
-            var composed = ComposedTypes[i];
+            var composed = ComposedTypesAsPaths[i];
             var composedType = codeGenContext.GetRefItemFor(composed) as TypeRefItem;
             LLVMValueRef fieldValuePtr;
             var fieldPtrPtr = codeGenContext.Builder.BuildStructGEP2(TypeRef, ptr.ValueRef,
@@ -59,7 +60,7 @@ public abstract class CustomType : Type
 
     public override int GetPrimitivesCompositeCount(CodeGenContext context)
     {
-        return ComposedTypes.Select(i =>
+        return ComposedTypesAsPaths.Select(i =>
                 (context.GetRefItemFor(i) as TypeRefItem).Type.GetPrimitivesCompositeCount(context))
             .Sum();
     }
@@ -69,9 +70,9 @@ public abstract class CustomType : Type
         if (GetPrimitivesCompositeCount(context) > 0)
         {
             LLVMValueRef aggr = LLVM.GetUndef(TypeRef);
-            for (var i = 0; i < ComposedTypes.Length; i++)
+            for (var i = 0; i < ComposedTypesAsPaths.Length; i++)
             {
-                var composed = ComposedTypes[i];
+                var composed = ComposedTypesAsPaths[i];
                 var type = context.GetRefItemFor(composed) as TypeRefItem;
                 var otherComposed = context.Builder.BuildStructGEP2(TypeRef, valueRef.ValueRef, (uint)i);
                 var refIt = new ValueRefItem
