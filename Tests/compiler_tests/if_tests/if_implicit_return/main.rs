@@ -10,9 +10,11 @@ fn main() -> i32{
         
     let gotten2 = if false{
         7
-    } else {
+    } else if true {
         4
-     };
+     } else {
+         5
+         };
             
     gotten + gotten2  
 }

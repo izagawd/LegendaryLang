@@ -1,7 +1,20 @@
 ﻿
-fn dd(){}
+use std::primitive::i32;
 fn main() -> i32{
-    let kk = dd();
-    5
+    let gotten = if true{
+        5
+    }
+    else {
+        10
+    };
+        
+    let gotten2 = if false{
+        7
+    } else if true {
+        4
+     } else {
+         5
+         }
+            
+    gotten + gotten2  
 }
-

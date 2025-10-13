@@ -4,7 +4,15 @@ using LegendaryLang.Semantics;
 using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse.Statements;
+public class ResumeBlockPropagator
+{
+    /// <summary>
+    ///     used to hold the stack ptr of the implicit return value the if/(possible else chain) is supposed to have
+    /// </summary>
+    public ValueRefItem ImplicitReturnValue { get; set; }
 
+    public LLVMBasicBlockRef ResumeBlock { get; set; }
+}
 public class ElseExpression : IExpression
 {
     public ElseExpression(Token token, IExpression body)
@@ -25,9 +33,19 @@ public class ElseExpression : IExpression
         Body.Analyze(analyzer);
     }
 
+    public ValueRefItem CodeGen(CodeGenContext codeGenContext, ResumeBlockPropagator? propagator)
+    {
+        if (propagator is not null && Body is IfExpression ifExpr)
+        {
+           return ifExpr.CodeGen(codeGenContext, propagator);
+        }
+    
+        return Body.CodeGen(codeGenContext);
+        
+    }
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
-        return Body.CodeGen(codeGenContext);
+        return CodeGen(codeGenContext, null);
     }
 
     /// <summary>
@@ -64,13 +82,11 @@ public class IfExpression : IExpression
         }
     }
 
-    private ResumeBlockPropagator? _resumeBlockPropagator { get; set; }
+
     public IExpression CondExpression { get; set; }
     public ElseExpression? ElseExpression { get; set; }
 
 
-    public bool IsFirstInIfChain { get; set; }
-    public bool IsLastIfInChain { get; set; }
     public BlockExpression BodyExpression { get; set; }
 
     public bool NeedsSemiColonAfterIfNotLastInBlock => BodyExpression.NeedsSemiColonAfterIfNotLastInBlock;
@@ -111,7 +127,11 @@ public class IfExpression : IExpression
         }
     }
 
-    public unsafe ValueRefItem CodeGen(CodeGenContext codeGenContext)
+    public ValueRefItem CodeGen(CodeGenContext codeGenContext)
+    {
+        return CodeGen(codeGenContext,null);
+    }
+    public unsafe ValueRefItem CodeGen(CodeGenContext codeGenContext, ResumeBlockPropagator? resumeBlockPropagator)
     {
         // used to help make if/else expression return implicitly (if the else is not null of course)
 
@@ -119,26 +139,17 @@ public class IfExpression : IExpression
         var expressionType = expressionTypeRefItem!.Type;
         ValueRefItem? possibleRefItem = null;
 
-
-
+        
         var thenBB = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("then");
         var elseBB = ElseExpression is null
             ? default(LLVMBasicBlockRef?)
             :codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("else");
-        
-        if (_resumeBlockPropagator is null)
+        bool isFirstInIfChain = false;
+        if (resumeBlockPropagator is null)
         {
-            _resumeBlockPropagator = new ResumeBlockPropagator();
-            // passes a shared ResumeBlockPropagator down the if/else chain
-            var currentIf = this;
-            currentIf.IsFirstInIfChain = true;
-            while (currentIf.ElseExpression?.Body is IfExpression ifExpr)
-            {
-                ifExpr._resumeBlockPropagator = _resumeBlockPropagator;
-                currentIf = ifExpr;
-            }
+            isFirstInIfChain = true;
+            resumeBlockPropagator = new ResumeBlockPropagator();
 
-            currentIf.IsLastIfInChain = true;
             if (ElseExpression is not null)
             {
                 LLVMValueRef? stackPtr = expressionTypeRefItem.Type.AssignToStack(codeGenContext, new ValueRefItem
@@ -147,7 +158,7 @@ public class IfExpression : IExpression
                     ValueRef = LLVM.GetUndef(expressionTypeRefItem.Type.TypeRef)
                 });
 
-                _resumeBlockPropagator.ImplicitReturnValue = new ValueRefItem
+                resumeBlockPropagator.ImplicitReturnValue = new ValueRefItem
                 {
                     Type = expressionTypeRefItem.Type,
                     ValueRef = stackPtr!.Value
@@ -155,14 +166,14 @@ public class IfExpression : IExpression
             }
         }
 
-        possibleRefItem = _resumeBlockPropagator.ImplicitReturnValue;
-
-        if (IsLastIfInChain)
-            _resumeBlockPropagator.ResumeBlock = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("resume");
+        possibleRefItem = resumeBlockPropagator.ImplicitReturnValue;
+        var isLastIfInChain = ElseExpression?.Body is not IfExpression;
+        if (isLastIfInChain)
+            resumeBlockPropagator.ResumeBlock = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("resume");
 
         var condCodeGen =  CondExpression.CodeGen(codeGenContext);
         var valToCompare = condCodeGen.Type.LoadValue(codeGenContext,condCodeGen);
-        codeGenContext.Builder.BuildCondBr(valToCompare, thenBB, elseBB ?? _resumeBlockPropagator.ResumeBlock);
+        codeGenContext.Builder.BuildCondBr(valToCompare, thenBB, elseBB ?? resumeBlockPropagator.ResumeBlock);
 
 
         ReturnStatement? DirectReturnStatement(ISyntaxNode syntaxNode)
@@ -189,10 +200,10 @@ public class IfExpression : IExpression
             
             codeGenContext.Builder.PositionAtEnd(elseBB.Value);
 
-            var codegennedElseVal = ElseExpression.CodeGen(codeGenContext);
+            var codegennedElseVal = ElseExpression.CodeGen(codeGenContext, resumeBlockPropagator);
 
 
-            if (IsLastIfInChain)
+            if (isLastIfInChain)
             {
                 expressionType.AssignTo(codeGenContext, codegennedElseVal, possibleRefItem);
                 
@@ -200,7 +211,7 @@ public class IfExpression : IExpression
                 // if there is no direct return statement then we can safety branch to the resume block from the then block
                 // since its not explicitly returning a value
                 if (!DirectlyContainsReturnStatement(ElseExpression))
-                    codeGenContext.Builder.BuildBr(_resumeBlockPropagator.ResumeBlock);
+                    codeGenContext.Builder.BuildBr(resumeBlockPropagator.ResumeBlock);
                 else
                     codeGenContext.Builder.BuildRet(codegennedElseVal.LoadValue(codeGenContext));
             }
@@ -213,16 +224,15 @@ public class IfExpression : IExpression
         // if there is no direct return statement then we can safety branch to the resume block from the then block
         // since its not explicitly returning a value
         if (!DirectlyContainsReturnStatement(BodyExpression))
-            codeGenContext.Builder.BuildBr(_resumeBlockPropagator.ResumeBlock);
+            codeGenContext.Builder.BuildBr(resumeBlockPropagator.ResumeBlock);
         else
             codeGenContext.Builder.BuildRet(bodyVal.LoadValue(codeGenContext));
 
-        if (IsFirstInIfChain) codeGenContext.Builder.PositionAtEnd(_resumeBlockPropagator.ResumeBlock);
+        if (isFirstInIfChain) codeGenContext.Builder.PositionAtEnd(resumeBlockPropagator.ResumeBlock);
 
         // we implicitly return void if the else expression is null
         if (ElseExpression is null) return codeGenContext.GetVoid();
-
-        _resumeBlockPropagator = null;
+        
         // MUST be set to null when done
         return possibleRefItem!;
     }
@@ -261,15 +271,7 @@ public class IfExpression : IExpression
     ///     Used to keep track of the resume block, to be jumped to after a series of if/else chains (or even a single if) have
     ///     been code genned
     /// </summary>
-    private class ResumeBlockPropagator
-    {
-        /// <summary>
-        ///     used to hold the stack ptr of the implicit return value the if/(possible else chain) is supposed to have
-        /// </summary>
-        public ValueRefItem ImplicitReturnValue { get; set; }
 
-        public LLVMBasicBlockRef ResumeBlock { get; set; }
-    }
 
     public bool HasGuaranteedExplicitReturn => CondExpression.HasGuaranteedExplicitReturn ||  (EndsWithoutIf && BodyExpression.HasGuaranteedExplicitReturn && ElseExpression!.HasGuaranteedExplicitReturn);
 }
