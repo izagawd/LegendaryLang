@@ -1,20 +1,11 @@
 ﻿
 use std::primitive::i32;
+
+
+fn something(){
+    let gotten  = 5;
+   }
 fn main() -> i32{
-    let gotten = if true{
-        5
-    }
-    else {
-        10
-    };
-        
-    let gotten2 = if false{
-        7
-    } else if true {
-        4
-     } else {
-         5
-         }
-            
-    gotten + gotten2  
+    let gotten = 5;
+    7
 }

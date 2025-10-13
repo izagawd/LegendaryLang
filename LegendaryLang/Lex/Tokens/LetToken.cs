@@ -1,6 +1,6 @@
 ﻿namespace LegendaryLang.Lex.Tokens;
 
-public class LetToken : Token, IStatementToken
+public class LetToken : Token
 {
     public LetToken(File file, int column, int line) : base(file, column, line)
     {

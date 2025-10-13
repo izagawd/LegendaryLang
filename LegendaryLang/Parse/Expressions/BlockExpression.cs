@@ -137,6 +137,10 @@ public class BlockExpression : IExpression
 
         foreach (var item in BlockSyntaxNodeContainers)
         {
+            if (item.Node is IStatement stmt && item.Node is not IExpression && !item.HasSemiColonAfter)
+            {
+                analyzer.AddException(new SemanticException($"Statements that are not expresssions need to have a semi colon after!\n{item.Node.Token.GetLocationStringRepresentation()}"));
+            }
             if (item.Node.NeedsSemiColonAfterIfNotLastInBlock && item.Node != last?.Node && !item.HasSemiColonAfter)
                 analyzer.AddException(new SemanticException($"Expected semicolon after" +
                                                             $"\n{item.Node.Token.GetLocationStringRepresentation()}"));
@@ -214,20 +218,17 @@ public class BlockExpression : IExpression
 
 
             ISyntaxNode parsed;
-            if (next is IStatementToken)
-            {
-                parsed = IStatement.Parse(parser);
-                // has semi colon after set to true sice statements are forced to have a semi colon after anyways
-                syntaxNodes.Add(new BlockSyntaxNodeContainer { Node = parsed, HasSemiColonAfter = true });
-            } else if (IItem.NextTokenIsItem(parser))
+            if (IItem.NextTokenIsItem(parser))
             {
                 parsed = IItem.Parse(parser, new NormalLangPath(null,[new NormalLangPath.UntypableSegment()]));
                 syntaxNodes.Add(new BlockSyntaxNodeContainer { Node = parsed, HasSemiColonAfter = parser.Peek() is SemiColonToken });
             }
             else
             {
-                parsed = IExpression.Parse(parser);
+                parsed = IStatement.Parse(parser);
+                
                 var container = new BlockSyntaxNodeContainer { Node = parsed, HasSemiColonAfter = false };
+
                 if (parser.Peek() is SemiColonToken) container.HasSemiColonAfter = true;
                 syntaxNodes.Add(container);
             }
