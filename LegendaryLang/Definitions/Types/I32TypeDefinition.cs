@@ -9,7 +9,7 @@ namespace LegendaryLang.Definitions.Types;
 
 public abstract class PrimitiveTypeDefinition : TypeDefinition
 {
-    public override LangPath TypePath => LangPath.PrimitivePath.Append(Name);
+
     public override NormalLangPath Module => LangPath.PrimitivePath;
 }
 
@@ -31,7 +31,7 @@ public class I32TypeDefinition : PrimitiveTypeDefinition
 
     public override ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
     {
-        if (path != (this as IDefinition).FullPath) return null;
+        if (path != (this as IDefinition).TypePath) return null;
 
         return [];
     }

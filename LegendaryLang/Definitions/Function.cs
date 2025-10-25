@@ -38,7 +38,7 @@ public class Function : IConcreteDefinition,  IPathResolvable
     IDefinition? IConcreteDefinition.Definition => Definition;
 
     public NormalLangPath FullPath { get; private set; }
-    LangPath IDefinition.FullPath => FullPath;
+    LangPath IDefinition.TypePath => FullPath;
     public unsafe void CodeGen(CodeGenContext context)
     {
         context.AddScope();

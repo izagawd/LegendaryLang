@@ -88,6 +88,9 @@ public interface IExpression : IStatement
 
         switch (token)
         {
+            case AmpersandToken:
+                expression = PointerGetterExpression.Parse(parser);
+                break;
             case WhileToken:
                 expression = WhileExpression.Parse(parser);
                 break;

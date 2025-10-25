@@ -6,7 +6,7 @@
 public interface IDefinition : ISyntaxNode
 {
     public string Name { get; }
-    public LangPath FullPath {get; }
+    public LangPath TypePath {get; }
     public NormalLangPath Module { get; }
     public bool HasBeenGened { get; set; }
 

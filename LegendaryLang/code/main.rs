@@ -1,11 +1,18 @@
-﻿
-use std::primitive::i32;
+﻿fn kk<T>(bruh: i32) -> i32{
+    if (bruh > 5){
+        bruh = bruh - 1;
+        dd::<T>(bruh)
+    } else{
+         bruh 
+        }
+   
+}
 
-
-fn something(){
-    let gotten  = 5;
-   }
+fn dd<T>(idk: i32) -> i32{
+    return kk::<T>(idk);
+    }
 fn main() -> i32{
-    let gotten = 5;
-    7
+    let a = 5;
+    let b = &a;
+    return 5;
 }

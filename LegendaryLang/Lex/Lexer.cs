@@ -106,6 +106,17 @@ public static class Lexer
                     }
 
                     break;
+                case '&':
+                    if (index + 1 < code.Length && code[index + 1] == '&')
+                    {
+                        file.AddToken(new DoubleAmpersandToken(file, column, line));
+                        index++;
+                    }
+                    else
+                    {
+                        file.AddToken(new AmpersandToken(file, column, line));
+                    }
+                    break;
                 case '\r':
                     break;
                 case '\n':
@@ -191,6 +202,9 @@ public static class Lexer
                             break;
                         case "true":
                             file.AddToken(new True(file, column, line));
+                            break;
+                        case "mut":
+                            file.AddToken(new MutToken(file, column, line));
                             break;
                         case "while":
                             file.AddToken(new WhileToken(file, column, line));

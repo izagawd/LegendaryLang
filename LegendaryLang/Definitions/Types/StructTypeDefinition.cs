@@ -8,7 +8,7 @@ using Type = LegendaryLang.ConcreteDefinition.Type;
 
 namespace LegendaryLang.Definitions.Types;
 
-public class StructTypeDefinition : CustomTypeDefinition
+public class StructTypeDefinition : ComposableTypeDefinition
 {
     public StructTypeDefinition(string name, NormalLangPath module, StructToken token,
         IEnumerable<VariableDefinition> fields)
@@ -19,7 +19,7 @@ public class StructTypeDefinition : CustomTypeDefinition
         Fields = fields.ToImmutableArray();
     }
 
-    public override LangPath TypePath => (this as IDefinition).FullPath;
+
 
 
     public override Token Token => StructToken;
@@ -106,7 +106,7 @@ public class StructTypeDefinition : CustomTypeDefinition
     public override IRefItem CreateRefDefinition(CodeGenContext context, ImmutableArray<LangPath> genericArguments)
     {
         var structt 
-            = context.LLVMContext.CreateNamedStruct(((NormalLangPath) FullPath).Append(new NormalLangPath.GenericTypesPathSegment(genericArguments)).ToString());
+            = context.LLVMContext.CreateNamedStruct(((NormalLangPath) TypePath).Append(new NormalLangPath.GenericTypesPathSegment(genericArguments)).ToString());
         structt.StructSetBody(
             Fields.Select(i => ((TypeRefItem) context.GetRefItemFor(i.TypePath)).TypeRef)
                 .ToArray()
@@ -122,7 +122,7 @@ public class StructTypeDefinition : CustomTypeDefinition
 
     public override ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
     {
-        if (path != (this as IDefinition).FullPath) return null;
+        if (path != (this as IDefinition).TypePath) return null;
 
         return [];
     }
@@ -141,6 +141,6 @@ public class StructTypeDefinition : CustomTypeDefinition
         public StructTypeDefinition Struc { get; }
 
         public override string Message =>
-            $"Field {FieldName} doesn't exist in struct '{(Struc as IDefinition).FullPath}'\n{Struc.StructToken?.GetLocationStringRepresentation()}";
+            $"Field {FieldName} doesn't exist in struct '{(Struc as IDefinition).TypePath}'\n{Struc.StructToken?.GetLocationStringRepresentation()}";
     }
 }

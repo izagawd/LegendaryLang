@@ -149,7 +149,7 @@ public class CodeGenContext
         var first = DefinitionsCollection.OfType<IMonomorphizable>().FirstOrDefault(i =>
         {
             
-            return ident.IsMonomorphizedFrom(i.FullPath);
+            return ident.IsMonomorphizedFrom(i.TypePath);
         });
         if (first == null && ident is TupleLangPath tupleLangPath)
         {
@@ -218,7 +218,7 @@ public class CodeGenContext
         {
             foreach (var j in i )
             {
-                if (path.IsMonomorphizedFrom(j.FullPath))
+                if (path.IsMonomorphizedFrom(j.TypePath))
                 {
                     return scope;
                 }

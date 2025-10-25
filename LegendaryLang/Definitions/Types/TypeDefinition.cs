@@ -13,8 +13,8 @@ namespace LegendaryLang.Definitions.Types;
 public abstract class TypeDefinition : IItem,  IMonomorphizable, IAnalyzable,  IPathResolvable
 {
     public bool ImplementsLater => false;
-    public virtual LangPath FullPath => Module.Append(Name);
-    public abstract LangPath TypePath { get; }
+
+    public virtual LangPath TypePath =>Module.Append(Name);
 
     /// <summary>
     ///     Abstracts away loading a value, so it can be used for parameters and return types. done because if its

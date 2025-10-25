@@ -101,7 +101,7 @@ public class SemanticAnalyzer
             pathShortcutContext.AddScope();
             foreach (var i in result.Items.OfType<IDefinition>())
             {
-                var usings = new UseDefinition((NormalLangPath) i.FullPath, null);
+                var usings = new UseDefinition((NormalLangPath) i.TypePath, null);
                 usings.RegisterUsings(pathShortcutContext);
             }
             foreach (var useDefinition in result.Items.OfType<UseDefinition>())
@@ -122,7 +122,7 @@ public class SemanticAnalyzer
         AddScope();
         // registers path mapping
         foreach (var i in ParseResults.SelectMany(i => i.Items.OfType<IDefinition>()))
-            RegisterDefinitionAtDeepestScope(i.FullPath, i);
+            RegisterDefinitionAtDeepestScope(i.TypePath, i);
 
 
         ResolvePaths();

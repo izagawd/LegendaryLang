@@ -130,7 +130,7 @@ public class BlockExpression : IExpression
 
         foreach (var i in BlockSyntaxNodeContainers.Select(i => i.Node).OfType<IDefinition>() )
         {
-            analyzer.RegisterDefinitionAtDeepestScope(i.FullPath,i);
+            analyzer.RegisterDefinitionAtDeepestScope(i.TypePath,i);
         }
         SetExpectedReturnTypesRecursively(this);
         foreach (var item in SyntaxNodes.OfType<IAnalyzable>()) item.Analyze(analyzer);
@@ -190,7 +190,7 @@ public class BlockExpression : IExpression
 
         foreach (var i in Children.OfType<IDefinition>() )
         {
-            var usings = new UseDefinition((NormalLangPath) i.FullPath, i.Token);
+            var usings = new UseDefinition((NormalLangPath) i.TypePath, i.Token);
             usings.RegisterUsings(resolver);
         }
         foreach (var i in Children.OfType<IPathResolvable>())

@@ -9,7 +9,7 @@ namespace LegendaryLang.ConcreteDefinition;
 
 public abstract class Type : IConcreteDefinition,  IPathResolvable
 {
-    public LangPath FullPath => Module.Append(Name);
+    public virtual LangPath TypePath => Module.Append(Name);
 
     public Type(TypeDefinition definition)
     {
@@ -18,7 +18,6 @@ public abstract class Type : IConcreteDefinition,  IPathResolvable
 
     public abstract LLVMTypeRef TypeRef { get; protected set; }
     public TypeDefinition TypeDefinition { get; }
-    public abstract LangPath TypePath { get; }
     public IEnumerable<ISyntaxNode> Children => [];
 
 

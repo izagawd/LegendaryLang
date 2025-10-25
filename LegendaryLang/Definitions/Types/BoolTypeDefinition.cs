@@ -25,7 +25,7 @@ public class BoolTypeDefinition : PrimitiveTypeDefinition
 
     public override ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
     {
-        if (path != (this as IDefinition).FullPath) return null;
+        if (path != (this as IDefinition).TypePath) return null;
 
         return [];
     }

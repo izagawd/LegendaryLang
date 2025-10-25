@@ -40,7 +40,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
     /// </summary>
     public LangPath ReturnTypePath { get; protected set; }
 
-    public LangPath FullPath => Module.Append(Name);
+    public LangPath TypePath => Module.Append(Name);
     public NormalLangPath Module { get; }
     public bool HasBeenGened { get; set; }
     public string Name { get; }
@@ -155,7 +155,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
 
     public LangPath? GetMonomorphizedReturnTypePath(NormalLangPath functionLangPath)
     {
-        if (! ((NormalLangPath) (this as IDefinition).FullPath).Contains(functionLangPath.PopGenerics())) return null;
+        if (! ((NormalLangPath) (this as IDefinition).TypePath).Contains(functionLangPath.PopGenerics())) return null;
         var genericArgs = functionLangPath.GetFrontGenerics();
         if (genericArgs.Length != GenericParameters.Length) return null;
         for (var i = 0; i < GenericParameters.Length; i++)

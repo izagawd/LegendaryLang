@@ -8,18 +8,18 @@ using Type = LegendaryLang.ConcreteDefinition.Type;
 
 namespace LegendaryLang.Definitions.Types;
 
-public class TupleTypeDefinition : CustomTypeDefinition
+public class TupleTypeDefinition : ComposableTypeDefinition
 {
     public TupleTypeDefinition(IEnumerable<LangPath> composedTypes)
     {
         ComposedTypes = composedTypes.ToImmutableArray();
     }
 
-    public override LangPath FullPath => new TupleLangPath([] /**TO CHANGE LATER**/);
+    public override LangPath TypePath => new TupleLangPath(ComposedTypes);
     public override string Name => $"({string.Join(',', ComposedTypes)})";
     public override NormalLangPath Module { get; } = new(null, []);
 
-    public override LangPath TypePath => new TupleLangPath(ComposedTypes);
+
     public override Token Token { get; }
 
 

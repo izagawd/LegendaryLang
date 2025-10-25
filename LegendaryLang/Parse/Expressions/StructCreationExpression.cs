@@ -37,7 +37,7 @@ public class StructCreationExpression : IExpression
         if (asStruct is null)
         {
             analyzer.AddException(new SemanticException(
-                $"Expected struct type but found {str.FullPath}\n{Token.GetLocationStringRepresentation()}"));
+                $"Expected struct type but found {str.TypePath}\n{Token.GetLocationStringRepresentation()}"));
             return;
         }
 

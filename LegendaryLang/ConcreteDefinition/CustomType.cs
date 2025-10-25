@@ -8,12 +8,12 @@ namespace LegendaryLang.ConcreteDefinition;
 public abstract class CustomType : Type
 {
 
-    public CustomType(CustomTypeDefinition definition) : base(definition)
+    public CustomType(ComposableTypeDefinition definition) : base(definition)
     {
     }
 
 
-    public ImmutableArray<LangPath> ComposedTypesAsPaths => ((CustomTypeDefinition)TypeDefinition).ComposedTypes;
+    public ImmutableArray<LangPath> ComposedTypesAsPaths => ((ComposableTypeDefinition)TypeDefinition).ComposedTypes;
 
     public override void AssignTo(CodeGenContext codeGenContext, ValueRefItem value, ValueRefItem ptr)
     {

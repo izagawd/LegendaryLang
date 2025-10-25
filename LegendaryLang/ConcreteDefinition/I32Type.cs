@@ -7,6 +7,7 @@ public class I32Type : PrimitiveType
 {
     public I32Type(PrimitiveTypeDefinition definition) : base(definition)
     {
+        
     }
 
     public override LLVMTypeRef TypeRef

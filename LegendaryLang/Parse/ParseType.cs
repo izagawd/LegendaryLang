@@ -2,6 +2,7 @@
 
 public enum ParseType
 {
+    DoubleAmpersand,
     Identifier,
     Expression,
     LeftParenthesis,
@@ -29,5 +30,6 @@ public enum ParseType
     ReturnToken,
     If,
     Else,
-    While
+    While,
+    Ampersand
 }
