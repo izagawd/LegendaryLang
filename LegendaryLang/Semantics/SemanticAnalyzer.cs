@@ -73,10 +73,19 @@ public class SemanticAnalyzer
     public LangPath? ResolveTraitMethodReturnType(NormalLangPath path)
     {
         var methodName = path.GetLastPathSegment().ToString();
-        var traitPath = path.Pop();
-        if (traitPath == null) return null;
+        var parentPath = path.Pop();
+        if (parentPath == null) return null;
 
-        var traitDef = GetDefinition(traitPath) as TraitDefinition;
+        // Case 1: TraitName::method — parent is a trait directly
+        var traitDef = GetDefinition(parentPath) as TraitDefinition;
+
+        // Case 2: T::method — parent is a generic param with a trait bound
+        if (traitDef == null && parentPath is NormalLangPath nlpParent && nlpParent.PathSegments.Length == 1)
+        {
+            var paramName = nlpParent.PathSegments[0].ToString();
+            traitDef = GetTraitBoundFor(paramName);
+        }
+
         if (traitDef == null) return null;
 
         var method = traitDef.GetMethod(methodName);
@@ -89,13 +98,22 @@ public class SemanticAnalyzer
         if (returnType is NormalLangPath nlp && nlp.PathSegments.Length == 1
             && nlp.PathSegments[0].ToString() == "Self")
         {
+            var traitTypePath = (traitDef as IDefinition).TypePath;
             foreach (var bounds in TraitBoundsStack)
                 foreach (var (tp, paramName) in bounds)
-                    if (tp == traitPath)
+                    if (tp == traitTypePath)
                         return new NormalLangPath(null, [paramName]);
         }
 
         return returnType;
+    }
+
+    /// <summary>
+    /// Checks whether a type has an impl block for the given trait
+    /// </summary>
+    public bool TypeImplementsTrait(LangPath typePath, LangPath traitPath)
+    {
+        return ImplDefinitions.Any(i => i.TraitPath == traitPath && i.ForTypePath == typePath);
     }
 
     public void AddException(SemanticException exception)

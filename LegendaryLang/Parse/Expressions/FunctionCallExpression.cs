@@ -42,6 +42,23 @@ public class FunctionCallExpression : IExpression
             else
             {
                 TypePath = fd.GetMonomorphizedReturnTypePath(FunctionPath);
+
+                // Check trait bounds: each generic arg must satisfy its param's trait bound
+                var genericArgs = FunctionPath.GetFrontGenerics();
+                for (int i = 0; i < fd.GenericParameters.Length; i++)
+                {
+                    var gp = fd.GenericParameters[i];
+                    if (gp.TraitBound != null)
+                    {
+                        var argType = genericArgs[i];
+                        if (!analyzer.TypeImplementsTrait(argType, gp.TraitBound))
+                        {
+                            analyzer.AddException(new SemanticException(
+                                $"The type '{argType}' does not implement trait '{gp.TraitBound}'\n" +
+                                $"{Token.GetLocationStringRepresentation()}"));
+                        }
+                    }
+                }
             }
         }
         else

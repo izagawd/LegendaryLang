@@ -118,36 +118,70 @@ public class CodeGenContext
     }
 
     /// <summary>
-    /// Resolves a trait method call path (e.g., TraitName::method) to a FunctionRefItem
+    /// Resolves a trait method call path (e.g., TraitName::method or T::method) to a FunctionRefItem
     /// </summary>
     public IRefItem? ResolveTraitMethodCall(NormalLangPath path)
     {
-        // path = module::TraitName::methodName
         var methodName = path.GetLastPathSegment().ToString();
-        var traitPath = path.Pop();
-        if (traitPath == null) return null;
+        var parentPath = path.Pop();
+        if (parentPath == null) return null;
 
-        // Check if traitPath matches a known trait
+        LangPath? resolvedTraitPath = null;
+        LangPath? concreteType = null;
+
+        // Case 1: TraitName::method — parent is a trait directly
         var traitDef = DefinitionsCollection.OfType<TraitDefinition>()
-            .FirstOrDefault(t => (t as IDefinition).TypePath == traitPath);
-        if (traitDef == null) return null;
+            .FirstOrDefault(t => (t as IDefinition).TypePath == parentPath);
+        if (traitDef != null)
+        {
+            resolvedTraitPath = (traitDef as IDefinition).TypePath;
+            concreteType = GetConcreteTypeForTrait(resolvedTraitPath);
+        }
+        else
+        {
+            // Case 2: T::method — parent is a generic param with a trait bound
+            // T is in scope as a TypeRefItem pointing to the concrete type
+            var refItem = GetRefItemFor(parentPath, false);
+            if (refItem is TypeRefItem typeRef)
+            {
+                concreteType = typeRef.Type.TypePath;
+                // Search all trait bounds for one whose concrete type matches,
+                // then verify that trait has the requested method
+                foreach (var bounds in TraitBoundsStack)
+                {
+                    foreach (var (tp, ct) in bounds)
+                    {
+                        if (ct == concreteType)
+                        {
+                            var candidateTrait = DefinitionsCollection.OfType<TraitDefinition>()
+                                .FirstOrDefault(t => (t as IDefinition).TypePath == tp);
+                            if (candidateTrait?.GetMethod(methodName) != null)
+                            {
+                                resolvedTraitPath = tp;
+                                break;
+                            }
+                        }
+                    }
+                    if (resolvedTraitPath != null) break;
+                }
+            }
+        }
 
-        // Check the trait actually has this method
-        var traitMethod = traitDef.GetMethod(methodName);
-        if (traitMethod == null) return null;
+        if (resolvedTraitPath == null || concreteType == null) return null;
 
-        // Find the concrete type for this trait from the trait bounds stack
-        var concreteType = GetConcreteTypeForTrait(traitPath);
-        if (concreteType == null) return null;
+        // Verify the trait actually has this method
+        var resolvedTrait = DefinitionsCollection.OfType<TraitDefinition>()
+            .FirstOrDefault(t => (t as IDefinition).TypePath == resolvedTraitPath);
+        if (resolvedTrait?.GetMethod(methodName) == null) return null;
 
         // Find the impl definition for this trait + concrete type
         var impl = ImplDefinitions.FirstOrDefault(i =>
-            i.TraitPath == traitPath && i.ForTypePath == concreteType);
+            i.TraitPath == resolvedTraitPath && i.ForTypePath == concreteType);
         if (impl == null) return null;
 
         // Build a unique key that includes the concrete type to avoid cross-monomorphization collisions
         var implMethodPath = new NormalLangPath(null,
-            [new NormalLangPath.NormalPathSegment($"impl_{traitPath}_for_{concreteType}"),
+            [new NormalLangPath.NormalPathSegment($"impl_{resolvedTraitPath}_for_{concreteType}"),
              new NormalLangPath.NormalPathSegment(methodName)]);
 
         // Check if already created
@@ -160,13 +194,13 @@ public class CodeGenContext
         if (implMethod == null) return null;
 
         // Create the function ref (no generic args since Self is already resolved)
-        var refItem = implMethod.CreateRefDefinition(this, []);
-        if (refItem is FunctionRefItem functionRefItem)
+        var refItem2 = implMethod.CreateRefDefinition(this, []);
+        if (refItem2 is FunctionRefItem functionRefItem)
             UnimplementedFunctions.Push(functionRefItem);
 
         // Store under the concrete-type-specific key at outermost scope
-        AddToScope(implMethodPath, refItem, 0);
-        return refItem;
+        AddToScope(implMethodPath, refItem2, 0);
+        return refItem2;
     }
 
     CodeGenContext(IEnumerable<IDefinition> definitions, NormalLangPath mainLangModule)
