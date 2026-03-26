@@ -199,6 +199,7 @@ public class CodeGenContext
 
         // Find the impl definition for this trait + concrete type (supports generic impls)
         ImplDefinition? impl = null;
+        Dictionary<string, LangPath>? implBindings = null;
         foreach (var candidate in ImplDefinitions)
         {
             if (candidate.TraitPath != resolvedTraitPath) continue;
@@ -206,6 +207,7 @@ public class CodeGenContext
             if (bindings != null && candidate.CheckBoundsCodeGen(bindings, this))
             {
                 impl = candidate;
+                implBindings = bindings;
                 break;
             }
         }
@@ -225,8 +227,25 @@ public class CodeGenContext
         var implMethod = impl.GetMethod(methodName);
         if (implMethod == null) return null;
 
-        // Create the function ref (no generic args since Self is already resolved)
+        // For generic impls, push the bindings so T resolves to the concrete type
+        bool pushedImplScope = false;
+        if (implBindings != null && implBindings.Count > 0)
+        {
+            AddScope();
+            foreach (var (paramName, boundType) in implBindings)
+            {
+                var boundRefItem = GetRefItemFor(boundType);
+                if (boundRefItem != null)
+                    AddToDeepestScope(new NormalLangPath(null, [paramName]), boundRefItem);
+            }
+            pushedImplScope = true;
+        }
+
+        // Create the function ref
         var refItem2 = implMethod.CreateRefDefinition(this, []);
+
+        if (pushedImplScope)
+            PopScope();
         if (refItem2 is FunctionRefItem functionRefItem)
             UnimplementedFunctions.Push(functionRefItem);
 

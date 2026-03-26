@@ -101,21 +101,27 @@ public class FieldAccessExpression : IExpression
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         var variableRef = Caller.CodeGen(codeGenContext);
-
-
         var structType = variableRef?.Type as StructType;
-
+        var fieldIndex = structType.GetIndexOfField(Field.Identity);
 
         var fieldPtr = codeGenContext.Builder.BuildStructGEP2(structType.TypeRef, variableRef.ValueRef,
-            structType.GetIndexOfField(Field.Identity));
+            fieldIndex);
 
-        var field = structType.GetField(Field.Identity);
-        var fieldTypeRef = codeGenContext.GetRefItemFor(field.TypePath) as TypeRefItem;
+        // Use ResolvedFieldTypes if available (handles generic structs where T is no longer in scope)
+        ConcreteDefinition.Type fieldType;
+        if (structType.ResolvedFieldTypes != null && fieldIndex < structType.ResolvedFieldTypes.Value.Length)
+        {
+            fieldType = structType.ResolvedFieldTypes.Value[(int)fieldIndex];
+        }
+        else
+        {
+            var field = structType.GetField(Field.Identity);
+            fieldType = ((TypeRefItem)codeGenContext.GetRefItemFor(field.TypePath)).Type;
+        }
 
         return new ValueRefItem
         {
-            Type = fieldTypeRef.Type,
-
+            Type = fieldType,
             ValueRef = fieldPtr
         };
     }

@@ -71,6 +71,16 @@ public class FunctionCallExpression : IExpression
             var traitMethodReturnType = analyzer.ResolveTraitMethodReturnType(FunctionPath);
             if (traitMethodReturnType != null)
             {
+                // For <ConcreteType as Trait>::method() — verify the type implements the trait
+                if (QualifiedAsType != null)
+                {
+                    var traitPath = FunctionPath.Pop();
+                    if (traitPath != null && !analyzer.TypeImplementsTrait(QualifiedAsType, traitPath))
+                    {
+                        analyzer.AddException(new TraitBoundViolationException(QualifiedAsType, traitPath));
+                    }
+                }
+
                 // If return type is Self, substitute with the qualified concrete type if available
                 if (traitMethodReturnType is NormalLangPath nlpRet && nlpRet.PathSegments.Length == 1
                     && nlpRet.PathSegments[0].ToString() == "Self" && QualifiedAsType != null)

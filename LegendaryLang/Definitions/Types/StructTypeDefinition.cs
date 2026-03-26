@@ -186,16 +186,41 @@ public class StructTypeDefinition : ComposableTypeDefinition
         context.AddScope();
         for (int i = 0; i < GenericParameters.Length && i < genericArguments.Length; i++)
         {
-            context.AddToDeepestScope(new NormalLangPath(null, [GenericParameters[i].Name]),
-                context.GetRefItemFor(genericArguments[i])!);
+            var argRefItem = context.GetRefItemFor(genericArguments[i]);
+            if (argRefItem != null)
+            {
+                context.AddToDeepestScope(new NormalLangPath(null, [GenericParameters[i].Name]),
+                    argRefItem);
+            }
         }
 
         // Resolve field types while generic scope is active
-        var resolvedFieldTypes = Fields.Select(i => ((TypeRefItem) context.GetRefItemFor(i.TypePath)).Type)
-            .ToImmutableArray();
+        var resolvedFieldTypesList = new List<ConcreteDefinition.Type>();
+        foreach (var field in Fields)
+        {
+            var refItem = context.GetRefItemFor(field.TypePath) as TypeRefItem;
+            if (refItem == null)
+            {
+                // Field type unresolvable — can happen when generic args are invalid types
+                context.PopScope();
+                return new TypeRefItem()
+                {
+                    Type = new StructType(this, context.LLVMContext.CreateNamedStruct("__invalid__"))
+                    {
+                        TypeDefinition = { }
+                    }
+                };
+            }
+            resolvedFieldTypesList.Add(refItem.Type);
+        }
+        var resolvedFieldTypes = resolvedFieldTypesList.ToImmutableArray();
+
+        var monomorphizedPath = genericArguments.Length > 0
+            ? (LangPath)((NormalLangPath) TypePath).Append(new NormalLangPath.GenericTypesPathSegment(genericArguments))
+            : TypePath;
 
         var structt 
-            = context.LLVMContext.CreateNamedStruct(((NormalLangPath) TypePath).Append(new NormalLangPath.GenericTypesPathSegment(genericArguments)).ToString());
+            = context.LLVMContext.CreateNamedStruct(monomorphizedPath.ToString());
         structt.StructSetBody(
             resolvedFieldTypes.Select(t => t.TypeRef).ToArray(),
             false);
@@ -204,7 +229,7 @@ public class StructTypeDefinition : ComposableTypeDefinition
 
         return new TypeRefItem()
         {
-            Type = new StructType(this, structt)
+            Type = new StructType(this, structt, monomorphizedPath)
             {
                 TypeDefinition = { },
                 ResolvedFieldTypes = resolvedFieldTypes
