@@ -219,23 +219,25 @@ public class BinaryOperationExpression : IExpression
         }
         else
         {
-            // If the left type is a generic param, the Output is genuinely unknown
-            // without an associated type constraint like Add<T, Output = T>
+            // If the left type is a generic param, produce a QualifiedAssocTypePath
+            // so it matches return types like <T as Add<T>>::Output or T::Output
             bool isGenericParam = Left.TypePath is NormalLangPath nlpLeft
                 && nlpLeft.PathSegments.Length == 1
                 && analyzer.IsGenericParam(nlpLeft.PathSegments[0].ToString());
 
             if (isGenericParam)
             {
-                var opName = traitPath.GetLastPathSegment();
-                analyzer.AddException(new SemanticException(
-                    $"Cannot determine the output type of '{opName}<{Right.TypePath}>' for generic type '{Left.TypePath}'. " +
-                    $"Consider constraining the associated type: '{opName}<{Right.TypePath}, Output = ...>'\n{Token.GetLocationStringRepresentation()}"));
+                // Produce <T as Add<T>>::Output as the type
+                var qualifiedOutput = new QualifiedAssocTypePath(Left.TypePath, traitWithRhs, "Output");
+                TypePath = qualifiedOutput;
+                _resolvedOutputType = qualifiedOutput;
             }
-
-            // Fallback: same as left type
-            TypePath = Left.TypePath;
-            _resolvedOutputType = Left.TypePath;
+            else
+            {
+                // Fallback: same as left type
+                TypePath = Left.TypePath;
+                _resolvedOutputType = Left.TypePath;
+            }
         }
     }
 

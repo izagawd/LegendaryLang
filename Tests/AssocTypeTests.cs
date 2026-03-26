@@ -130,4 +130,24 @@ public class AssocTypeTests
         Assert.That(result.Success);
         Assert.That(13 == result.Function?.Invoke());
     }
+
+    [Test]
+    public void AssocGenericOperatorOutputTest()
+    {
+        // fn something<T: Add<T>>(...) -> <T as Add<T>>::Output and T::Output shorthand
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/assoc_type_tests/assoc_generic_operator_output_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(16 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void AssocGenericSubOutputTest()
+    {
+        // fn do_sub<T: Sub<T>>(...) -> <T as Sub<T>>::Output
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/assoc_type_tests/assoc_generic_sub_output_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(7 == result.Function?.Invoke());
+    }
 }
