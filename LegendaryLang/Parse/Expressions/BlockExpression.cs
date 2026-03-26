@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Definitions;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Statements;
@@ -37,6 +38,11 @@ public class BlockExpression : IExpression
         foreach (var i in SyntaxNodes.OfType<IDefinition>())
         {
             context.AddToDeepestScope(i);
+        }
+        // Register nested impl definitions for trait method resolution
+        foreach (var impl in SyntaxNodes.OfType<ImplDefinition>())
+        {
+            context.ImplDefinitions.Add(impl);
         }
         // Iterate over each syntax node in the block.
         foreach (var item in BlockSyntaxNodeContainers.Where(i => i.Node is not IItem)) 
@@ -131,6 +137,13 @@ public class BlockExpression : IExpression
         foreach (var i in BlockSyntaxNodeContainers.Select(i => i.Node).OfType<IDefinition>() )
         {
             analyzer.RegisterDefinitionAtDeepestScope(i.TypePath,i);
+        }
+        // Register nested impl definitions so their methods are visible
+        foreach (var impl in BlockSyntaxNodeContainers.Select(i => i.Node).OfType<ImplDefinition>())
+        {
+            analyzer.ImplDefinitions.Add(impl);
+            foreach (var method in impl.Methods)
+                analyzer.RegisterDefinitionAtDeepestScope(method.TypePath, method);
         }
         SetExpectedReturnTypesRecursively(this);
         foreach (var item in SyntaxNodes.OfType<IAnalyzable>()) item.Analyze(analyzer);
