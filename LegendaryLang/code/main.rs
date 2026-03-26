@@ -1,12 +1,12 @@
 ﻿
 struct Foo{}
-fn main() -> i32{
-    let a = Foo{};
-    {
-        let a = Foo{};
-        let c = a;
-        
+impl Add<Foo> for i32{
+    type Output = i32;
+    fn add(dd: i32, other: Foo) -> i32{
+            dd
         }
-    let c = a;
-    5
+    }
+fn main() -> i32{
+    let a : Foo = Foo{};
+    4 + Foo{}
 }

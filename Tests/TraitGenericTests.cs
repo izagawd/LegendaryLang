@@ -138,4 +138,14 @@ public class OperatorTraitTests
         Assert.That(result.Success);
         Assert.That(10 == result.Function?.Invoke());
     }
+
+    [Test]
+    public void OpsCustomTypeAddOperatorTest()
+    {
+        // Foo{} + 5 via impl Add<i32> for Foo — uses operator syntax, not qualified call
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/ops_custom_type_add_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
 }

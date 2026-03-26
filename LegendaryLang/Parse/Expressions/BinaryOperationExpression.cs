@@ -1,4 +1,5 @@
 ﻿using LegendaryLang.ConcreteDefinition;
+using LegendaryLang.Definitions;
 using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
@@ -25,13 +26,72 @@ public class BinaryOperationExpression : IExpression
 
     public bool HasGuaranteedExplicitReturn => Left.HasGuaranteedExplicitReturn || Right.HasGuaranteedExplicitReturn;
 
+    private static string? GetOperatorMethodName(Operator op)
+    {
+        return op switch
+        {
+            Operator.Add => "add",
+            Operator.Subtract => "sub",
+            Operator.Multiply => "mul",
+            Operator.Divide => "div",
+            _ => null
+        };
+    }
+
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         var leftVal = Left.CodeGen(codeGenContext);
         var rightVal = Right.CodeGen(codeGenContext);
 
-        LLVMValueRef valueRef = null;
         var type = leftVal.Type;
+
+        // For non-primitive types, dispatch to the trait impl method
+        if (type is not PrimitiveType
+            && OperatorToken.OperatorType is Operator.Add or Operator.Subtract or Operator.Multiply or Operator.Divide)
+        {
+            var traitPath = GetOperatorTraitPath(OperatorToken.OperatorType);
+            var methodName = GetOperatorMethodName(OperatorToken.OperatorType);
+            if (traitPath != null && methodName != null)
+            {
+                // Build path: Add::add (trait base path + method name)
+                var methodPath = traitPath.Append(new NormalLangPath.NormalPathSegment(methodName));
+
+                // Push a temporary trait bound so ResolveTraitMethodCall can find the impl
+                var concreteType = type.TypePath;
+                codeGenContext.PushTraitBounds([(traitPath, concreteType)]);
+
+                var funcRef = codeGenContext.GetRefItemFor(methodPath) as FunctionRefItem;
+
+                codeGenContext.PopTraitBounds();
+
+                if (funcRef != null)
+                {
+                    var leftLoaded = type.LoadValue(codeGenContext, leftVal);
+                    var rightLoaded = rightVal.Type.LoadValue(codeGenContext, rightVal);
+
+                    var callResult = codeGenContext.Builder.BuildCall2(
+                        funcRef.Function.FunctionType,
+                        funcRef.Function.FunctionValueRef,
+                        [leftLoaded, rightLoaded]);
+
+                    var returnType = funcRef.Function.ReturnType;
+                    var stackPtr = returnType.AssignToStack(codeGenContext, new ValueRefItem
+                    {
+                        Type = returnType,
+                        ValueRef = callResult
+                    });
+
+                    return new ValueRefItem
+                    {
+                        Type = returnType,
+                        ValueRef = stackPtr
+                    };
+                }
+            }
+        }
+
+        // Primitive path: use LLVM intrinsic instructions
+        LLVMValueRef valueRef = null;
 
         var leftValRef = type.LoadValue(codeGenContext, leftVal);
         var rightValRef = type.LoadValue(codeGenContext, rightVal);
