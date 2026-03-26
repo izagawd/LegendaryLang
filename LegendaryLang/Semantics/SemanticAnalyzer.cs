@@ -164,9 +164,9 @@ public class SemanticAnalyzer
 
     /// <summary>
     /// Tracks variables that have been moved (consumed by assignment or function call).
-    /// Key is the simple variable name.
+    /// Scoped so that moves inside an inner block don't affect outer variables with the same name.
     /// </summary>
-    private readonly HashSet<string> MovedVariables = new();
+    private readonly Stack<HashSet<string>> MovedVariablesStack = new();
 
     /// <summary>
     /// When true, PathExpression.Analyze skips the move check.
@@ -487,17 +487,22 @@ public class SemanticAnalyzer
 
     public void MarkAsMoved(string variableName)
     {
-        MovedVariables.Add(variableName);
+        if (MovedVariablesStack.Count > 0)
+            MovedVariablesStack.Peek().Add(variableName);
     }
 
     public void UnmarkMoved(string variableName)
     {
-        MovedVariables.Remove(variableName);
+        foreach (var scope in MovedVariablesStack)
+            scope.Remove(variableName);
     }
 
     public bool IsMoved(string variableName)
     {
-        return MovedVariables.Contains(variableName);
+        foreach (var scope in MovedVariablesStack)
+            if (scope.Contains(variableName))
+                return true;
+        return false;
     }
 
     /// <summary>
@@ -557,6 +562,7 @@ public class SemanticAnalyzer
 
         DefinitionsStackMap.Push(new ());
         VariableToTypeMapper.Push(new Dictionary<LangPath, LangPath>());
+        MovedVariablesStack.Push(new HashSet<string>());
     }
 
     
@@ -567,6 +573,7 @@ public class SemanticAnalyzer
         DefinitionsStackMap.Pop();
      
         VariableToTypeMapper.Pop();
+        MovedVariablesStack.Pop();
     }
 
     private void ResolvePaths()
