@@ -43,6 +43,18 @@ public class Function : IConcreteDefinition,  IPathResolvable
     /// </summary>
     public ImmutableArray<Type>? ResolvedArgTypes { get; init; }
 
+    /// <summary>
+    /// For impl methods from generic impls: the impl's generic param bindings
+    /// (e.g., T → i32). Replayed in CodeGen so types like Wrapper&lt;T&gt; resolve correctly.
+    /// </summary>
+    public Dictionary<string, LangPath>? ImplGenericBindings { get; set; }
+
+    /// <summary>
+    /// For impl methods from generic impls: the impl's generic parameters
+    /// (needed to push trait bounds during CodeGen).
+    /// </summary>
+    public ImmutableArray<GenericParameter>? ImplGenericParameters { get; set; }
+
     IDefinition? IConcreteDefinition.Definition => Definition;
 
     public NormalLangPath FullPath { get; private set; }
@@ -54,6 +66,17 @@ public class Function : IConcreteDefinition,  IPathResolvable
         {
             context.AddToDeepestScope(new NormalLangPath(null,[ Definition.GenericParameters[i].Name]),
                 context.GetRefItemFor(GenericArguments[i]));
+        }
+
+        // Replay impl generic bindings (e.g., T → i32 for impl<T> Trait for Wrapper<T>)
+        if (ImplGenericBindings != null)
+        {
+            foreach (var (paramName, boundType) in ImplGenericBindings)
+            {
+                var boundRefItem = context.GetRefItemFor(boundType);
+                if (boundRefItem != null)
+                    context.AddToDeepestScope(new NormalLangPath(null, [paramName]), boundRefItem);
+            }
         }
 
         // Push trait bounds so trait method calls resolve to the correct impl
@@ -75,6 +98,30 @@ public class Function : IConcreteDefinition,  IPathResolvable
                 traitBounds.Add((resolvedBound, concreteType));
             }
         }
+
+        // Also push impl generic parameter trait bounds
+        if (ImplGenericParameters != null && ImplGenericBindings != null)
+        {
+            var implGps = ImplGenericParameters.Value;
+            var implMonoArgs = new LangPath[implGps.Length];
+            for (int i = 0; i < implGps.Length; i++)
+                implMonoArgs[i] = ImplGenericBindings.TryGetValue(implGps[i].Name, out var bt)
+                    ? (context.GetRefItemFor(bt) as TypeRefItem)?.Type.TypePath ?? bt
+                    : new NormalLangPath(null, [implGps[i].Name]);
+
+            for (int i = 0; i < implGps.Length; i++)
+            {
+                var gp = implGps[i];
+                foreach (var bound in gp.TraitBounds)
+                {
+                    var resolvedBound = FieldAccessExpression.SubstituteGenerics(
+                        bound, implGps, implMonoArgs.ToImmutableArray());
+                    var concreteType = implMonoArgs[i];
+                    traitBounds.Add((resolvedBound, concreteType));
+                }
+            }
+        }
+
         context.PushTraitBounds(traitBounds);
 
         LLVMBasicBlockRef entryBlock = FunctionValueRef.AppendBasicBlock("entry"); 

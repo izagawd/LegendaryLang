@@ -1,19 +1,6 @@
-﻿fn kk<T>(bruh: i32) -> i32{
-    if (bruh > 5){
-        bruh = bruh - 1;
-        dd::<T>(bruh)
-    } else{
-         bruh 
-        }
-   
-}
-
-fn dd<T>(idk: i32) -> i32{
-    return kk::<T>(idk);
+﻿fn Idk<T: Add<T> + Sub<T> + Copy>(one: T, two: T) -> T{
+    one + two - two - two
     }
 fn main() -> i32{
-    let a = 5;
-    let b = &  mut a;
-    let c = &mut b;
-    return 5;
+    Idk(2,2)
 }

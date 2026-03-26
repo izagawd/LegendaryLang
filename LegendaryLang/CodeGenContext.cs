@@ -263,7 +263,15 @@ public class CodeGenContext
         if (pushedImplScope)
             PopScope();
         if (refItem2 is FunctionRefItem functionRefItem)
+        {
+            // Store impl generic bindings so Function.CodeGen can replay them
+            if (implBindings != null && implBindings.Count > 0)
+            {
+                functionRefItem.Function.ImplGenericBindings = implBindings;
+                functionRefItem.Function.ImplGenericParameters = impl.GenericParameters;
+            }
             UnimplementedFunctions.Push(functionRefItem);
+        }
 
         // Store under the concrete-type-specific key at outermost scope
         AddToScope(implMethodPath, refItem2, 0);
