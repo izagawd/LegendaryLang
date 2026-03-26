@@ -102,9 +102,12 @@ public class FunctionCallExpression : IExpression
                     foreach (var bound in gp.TraitBounds)
                     {
                         var argType = genericArgs[i];
-                        if (!analyzer.TypeImplementsTrait(argType, bound))
+                        // Substitute generic params in the bound (e.g., Add<T> → Add<i32>)
+                        var resolvedBound = FieldAccessExpression.SubstituteGenerics(
+                            bound, fd.GenericParameters, genericArgs);
+                        if (!analyzer.TypeImplementsTrait(argType, resolvedBound))
                         {
-                            analyzer.AddException(new TraitBoundViolationException(argType, bound));
+                            analyzer.AddException(new TraitBoundViolationException(argType, resolvedBound));
                         }
                     }
                 }
@@ -131,10 +134,25 @@ public class FunctionCallExpression : IExpression
                     }
                 }
 
-                if (traitMethodReturnType is NormalLangPath nlpRet && nlpRet.PathSegments.Length == 1
-                    && nlpRet.PathSegments[0].ToString() == "Self" && QualifiedAsType != null)
+                if (traitMethodReturnType is NormalLangPath nlpRet && nlpRet.PathSegments.Length == 1)
                 {
-                    TypePath = QualifiedAsType;
+                    var retName = nlpRet.PathSegments[0].ToString();
+
+                    if (retName == "Self" && QualifiedAsType != null)
+                    {
+                        TypePath = QualifiedAsType;
+                    }
+                    else
+                    {
+                        // Try to resolve as an associated type
+                        var traitPath = FunctionPath.Pop();
+                        LangPath? resolved = null;
+                        if (QualifiedAsType != null && traitPath != null)
+                        {
+                            resolved = analyzer.ResolveAssociatedType(QualifiedAsType, traitPath, retName);
+                        }
+                        TypePath = resolved ?? traitMethodReturnType;
+                    }
                 }
                 else
                 {

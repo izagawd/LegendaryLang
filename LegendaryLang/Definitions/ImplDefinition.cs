@@ -84,12 +84,19 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
     /// </summary>
     public bool CheckBounds(Dictionary<string, LangPath> bindings, SemanticAnalyzer analyzer)
     {
+        // Build generic args array for substitution
+        var genericArgs = TypeInference.BuildGenericArgs(GenericParameters, bindings);
+
         foreach (var gp in GenericParameters)
         {
             if (!bindings.TryGetValue(gp.Name, out var boundType)) return false;
             foreach (var bound in gp.TraitBounds)
             {
-                if (!analyzer.TypeImplementsTrait(boundType, bound))
+                // Substitute generic params in the bound (e.g., Add<T> → Add<i32>)
+                var resolvedBound = genericArgs != null
+                    ? FieldAccessExpression.SubstituteGenerics(bound, GenericParameters, genericArgs.Value)
+                    : bound;
+                if (!analyzer.TypeImplementsTrait(boundType, resolvedBound))
                     return false;
             }
         }
@@ -101,26 +108,64 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
     /// </summary>
     public bool CheckBoundsCodeGen(Dictionary<string, LangPath> bindings, CodeGenContext context)
     {
+        var genericArgs = TypeInference.BuildGenericArgs(GenericParameters, bindings);
+
         foreach (var gp in GenericParameters)
         {
             if (!bindings.TryGetValue(gp.Name, out var boundType)) return false;
             foreach (var bound in gp.TraitBounds)
             {
+                // Substitute generic params in the bound (e.g., Add<T> → Add<i32>)
+                var resolvedBound = genericArgs != null
+                    ? FieldAccessExpression.SubstituteGenerics(bound, GenericParameters, genericArgs.Value)
+                    : bound;
+
                 // Check if boundType is a generic param with this trait bound in scope
                 if (boundType is NormalLangPath nlpBound && nlpBound.PathSegments.Length == 1)
                 {
                     bool foundInBounds = false;
                     foreach (var bounds in context.TraitBoundsStack)
                         foreach (var (tp, _) in bounds)
-                            if (tp == bound)
+                            if (tp == resolvedBound)
                             { foundInBounds = true; break; }
                     if (foundInBounds) continue;
                 }
 
+                // Strip generics for base comparison
+                var resolvedBoundBase = resolvedBound;
+                ImmutableArray<LangPath> resolvedBoundGenericArgs = [];
+                if (resolvedBound is NormalLangPath nlpResBound && nlpResBound.GetFrontGenerics().Length > 0)
+                {
+                    resolvedBoundGenericArgs = nlpResBound.GetFrontGenerics();
+                    resolvedBoundBase = nlpResBound.PopGenerics();
+                }
+
                 if (!context.ImplDefinitions.Any(i =>
                 {
+                    var implTraitBase = i.TraitPath;
+                    ImmutableArray<LangPath> implTraitGenericArgs = [];
+                    if (i.TraitPath is NormalLangPath nlpIT && nlpIT.GetFrontGenerics().Length > 0)
+                    {
+                        implTraitGenericArgs = nlpIT.GetFrontGenerics();
+                        implTraitBase = nlpIT.PopGenerics();
+                    }
+
+                    if (implTraitBase != resolvedBoundBase) return false;
+
                     var match = i.TryMatchConcreteType(boundType);
-                    return match != null && i.TraitPath == bound;
+                    if (match == null) return false;
+
+                    // Unify trait generic args
+                    if (resolvedBoundGenericArgs.Length > 0 || implTraitGenericArgs.Length > 0)
+                    {
+                        if (resolvedBoundGenericArgs.Length != implTraitGenericArgs.Length) return false;
+                        var freeVars = i.GenericParameters.Select(g => g.Name).ToHashSet();
+                        for (int idx = 0; idx < resolvedBoundGenericArgs.Length; idx++)
+                            if (!TypeInference.TryUnify(implTraitGenericArgs[idx], resolvedBoundGenericArgs[idx], freeVars, match))
+                                return false;
+                    }
+
+                    return true;
                 }))
                     return false;
             }

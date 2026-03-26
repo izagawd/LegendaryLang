@@ -241,8 +241,11 @@ public class SemanticAnalyzer
         var parentPath = path.Pop();
         if (parentPath == null || parentPath.PathSegments.Length == 0) return null;
 
-        // Case 1: TraitName::method — parent is a trait directly
-        var traitDef = GetDefinition(parentPath) as TraitDefinition;
+        // Case 1: TraitName::method — parent is a trait directly (strip generics for lookup)
+        var traitLookupPath = parentPath;
+        if (parentPath is NormalLangPath nlpParentTrait && nlpParentTrait.GetFrontGenerics().Length > 0)
+            traitLookupPath = nlpParentTrait.PopGenerics();
+        var traitDef = GetDefinition(traitLookupPath) as TraitDefinition;
 
         // Case 2: T::method — parent is a generic param with trait bound(s)
         if (traitDef == null && parentPath is NormalLangPath nlpParent && nlpParent.PathSegments.Length == 1)
@@ -265,7 +268,10 @@ public class SemanticAnalyzer
                     var bindings = impl.TryMatchConcreteType(parentPath);
                     if (bindings != null && impl.CheckBounds(bindings, this))
                     {
-                        var implTraitDef = GetDefinition(impl.TraitPath) as TraitDefinition;
+                        var implTraitLookup = impl.TraitPath;
+                        if (implTraitLookup is NormalLangPath nlpImplT && nlpImplT.GetFrontGenerics().Length > 0)
+                            implTraitLookup = nlpImplT.PopGenerics();
+                        var implTraitDef = GetDefinition(implTraitLookup) as TraitDefinition;
                         if (implTraitDef?.GetMethod(methodName) != null)
                         {
                             traitDef = implTraitDef;
@@ -292,14 +298,28 @@ public class SemanticAnalyzer
 
         // If the return type is "Self", substitute it with the generic parameter
         // that has this trait as its bound
-        if (foundReturnType is NormalLangPath nlp && nlp.PathSegments.Length == 1
-            && nlp.PathSegments[0].ToString() == "Self")
+        if (foundReturnType is NormalLangPath nlp && nlp.PathSegments.Length == 1)
         {
-            var traitTypePath = (traitDef as IDefinition).TypePath;
-            foreach (var bounds in TraitBoundsStack)
-                foreach (var (tp, paramName) in bounds)
-                    if (tp == traitTypePath)
-                        return new NormalLangPath(null, [paramName]);
+            var retName = nlp.PathSegments[0].ToString();
+
+            if (retName == "Self")
+            {
+                var traitTypePath = (traitDef as IDefinition).TypePath;
+                foreach (var bounds in TraitBoundsStack)
+                    foreach (var (tp, paramName) in bounds)
+                        if (tp == traitTypePath)
+                            return new NormalLangPath(null, [paramName]);
+            }
+
+            // Check if it's an associated type of this trait
+            var assocType = traitDef.GetAssociatedType(retName);
+            if (assocType != null)
+            {
+                // Try to resolve via the concrete type from qualified call or trait bounds
+                // This will be finalized in FunctionCallExpression.Analyze
+                // Return a marker that includes trait info for later resolution
+                return foundReturnType;
+            }
         }
 
         return foundReturnType;

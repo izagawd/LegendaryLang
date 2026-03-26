@@ -1,0 +1,7 @@
+fn add_them<T: Add<T> + Copy>(one: T, two: T) -> T {
+    one + two
+}
+
+fn main() -> i32 {
+    add_them(2, 3)
+}

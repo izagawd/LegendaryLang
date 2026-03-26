@@ -1,6 +1,19 @@
-﻿fn Idk<T: Add<T>>(one: T, two: T) -> T{
-    one + two
+﻿fn kk<T>(bruh: i32) -> i32{
+    if (bruh > 5){
+        bruh = bruh - 1;
+        dd::<T>(bruh)
+    } else{
+         bruh 
+        }
+   
+}
+
+fn dd<T>(idk: i32) -> i32{
+    return kk::<T>(idk);
     }
 fn main() -> i32{
-    Idk(2,2)
+    let a = 5;
+    let b = &  mut a;
+    let c = &mut b;
+    return 5;
 }

@@ -113,7 +113,12 @@ public class CodeGenContext
     {
         foreach (var bounds in TraitBoundsStack)
             foreach (var (tp, ct) in bounds)
+            {
                 if (tp == traitPath) return ct;
+                // Also match after stripping generics (e.g., Add<i32> matches Add)
+                if (tp is NormalLangPath nlpTp && nlpTp.GetFrontGenerics().Length > 0)
+                    if (nlpTp.PopGenerics() == traitPath) return ct;
+            }
         return null;
     }
 
@@ -132,9 +137,12 @@ public class CodeGenContext
         LangPath? resolvedTraitPath = null;
         LangPath? concreteType = null;
 
-        // Case 1: TraitName::method — parent is a trait directly
+        // Case 1: TraitName::method — parent is a trait directly (strip generics for lookup)
+        var traitLookupPath = parentPath;
+        if (parentPath is NormalLangPath nlpParentTrait && nlpParentTrait.GetFrontGenerics().Length > 0)
+            traitLookupPath = nlpParentTrait.PopGenerics();
         var traitDef = DefinitionsCollection.OfType<TraitDefinition>()
-            .FirstOrDefault(t => (t as IDefinition).TypePath == parentPath);
+            .FirstOrDefault(t => (t as IDefinition).TypePath == traitLookupPath);
         if (traitDef != null)
         {
             resolvedTraitPath = (traitDef as IDefinition).TypePath;
@@ -177,11 +185,14 @@ public class CodeGenContext
                         var match = i.TryMatchConcreteType(concreteType);
                         if (match != null && i.CheckBoundsCodeGen(match, this))
                         {
+                            var implTraitLookup = i.TraitPath;
+                            if (implTraitLookup is NormalLangPath nlpImplT && nlpImplT.GetFrontGenerics().Length > 0)
+                                implTraitLookup = nlpImplT.PopGenerics();
                             var candidateTrait = DefinitionsCollection.OfType<TraitDefinition>()
-                                .FirstOrDefault(t => (t as IDefinition).TypePath == i.TraitPath);
+                                .FirstOrDefault(t => (t as IDefinition).TypePath == implTraitLookup);
                             if (candidateTrait?.GetMethod(methodName) != null)
                             {
-                                resolvedTraitPath = i.TraitPath;
+                                resolvedTraitPath = implTraitLookup;
                                 break;
                             }
                         }
@@ -202,7 +213,12 @@ public class CodeGenContext
         Dictionary<string, LangPath>? implBindings = null;
         foreach (var candidate in ImplDefinitions)
         {
-            if (candidate.TraitPath != resolvedTraitPath) continue;
+            // Compare trait base paths (strip generics)
+            var candidateTraitBase = candidate.TraitPath;
+            if (candidateTraitBase is NormalLangPath nlpCandTrait && nlpCandTrait.GetFrontGenerics().Length > 0)
+                candidateTraitBase = nlpCandTrait.PopGenerics();
+
+            if (candidateTraitBase != resolvedTraitPath) continue;
             var bindings = candidate.TryMatchConcreteType(concreteType);
             if (bindings != null && candidate.CheckBoundsCodeGen(bindings, this))
             {

@@ -74,6 +74,26 @@ public class TraitGenericTests
         Assert.That(result.Success);
         Assert.That(10 == result.Function?.Invoke());
     }
+
+    [Test]
+    public void TraitGenericBoundWithGenericArgTest()
+    {
+        // fn add_them<T: Add<T> + Copy>(one: T, two: T) -> T — bound Add<T> uses the generic param
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_generic_bound_with_generic_arg_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitImplGenericBoundWithGenericArgTest()
+    {
+        // impl<T: Add<T> + Copy> Add<Wrapper<T>> for Wrapper<T>
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_impl_generic_bound_with_generic_arg_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
 }
 
 public class OperatorTraitTests

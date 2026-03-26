@@ -57,16 +57,22 @@ public class Function : IConcreteDefinition,  IPathResolvable
         }
 
         // Push trait bounds so trait method calls resolve to the correct impl
+        // Build monomorphized generic args for substitution
+        var monoGenericArgs = new LangPath[Definition.GenericParameters.Length];
+        for (int i = 0; i < Definition.GenericParameters.Length; i++)
+            monoGenericArgs[i] = (context.GetRefItemFor(GenericArguments[i]) as TypeRefItem)?.Type.TypePath ?? GenericArguments[i];
+
         var traitBounds = new List<(LangPath, LangPath)>();
         for (int i = 0; i < Definition.GenericParameters.Length; i++)
         {
             var gp = Definition.GenericParameters[i];
             foreach (var bound in gp.TraitBounds)
             {
-                // The concrete type for this generic param
-                var concreteType = (context.GetRefItemFor(GenericArguments[i]) as TypeRefItem)?.Type.TypePath;
-                if (concreteType != null)
-                    traitBounds.Add((bound, concreteType));
+                // Substitute generic params in the bound (e.g., Add<T> → Add<i32>)
+                var resolvedBound = FieldAccessExpression.SubstituteGenerics(
+                    bound, Definition.GenericParameters, monoGenericArgs.ToImmutableArray());
+                var concreteType = monoGenericArgs[i];
+                traitBounds.Add((resolvedBound, concreteType));
             }
         }
         context.PushTraitBounds(traitBounds);
