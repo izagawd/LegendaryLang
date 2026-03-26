@@ -1,5 +1,6 @@
 ﻿using System.Collections.Immutable;
 using LegendaryLang.Definitions;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Statements;
@@ -188,6 +189,19 @@ public class BlockExpression : IExpression
             }
 
             TypePath = possibleTypePath ?? LangPath.VoidBaseLangPath;
+        }
+
+        // Check if the block's value is a reference that borrows from a variable
+        // declared in THIS scope — it would dangle after the scope exits
+        if (last is not null && !last.Value.HasSemiColonAfter
+            && last.Value.Node is IExpression lastExpr
+            && TypePath is NormalLangPath nlpBlock
+            && nlpBlock.Contains(PointerTypeDefinition.GetPointerModule())
+            && analyzer.IsExpressionBorrowingFromCurrentScope(lastExpr))
+        {
+            analyzer.AddException(new SemanticException(
+                $"Borrowed value does not live long enough — " +
+                $"it is dropped at the end of the block while still borrowed\n{lastExpr.Token.GetLocationStringRepresentation()}"));
         }
 
         analyzer.PopScope();

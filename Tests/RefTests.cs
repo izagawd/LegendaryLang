@@ -294,3 +294,56 @@ public class RefLifetimeReturnTests
         Assert.That(result.Errors.Any(e => e.Message.Contains("does not live long enough")));
     }
 }
+
+public class RefBlockScopeTests
+{
+    [Test]
+    public void RefBlockScopeEscapeFailTest()
+    {
+        // let gotten = { let a = 5; &a }; — borrow escapes block scope
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_block_scope_escape_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.Errors.Any(e => e.Message.Contains("does not live long enough")));
+    }
+
+    [Test]
+    public void RefBlockScopeValueTest()
+    {
+        // let gotten = { let a = 5; a }; — no reference, just value, fine
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_block_scope_value_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefBlockOuterScopeTest()
+    {
+        // let gotten = { &a }; where a is in outer scope — borrow is valid
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_block_outer_scope_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(42 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefMatchBlockEscapeFailTest()
+    {
+        // match arm block returns &x where x is local to the arm — dangling
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_match_block_escape_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.Errors.Any(e => e.Message.Contains("does not live long enough")));
+    }
+
+    [Test]
+    public void RefNestedBlockEscapeFailTest()
+    {
+        // inner block returns &a where a is in inner block — dangling
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_nested_block_escape_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.Errors.Any(e => e.Message.Contains("does not live long enough")));
+    }
+}

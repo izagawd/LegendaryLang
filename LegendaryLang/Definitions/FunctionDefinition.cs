@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
@@ -162,8 +163,8 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         // (the block's last expression is the implicit return value)
         var lastNode = BlockExpression.BlockSyntaxNodeContainers.LastOrDefault();
         if (lastNode.Node is IExpression lastExpr
-            && BlockExpression.TypePath != null
-            && IsReferenceType(BlockExpression.TypePath)
+            && BlockExpression.TypePath is NormalLangPath nlpRet
+            && nlpRet.Contains(PointerTypeDefinition.GetPointerModule())
             && analyzer.IsExpressionLocalBorrow(lastExpr))
         {
             analyzer.AddException(new SemanticException(
@@ -296,11 +297,5 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         }
 
         throw new ExpectedParserException(parser, ParseType.Fn, token);
-    }
-
-    private static bool IsReferenceType(LangPath? typePath)
-    {
-        return typePath is NormalLangPath nlp
-               && nlp.Contains(Types.PointerTypeDefinition.GetPointerModule());
     }
 }

@@ -1,11 +1,18 @@
-﻿struct Foo {
-    val: i32
+﻿enum Choice {
+    A,
+    B
 }
-
 fn main() -> i32 {
-    let gotten ={
-        let a = 5;
-        &a
-        };
-    *gotten
+    let c = Choice::A;
+    let r = match c {
+        Choice::A => {
+            let x = 5;
+            &x
+        },
+        Choice::B => {
+            let y = 10;
+            &y
+        }
+    };
+    *r
 }

@@ -269,6 +269,32 @@ public class SemanticAnalyzer
     }
 
     /// <summary>
+    /// Check if a variable was declared in the current (innermost) scope.
+    /// </summary>
+    public bool IsVariableInCurrentScope(string name)
+    {
+        return _scopeVariables.Count > 0 && _scopeVariables.Peek().Contains(name);
+    }
+
+    /// <summary>
+    /// Check if an expression borrows from a variable in the current scope
+    /// (meaning the borrow would dangle if the block's value escapes).
+    /// </summary>
+    public bool IsExpressionBorrowingFromCurrentScope(IExpression expr)
+    {
+        if (expr is PointerGetterExpression pge && pge.BorrowOriginName != null)
+            return IsVariableInCurrentScope(pge.BorrowOriginName);
+
+        if (expr is PathExpression pe && pe.Path is NormalLangPath nlp && nlp.PathSegments.Length == 1)
+        {
+            var name = nlp.PathSegments[0].ToString();
+            return IsLocalBorrow(name) && IsVariableInCurrentScope(name);
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Set the current function's parameter names for lifetime analysis.
     /// </summary>
     public void SetFunctionParameters(IEnumerable<string> names)
