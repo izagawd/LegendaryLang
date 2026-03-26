@@ -43,16 +43,16 @@ public class DerefExpression : IExpression
                     // Cannot move out of a shared reference if the type is not Copy
                     if (!analyzer.IsTypeCopy(TypePath))
                     {
-                        analyzer.AddException(new SemanticException(
-                            $"Cannot move out of shared reference '&{TypePath}' — type '{TypePath}' does not implement Copy\n{Token.GetLocationStringRepresentation()}"));
+                        analyzer.AddException(new MoveOutOfReferenceException(
+                            TypePath, Token.GetLocationStringRepresentation()));
                     }
                     return;
                 }
             }
         }
 
-        analyzer.AddException(new SemanticException(
-            $"Cannot dereference non-reference type '{Inner.TypePath}'\n{Token.GetLocationStringRepresentation()}"));
+        analyzer.AddException(new DerefNonReferenceException(
+            Inner.TypePath!, Token.GetLocationStringRepresentation()));
         TypePath = Inner.TypePath;
     }
 

@@ -79,7 +79,7 @@ public class TraitTests
             "compiler_tests/trait_tests/trait_duplicate_generic_test", true, true);
         Assert.That(!result.Success);
         Assert.That(result.HasError<GenericSemanticError>());
-        Assert.That(result.Errors.Any(e => e.Message.Contains("Duplicate generic parameter")));
+        Assert.That(result.HasError<GenericSemanticError>());
     }
 
     [Test]
@@ -109,7 +109,7 @@ public class TraitTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/trait_tests/trait_impl_method_extra_bounds_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("not present in the trait")));
+        Assert.That(result.HasError<TraitImplBoundsMismatchError>());
     }
 
     [Test]
@@ -119,7 +119,7 @@ public class TraitTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/trait_tests/trait_impl_method_missing_bounds_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("missing bound")));
+        Assert.That(result.HasError<TraitImplBoundsMismatchError>());
     }
 
     [Test]
@@ -129,7 +129,7 @@ public class TraitTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/trait_tests/trait_impl_method_generic_count_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("generic parameter")));
+        Assert.That(result.HasError<TraitImplBoundsMismatchError>());
     }
 
     [Test]

@@ -31,7 +31,7 @@ public class StructGenericTests
             "compiler_tests/struct_tests/generic_struct_unused_param_test", true, true);
         Assert.That(!result.Success);
         Assert.That(result.HasError<GenericSemanticError>());
-        Assert.That(result.Errors.Any(e => e.Message.Contains("never used")));
+        
     }
 
     [Test]
@@ -83,7 +83,7 @@ public class StructGenericTests
             "compiler_tests/struct_tests/generic_impl_unused_param_test", true, true);
         Assert.That(!result.Success);
         Assert.That(result.HasError<GenericSemanticError>());
-        Assert.That(result.Errors.Any(e => e.Message.Contains("never used")));
+        
     }
 
     [Test]

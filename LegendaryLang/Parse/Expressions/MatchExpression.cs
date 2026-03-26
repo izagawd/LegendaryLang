@@ -174,8 +174,8 @@ public class MatchExpression : IExpression
             {
                 if (!coveredVariants.Contains(variant.Name))
                 {
-                    analyzer.AddException(new SemanticException(
-                        $"Non-exhaustive match: variant '{variant.Name}' not covered\n{MatchTok.GetLocationStringRepresentation()}"));
+                    analyzer.AddException(new NonExhaustiveMatchException(
+                        variant.Name, MatchTok.GetLocationStringRepresentation()));
                 }
             }
         }

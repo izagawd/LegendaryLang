@@ -62,7 +62,7 @@ public class RefTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_deref_non_ref_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("dereference")));
+        Assert.That(result.HasError<DerefNonReferenceError>());
     }
 
     [Test]
@@ -178,7 +178,7 @@ public class RefDerefMoveTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_deref_move_out_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("Cannot move out")));
+        Assert.That(result.HasError<MoveOutOfReferenceError>());
     }
 
     [Test]
@@ -208,7 +208,7 @@ public class RefDerefMoveTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_deref_move_out_twice_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("Cannot move out")));
+        Assert.That(result.HasError<MoveOutOfReferenceError>());
     }
 
     [Test]
@@ -241,7 +241,7 @@ public class RefLifetimeReturnTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_return_local_explicit_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("does not live long enough")));
+        Assert.That(result.HasError<DanglingReferenceError>());
     }
 
     [Test]
@@ -261,7 +261,7 @@ public class RefLifetimeReturnTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_return_local_implicit_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("does not live long enough")));
+        Assert.That(result.HasError<DanglingReferenceError>());
     }
 
     [Test]
@@ -271,7 +271,7 @@ public class RefLifetimeReturnTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_return_local_var_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("does not live long enough")));
+        Assert.That(result.HasError<DanglingReferenceError>());
     }
 
     [Test]
@@ -291,7 +291,7 @@ public class RefLifetimeReturnTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_return_mixed_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("does not live long enough")));
+        Assert.That(result.HasError<DanglingReferenceError>());
     }
 }
 
@@ -304,7 +304,7 @@ public class RefBlockScopeTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_block_scope_escape_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("does not live long enough")));
+        Assert.That(result.HasError<DanglingReferenceError>());
     }
 
     [Test]
@@ -334,7 +334,7 @@ public class RefBlockScopeTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_match_block_escape_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("does not live long enough")));
+        Assert.That(result.HasError<DanglingReferenceError>());
     }
 
     [Test]
@@ -344,6 +344,6 @@ public class RefBlockScopeTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_nested_block_escape_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("does not live long enough")));
+        Assert.That(result.HasError<DanglingReferenceError>());
     }
 }

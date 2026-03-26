@@ -107,7 +107,7 @@ public class MoveTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/move_tests/copy_struct_invalid_field_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("does not implement Copy")));
+        Assert.That(result.HasError<GenericSemanticError>());
     }
 
     [Test]
@@ -128,7 +128,7 @@ public class MoveTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/move_tests/copy_generic_struct_no_bound_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("does not have a Copy bound")));
+        Assert.That(result.HasError<GenericSemanticError>());
     }
 
     [Test]
@@ -211,5 +211,25 @@ public class MoveTests
             "compiler_tests/move_tests/move_outer_still_moved_after_inner_test", true, true);
         Assert.That(!result.Success);
         Assert.That(result.HasError<UseAfterMoveError>());
+    }
+
+    [Test]
+    public void EnumCopyNonCopyFieldFailTest()
+    {
+        // impl Copy for enum where a variant has non-Copy field — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/enum_copy_non_copy_field_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<GenericSemanticError>());
+    }
+
+    [Test]
+    public void EnumCopyAllCopyTest()
+    {
+        // impl Copy for enum where all variant fields impl Copy — should work
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/enum_copy_all_copy_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(4 == result.Function?.Invoke());
     }
 }

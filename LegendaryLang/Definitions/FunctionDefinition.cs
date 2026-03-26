@@ -169,8 +169,8 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
                 && nlpRet.Contains(PointerTypeDefinition.GetPointerModule())
                 && analyzer.IsExpressionLocalBorrow(lastExpr))
             {
-                analyzer.AddException(new SemanticException(
-                    $"Cannot return reference to local variable — it does not live long enough\n{Token.GetLocationStringRepresentation()}"));
+                analyzer.AddException(new DanglingReferenceException(
+                    Token.GetLocationStringRepresentation()));
             }
         }
 

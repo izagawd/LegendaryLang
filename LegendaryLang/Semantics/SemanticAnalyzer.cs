@@ -173,6 +173,54 @@ public class BorrowInvalidatedException : SemanticException
     }
 }
 
+public class NonExhaustiveMatchException : SemanticException
+{
+    public string VariantName { get; }
+    public NonExhaustiveMatchException(string variantName, string location)
+        : base($"Non-exhaustive match: variant '{variantName}' not covered\n{location}")
+    {
+        VariantName = variantName;
+    }
+}
+
+public class DerefNonReferenceException : SemanticException
+{
+    public LangPath TypePath { get; }
+    public DerefNonReferenceException(LangPath typePath, string location)
+        : base($"Cannot dereference non-reference type '{typePath}'\n{location}")
+    {
+        TypePath = typePath;
+    }
+}
+
+public class MoveOutOfReferenceException : SemanticException
+{
+    public LangPath TypePath { get; }
+    public MoveOutOfReferenceException(LangPath typePath, string location)
+        : base($"Cannot move out of shared reference '&{typePath}' — type '{typePath}' does not implement Copy\n{location}")
+    {
+        TypePath = typePath;
+    }
+}
+
+public class DanglingReferenceException : SemanticException
+{
+    public DanglingReferenceException(string location)
+        : base($"Borrowed value does not live long enough\n{location}")
+    {
+    }
+}
+
+public class TraitImplBoundsMismatchException : SemanticException
+{
+    public TraitImplBoundsMismatchException(string details, string location)
+        : base($"{details}\n{location}")
+    {
+        Details = details;
+    }
+    public string Details { get; }
+}
+
 
 public class SemanticAnalyzer
 {

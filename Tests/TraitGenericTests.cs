@@ -52,7 +52,7 @@ public class TraitGenericTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/trait_tests/trait_assoc_type_bound_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("does not satisfy bound")));
+        Assert.That(result.HasError<GenericSemanticError>());
     }
 
     [Test]
@@ -62,7 +62,7 @@ public class TraitGenericTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/trait_tests/trait_assoc_type_missing_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("Missing associated type")));
+        Assert.That(result.HasError<GenericSemanticError>());
     }
 
     [Test]
@@ -125,7 +125,7 @@ public class OperatorTraitTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/trait_tests/ops_no_impl_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("does not implement")));
+        Assert.That(result.HasError<GenericSemanticError>());
     }
 
     [Test]

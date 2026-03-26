@@ -167,3 +167,32 @@ public class BorrowInvalidatedError : CompileError
     public required string VariableName { get; init; }
     public override string Message => $"Cannot use '{VariableName}': the value it borrows from has been invalidated (shadowed or out of scope)";
 }
+
+public class NonExhaustiveMatchError : CompileError
+{
+    public required string VariantName { get; init; }
+    public override string Message => $"Non-exhaustive match: variant '{VariantName}' not covered";
+}
+
+public class DerefNonReferenceError : CompileError
+{
+    public required LangPath TypePath { get; init; }
+    public override string Message => $"Cannot dereference non-reference type '{TypePath}'";
+}
+
+public class MoveOutOfReferenceError : CompileError
+{
+    public required LangPath TypePath { get; init; }
+    public override string Message => $"Cannot move out of shared reference — type '{TypePath}' does not implement Copy";
+}
+
+public class DanglingReferenceError : CompileError
+{
+    public override string Message => "Borrowed value does not live long enough";
+}
+
+public class TraitImplBoundsMismatchError : CompileError
+{
+    public required string Details { get; init; }
+    public override string Message => Details;
+}

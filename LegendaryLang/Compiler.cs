@@ -72,6 +72,15 @@ public class Compiler
                 { DefinitionPath = e.DefinitionPath },
             BorrowInvalidatedException e => new BorrowInvalidatedError
                 { VariableName = e.VariableName },
+            NonExhaustiveMatchException e => new NonExhaustiveMatchError
+                { VariantName = e.VariantName },
+            DerefNonReferenceException e => new DerefNonReferenceError
+                { TypePath = e.TypePath },
+            MoveOutOfReferenceException e => new MoveOutOfReferenceError
+                { TypePath = e.TypePath },
+            DanglingReferenceException => new DanglingReferenceError(),
+            TraitImplBoundsMismatchException e => new TraitImplBoundsMismatchError
+                { Details = e.Details },
             _ => new GenericSemanticError { Details = ex.Message }
         };
     }

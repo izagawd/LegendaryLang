@@ -199,9 +199,8 @@ public class BlockExpression : IExpression
             && nlpBlock.Contains(PointerTypeDefinition.GetPointerModule())
             && analyzer.IsExpressionBorrowingFromCurrentScope(lastExpr))
         {
-            analyzer.AddException(new SemanticException(
-                $"Borrowed value does not live long enough — " +
-                $"it is dropped at the end of the block while still borrowed\n{lastExpr.Token.GetLocationStringRepresentation()}"));
+            analyzer.AddException(new DanglingReferenceException(
+                lastExpr.Token.GetLocationStringRepresentation()));
         }
 
         analyzer.PopScope();

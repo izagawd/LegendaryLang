@@ -235,9 +235,10 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             // Validate generic parameter count matches
             if (implMethod.GenericParameters.Length != traitMethod.GenericParameters.Length)
             {
-                analyzer.AddException(new SemanticException(
+                analyzer.AddException(new TraitImplBoundsMismatchException(
                     $"Method '{traitMethod.Name}' has {implMethod.GenericParameters.Length} generic parameter(s), " +
-                    $"but the trait requires {traitMethod.GenericParameters.Length}\n{implMethod.Token.GetLocationStringRepresentation()}"));
+                    $"but the trait requires {traitMethod.GenericParameters.Length}",
+                    implMethod.Token.GetLocationStringRepresentation()));
             }
             else
             {
@@ -252,9 +253,10 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                     {
                         if (!traitGp.TraitBounds.Any(tb => tb.TraitPath == implBound.TraitPath))
                         {
-                            analyzer.AddException(new SemanticException(
+                            analyzer.AddException(new TraitImplBoundsMismatchException(
                                 $"Method '{traitMethod.Name}': impl adds bound '{implBound.TraitPath}' on generic parameter '{implGp.Name}' " +
-                                $"which is not present in the trait definition\n{implMethod.Token.GetLocationStringRepresentation()}"));
+                                $"which is not present in the trait definition",
+                                implMethod.Token.GetLocationStringRepresentation()));
                         }
                     }
 
@@ -263,9 +265,10 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                     {
                         if (!implGp.TraitBounds.Any(tb => tb.TraitPath == traitBound.TraitPath))
                         {
-                            analyzer.AddException(new SemanticException(
+                            analyzer.AddException(new TraitImplBoundsMismatchException(
                                 $"Method '{traitMethod.Name}': impl is missing bound '{traitBound.TraitPath}' on generic parameter '{implGp.Name}' " +
-                                $"required by the trait definition\n{implMethod.Token.GetLocationStringRepresentation()}"));
+                                $"required by the trait definition",
+                                implMethod.Token.GetLocationStringRepresentation()));
                         }
                     }
                 }
@@ -393,6 +396,46 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                         analyzer.AddException(new SemanticException(
                             $"Cannot implement Copy for '{ForTypePath}': field '{field.Name}' has type '{fieldType}' " +
                             $"which does not implement Copy\n{Token.GetLocationStringRepresentation()}"));
+                    }
+                }
+            }
+
+            // Enum Copy validation: all variant field types must implement Copy
+            if (typeDef is EnumTypeDefinition enumDef)
+            {
+                var copyBoundParams = GenericParameters
+                    .Where(gp => gp.TraitBounds.Any(b => b.TraitPath == SemanticAnalyzer.CopyTraitPath))
+                    .Select(gp => gp.Name)
+                    .ToHashSet();
+
+                foreach (var variant in enumDef.Variants)
+                {
+                    foreach (var fieldType in variant.FieldTypes)
+                    {
+                        var resolved = analyzer.ResolveQualifiedTypePath(fieldType);
+
+                        // Check generic params
+                        if (resolved is NormalLangPath nlpField && nlpField.PathSegments.Length == 1)
+                        {
+                            var paramName = nlpField.PathSegments[0].ToString();
+                            if (GenericParameters.Any(gp => gp.Name == paramName))
+                            {
+                                if (!copyBoundParams.Contains(paramName))
+                                {
+                                    analyzer.AddException(new SemanticException(
+                                        $"Cannot implement Copy for '{ForTypePath}': variant '{variant.Name}' contains type '{paramName}' " +
+                                        $"which does not have a Copy bound\n{Token.GetLocationStringRepresentation()}"));
+                                }
+                                continue;
+                            }
+                        }
+
+                        if (!analyzer.IsTypeCopy(resolved))
+                        {
+                            analyzer.AddException(new SemanticException(
+                                $"Cannot implement Copy for '{ForTypePath}': variant '{variant.Name}' contains type '{resolved}' " +
+                                $"which does not implement Copy\n{Token.GetLocationStringRepresentation()}"));
+                        }
                     }
                 }
             }

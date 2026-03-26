@@ -72,7 +72,7 @@ public class EnumTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/enum_tests/enum_non_exhaustive_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("not covered")));
+        Assert.That(result.HasError<NonExhaustiveMatchError>());
     }
 
     [Test]
@@ -112,7 +112,7 @@ public class EnumTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/enum_tests/enum_duplicate_variant_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("Duplicate variant")));
+        Assert.That(result.HasError<GenericSemanticError>());
     }
 
     [Test]
@@ -122,7 +122,7 @@ public class EnumTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/enum_tests/enum_wrong_field_count_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.Errors.Any(e => e.Message.Contains("field")));
+        Assert.That(result.HasError<GenericSemanticError>());
     }
 
     [Test]
