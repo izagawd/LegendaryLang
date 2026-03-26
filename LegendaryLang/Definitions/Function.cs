@@ -93,7 +93,7 @@ public class Function : IConcreteDefinition,  IPathResolvable
             {
                 // Substitute generic params in the bound (e.g., Add<T> → Add<i32>)
                 var resolvedBound = FieldAccessExpression.SubstituteGenerics(
-                    bound, Definition.GenericParameters, monoGenericArgs.ToImmutableArray());
+                    bound.TraitPath, Definition.GenericParameters, monoGenericArgs.ToImmutableArray());
                 var concreteType = monoGenericArgs[i];
                 traitBounds.Add((resolvedBound, concreteType));
             }
@@ -115,7 +115,7 @@ public class Function : IConcreteDefinition,  IPathResolvable
                 foreach (var bound in gp.TraitBounds)
                 {
                     var resolvedBound = FieldAccessExpression.SubstituteGenerics(
-                        bound, implGps, implMonoArgs.ToImmutableArray());
+                        bound.TraitPath, implGps, implMonoArgs.ToImmutableArray());
                     var concreteType = implMonoArgs[i];
                     traitBounds.Add((resolvedBound, concreteType));
                 }

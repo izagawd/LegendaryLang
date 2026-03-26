@@ -1,4 +1,4 @@
-fn compute<T: Add<T> + Sub<T> + Copy>(one: T, two: T) -> T {
+fn compute<T: Add<T, Output = T> + Sub<T, Output = T> + Copy>(one: T, two: T) -> T {
     one + two - two
 }
 

@@ -146,18 +146,18 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
             while (nextToken is not OperatorToken { OperatorType: Operator.GreaterThan })
             {
                 var paramIdentifier = Identifier.Parse(parser);
-                var traitBounds = new List<LangPath>();
+                var traitBounds = new List<TraitBound>();
                 if (parser.Peek() is ColonToken)
                 {
                     parser.Pop();
                     if (parser.Peek() is not OperatorToken { OperatorType: Operator.GreaterThan }
                         && parser.Peek() is not CommaToken)
                     {
-                        traitBounds.Add(LangPath.Parse(parser, true));
+                        traitBounds.Add(TraitBound.Parse(parser));
                         while (parser.Peek() is OperatorToken { OperatorType: Operator.Add })
                         {
                             parser.Pop();
-                            traitBounds.Add(LangPath.Parse(parser, true));
+                            traitBounds.Add(TraitBound.Parse(parser));
                         }
                     }
                 }

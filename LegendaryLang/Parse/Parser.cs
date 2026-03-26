@@ -91,6 +91,12 @@ public class Parser
         return null;
     }
 
+    public Token? PeekAt(int index)
+    {
+        if (index < tokens.Count) return tokens.ElementAt(index);
+        return null;
+    }
+
     public Token? Pop()
     {
         if (tokens.Count > 0) return tokens.Dequeue();

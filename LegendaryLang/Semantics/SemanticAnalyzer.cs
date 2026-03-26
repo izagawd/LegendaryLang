@@ -177,9 +177,9 @@ public class SemanticAnalyzer
 
     /// <summary>
     /// Tracks trait bounds for generic parameters currently in scope.
-    /// Maps generic param name -> (traitPath, genericParamName)
+    /// Maps generic param name -> (traitPath, genericParamName, assocTypeConstraints)
     /// </summary>
-    private readonly Stack<List<(LangPath traitPath, string genericParamName)>> TraitBoundsStack = new();
+    private readonly Stack<List<(LangPath traitPath, string genericParamName, Dictionary<string, LangPath>? assocConstraints)>> TraitBoundsStack = new();
 
     /// <summary>
     /// All impl definitions for trait method validation
@@ -193,7 +193,7 @@ public class SemanticAnalyzer
         ParseResults = new Stack<ParseResult>(parseResults);
     }
 
-    public void PushTraitBounds(IEnumerable<(LangPath traitPath, string genericParamName)> bounds)
+    public void PushTraitBounds(IEnumerable<(LangPath traitPath, string genericParamName, Dictionary<string, LangPath>? assocConstraints)> bounds)
     {
         TraitBoundsStack.Push(bounds.ToList());
     }
@@ -210,7 +210,7 @@ public class SemanticAnalyzer
     public IEnumerable<TraitDefinition> GetTraitBoundsFor(string genericParamName)
     {
         foreach (var bounds in TraitBoundsStack)
-            foreach (var (traitPath, paramName) in bounds)
+            foreach (var (traitPath, paramName, _) in bounds)
                 if (paramName == genericParamName)
                     if (GetDefinition(traitPath) is TraitDefinition td)
                         yield return td;
@@ -222,7 +222,7 @@ public class SemanticAnalyzer
     public bool IsGenericParam(string name)
     {
         foreach (var bounds in TraitBoundsStack)
-            foreach (var (_, paramName) in bounds)
+            foreach (var (_, paramName, _) in bounds)
                 if (paramName == name)
                     return true;
         return false;
@@ -306,7 +306,7 @@ public class SemanticAnalyzer
             {
                 var traitTypePath = (traitDef as IDefinition).TypePath;
                 foreach (var bounds in TraitBoundsStack)
-                    foreach (var (tp, paramName) in bounds)
+                    foreach (var (tp, paramName, _) in bounds)
                         if (tp == traitTypePath)
                             return new NormalLangPath(null, [paramName]);
             }
@@ -337,7 +337,7 @@ public class SemanticAnalyzer
         {
             var paramName = nlp.PathSegments[0].ToString();
             foreach (var bounds in TraitBoundsStack)
-                foreach (var (tp, pName) in bounds)
+                foreach (var (tp, pName, _) in bounds)
                     if (pName == paramName && tp == traitPath)
                         return true;
         }
@@ -389,9 +389,22 @@ public class SemanticAnalyzer
     /// Resolves an associated type for a given implementing type and trait.
     /// E.g., for &lt;i32 as Add&gt;::Output, finds the impl of Add for i32 and returns Output's concrete type.
     /// Also handles stripping trait generics for matching.
+    /// First checks trait bound associated type constraints (e.g., T: Add&lt;T, Output = T&gt;).
     /// </summary>
     public LangPath? ResolveAssociatedType(LangPath forType, LangPath traitPath, string associatedTypeName)
     {
+        // Check trait bound associated type constraints first
+        // e.g., for T: Add<T, Output = T>, resolving <T as Add<T>>::Output gives T
+        if (forType is NormalLangPath nlpFor && nlpFor.PathSegments.Length == 1)
+        {
+            var paramName = nlpFor.PathSegments[0].ToString();
+            foreach (var bounds in TraitBoundsStack)
+                foreach (var (tp, pName, assocConstraints) in bounds)
+                    if (pName == paramName && tp == traitPath && assocConstraints != null)
+                        if (assocConstraints.TryGetValue(associatedTypeName, out var constrainedType))
+                            return constrainedType;
+        }
+
         // Strip trait generics for lookup
         var traitLookupPath = traitPath;
         if (traitPath is NormalLangPath nlpTrait && nlpTrait.GetFrontGenerics().Length > 0)
@@ -444,7 +457,7 @@ public class SemanticAnalyzer
         {
             var paramName = nlp.PathSegments[0].ToString();
             foreach (var bounds in TraitBoundsStack)
-                foreach (var (tp, pName) in bounds)
+                foreach (var (tp, pName, _) in bounds)
                     if (pName == paramName && tp == copyPath)
                         return true;
         }

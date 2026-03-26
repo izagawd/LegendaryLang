@@ -1,4 +1,4 @@
-fn add_them<T: Add<T> + Copy>(one: T, two: T) -> T {
+fn add_them<T: Add<T, Output = T> + Copy>(one: T, two: T) -> T {
     one + two + two
 }
 

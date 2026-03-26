@@ -136,7 +136,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         }
 
         var bounds = GenericParameters
-            .SelectMany(gp => gp.TraitBounds.Select(tb => (tb, gp.Name)))
+            .SelectMany(gp => gp.TraitBounds.Select(tb => (tb.TraitPath, gp.Name, (Dictionary<string, LangPath>?)(tb.AssociatedTypeConstraints.Count > 0 ? tb.AssociatedTypeConstraints : null))))
             .ToList();
         analyzer.PushTraitBounds(bounds);
 
@@ -209,7 +209,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
                 while (nextToken is not OperatorToken {OperatorType: Operator.GreaterThan})
                 {
                     var paramIdentifier = Identifier.Parse(parser);
-                    var traitBounds = new List<LangPath>();
+                    var traitBounds = new List<TraitBound>();
                     if (parser.Peek() is ColonToken)
                     {
                         parser.Pop(); // consume ':'
@@ -217,12 +217,12 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
                         if (parser.Peek() is not OperatorToken {OperatorType: Operator.GreaterThan}
                             && parser.Peek() is not CommaToken)
                         {
-                            traitBounds.Add(LangPath.Parse(parser, true));
+                            traitBounds.Add(TraitBound.Parse(parser));
                             // Parse additional bounds separated by +
                             while (parser.Peek() is OperatorToken {OperatorType: Operator.Add})
                             {
                                 parser.Pop(); // consume '+'
-                                traitBounds.Add(LangPath.Parse(parser, true));
+                                traitBounds.Add(TraitBound.Parse(parser));
                             }
                         }
                     }

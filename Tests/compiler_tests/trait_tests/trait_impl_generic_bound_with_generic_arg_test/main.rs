@@ -4,7 +4,7 @@ struct Wrapper<T> {
 
 impl<T: Copy> Copy for Wrapper<T> {}
 
-impl<T: Add<T> + Copy> Add<Wrapper<T>> for Wrapper<T> {
+impl<T: Add<T, Output = T> + Copy> Add<Wrapper<T>> for Wrapper<T> {
     type Output = Wrapper<T>;
     fn add(lhs: Wrapper<T>, rhs: Wrapper<T>) -> Wrapper<T> {
         Wrapper { val = lhs.val + rhs.val }

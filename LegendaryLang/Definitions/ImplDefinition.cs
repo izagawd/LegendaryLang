@@ -94,8 +94,8 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             {
                 // Substitute generic params in the bound (e.g., Add<T> → Add<i32>)
                 var resolvedBound = genericArgs != null
-                    ? FieldAccessExpression.SubstituteGenerics(bound, GenericParameters, genericArgs.Value)
-                    : bound;
+                    ? FieldAccessExpression.SubstituteGenerics(bound.TraitPath, GenericParameters, genericArgs.Value)
+                    : bound.TraitPath;
                 if (!analyzer.TypeImplementsTrait(boundType, resolvedBound))
                     return false;
             }
@@ -117,8 +117,8 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             {
                 // Substitute generic params in the bound (e.g., Add<T> → Add<i32>)
                 var resolvedBound = genericArgs != null
-                    ? FieldAccessExpression.SubstituteGenerics(bound, GenericParameters, genericArgs.Value)
-                    : bound;
+                    ? FieldAccessExpression.SubstituteGenerics(bound.TraitPath, GenericParameters, genericArgs.Value)
+                    : bound.TraitPath;
 
                 // Check if boundType is a generic param with this trait bound in scope
                 if (boundType is NormalLangPath nlpBound && nlpBound.PathSegments.Length == 1)
@@ -245,7 +245,7 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
 
         // Analyze each method body — push impl generic bounds so T: Copy is known inside methods
         var implBounds = GenericParameters
-            .SelectMany(gp => gp.TraitBounds.Select(tb => (tb, gp.Name)))
+            .SelectMany(gp => gp.TraitBounds.Select(tb => (tb.TraitPath, gp.Name, (Dictionary<string, LangPath>?)(tb.AssociatedTypeConstraints.Count > 0 ? tb.AssociatedTypeConstraints : null))))
             .ToList();
         analyzer.PushTraitBounds(implBounds);
 
@@ -299,7 +299,7 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             {
                 // Build a set of impl generic param names that have Copy bounds
                 var copyBoundParams = GenericParameters
-                    .Where(gp => gp.TraitBounds.Any(b => b == SemanticAnalyzer.CopyTraitPath))
+                    .Where(gp => gp.TraitBounds.Any(b => b.TraitPath == SemanticAnalyzer.CopyTraitPath))
                     .Select(gp => gp.Name)
                     .ToHashSet();
 
@@ -409,18 +409,18 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             while (nextToken is not OperatorToken { OperatorType: Operator.GreaterThan })
             {
                 var paramIdentifier = Identifier.Parse(parser);
-                var traitBounds = new List<LangPath>();
+                var traitBounds = new List<TraitBound>();
                 if (parser.Peek() is ColonToken)
                 {
                     parser.Pop();
                     if (parser.Peek() is not OperatorToken { OperatorType: Operator.GreaterThan }
                         && parser.Peek() is not CommaToken)
                     {
-                        traitBounds.Add(LangPath.Parse(parser, true));
+                        traitBounds.Add(TraitBound.Parse(parser));
                         while (parser.Peek() is OperatorToken { OperatorType: Operator.Add })
                         {
                             parser.Pop();
-                            traitBounds.Add(LangPath.Parse(parser, true));
+                            traitBounds.Add(TraitBound.Parse(parser));
                         }
                     }
                 }

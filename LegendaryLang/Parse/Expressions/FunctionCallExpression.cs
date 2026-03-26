@@ -104,10 +104,24 @@ public class FunctionCallExpression : IExpression
                         var argType = genericArgs[i];
                         // Substitute generic params in the bound (e.g., Add<T> → Add<i32>)
                         var resolvedBound = FieldAccessExpression.SubstituteGenerics(
-                            bound, fd.GenericParameters, genericArgs);
+                            bound.TraitPath, fd.GenericParameters, genericArgs);
                         if (!analyzer.TypeImplementsTrait(argType, resolvedBound))
                         {
                             analyzer.AddException(new TraitBoundViolationException(argType, resolvedBound));
+                        }
+
+                        // Validate associated type constraints (e.g., Output = T)
+                        foreach (var (atName, atType) in bound.AssociatedTypeConstraints)
+                        {
+                            var resolvedAtType = FieldAccessExpression.SubstituteGenerics(
+                                atType, fd.GenericParameters, genericArgs);
+                            var actualAt = analyzer.ResolveAssociatedType(argType, resolvedBound, atName);
+                            if (actualAt != null && actualAt != resolvedAtType)
+                            {
+                                analyzer.AddException(new SemanticException(
+                                    $"Associated type constraint '{atName} = {resolvedAtType}' not satisfied: " +
+                                    $"actual '{atName}' is '{actualAt}'\n{Token.GetLocationStringRepresentation()}"));
+                            }
                         }
                     }
                 }
