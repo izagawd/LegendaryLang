@@ -221,16 +221,16 @@ public class SemanticAnalyzer
             var typeDef = GetDefinition(parentPath);
             if (typeDef != null && typeDef is not TraitDefinition)
             {
-                // Search all impls where ForTypePath matches this type
+                // Search all impls where ForTypePath pattern-matches this type
                 foreach (var impl in ImplDefinitions)
                 {
-                    if (impl.ForTypePath == parentPath)
+                    var bindings = impl.TryMatchConcreteType(parentPath);
+                    if (bindings != null && impl.CheckBounds(bindings, this))
                     {
                         var implTraitDef = GetDefinition(impl.TraitPath) as TraitDefinition;
                         if (implTraitDef?.GetMethod(methodName) != null)
                         {
                             traitDef = implTraitDef;
-                            // Self resolves to the concrete type
                             var method = traitDef.GetMethod(methodName);
                             var returnType = method!.ReturnTypePath;
                             if (returnType is NormalLangPath nlpSelf && nlpSelf.PathSegments.Length == 1
@@ -268,11 +268,18 @@ public class SemanticAnalyzer
     }
 
     /// <summary>
-    /// Checks whether a type has an impl block for the given trait
+    /// Checks whether a type has an impl block for the given trait.
+    /// Handles both non-generic and generic impls via pattern matching.
     /// </summary>
     public bool TypeImplementsTrait(LangPath typePath, LangPath traitPath)
     {
-        return ImplDefinitions.Any(i => i.TraitPath == traitPath && i.ForTypePath == typePath);
+        return ImplDefinitions.Any(i =>
+        {
+            if (i.TraitPath != traitPath) return false;
+            var bindings = i.TryMatchConcreteType(typePath);
+            if (bindings == null) return false;
+            return i.CheckBounds(bindings, this);
+        });
     }
 
     /// <summary>

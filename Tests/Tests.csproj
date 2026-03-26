@@ -24,9 +24,6 @@
       <None Update="compiler_tests\**\*.rs">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Include="..\LegendaryLang\std\**\*.rs" Link="std\%(RecursiveDir)%(Filename)%(Extension)">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
     </ItemGroup>
     <PropertyGroup>
         <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>

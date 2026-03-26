@@ -24,7 +24,12 @@ public class StructCreationExpression : IExpression
     public void Analyze(SemanticAnalyzer analyzer)
     {
         foreach (var i in AssignFields) i.EqualsTo.Analyze(analyzer);
+
+        // Look up definition, stripping generics if needed
         var str = analyzer.GetDefinition(TypePath);
+        if (str == null && TypePath is NormalLangPath nlpType && nlpType.GetFrontGenerics().Length > 0)
+            str = analyzer.GetDefinition(nlpType.PopGenerics());
+
         if (str is null)
         {
             analyzer.AddException(
@@ -39,6 +44,16 @@ public class StructCreationExpression : IExpression
             analyzer.AddException(new SemanticException(
                 $"Expected struct type but found {str.TypePath}\n{Token.GetLocationStringRepresentation()}"));
             return;
+        }
+
+        // Check generic param count
+        var genericArgs = (TypePath is NormalLangPath nlp) ? nlp.GetFrontGenerics() : [];
+        if (asStruct.GenericParameters.Length != genericArgs.Length)
+        {
+            if (asStruct.GenericParameters.Length > 0)
+                analyzer.AddException(new SemanticException(
+                    $"Struct '{asStruct.Name}' expects {asStruct.GenericParameters.Length} generic parameter(s), " +
+                    $"but {genericArgs.Length} were provided\n{Token.GetLocationStringRepresentation()}"));
         }
 
         if (AssignFields.Length < asStruct.Fields.Length)
@@ -69,6 +84,9 @@ public class StructCreationExpression : IExpression
         foreach (var field in AssignFields.Except(invalidFields))
         {
             var fieldType = asStruct.Fields.First(i => i.Name == field.FieldToken.Identity).TypePath;
+            // Substitute generic params in field type
+            if (genericArgs.Length > 0 && asStruct.GenericParameters.Length > 0)
+                fieldType = FieldAccessExpression.SubstituteGenerics(fieldType, asStruct.GenericParameters, genericArgs);
             if (field.EqualsTo.TypePath != fieldType)
                 analyzer.AddException(new SemanticException(
                     $"Field {field.FieldToken.Identity} expects type '{fieldType}', found '{field.EqualsTo.TypePath}'\n" +

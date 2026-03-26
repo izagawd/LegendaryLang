@@ -171,7 +171,8 @@ public class CodeGenContext
                 {
                     foreach (var i in ImplDefinitions)
                     {
-                        if (i.ForTypePath == concreteType)
+                        var match = i.TryMatchConcreteType(concreteType);
+                        if (match != null && i.CheckBoundsCodeGen(match, this))
                         {
                             var candidateTrait = DefinitionsCollection.OfType<TraitDefinition>()
                                 .FirstOrDefault(t => (t as IDefinition).TypePath == i.TraitPath);
@@ -193,9 +194,18 @@ public class CodeGenContext
             .FirstOrDefault(t => (t as IDefinition).TypePath == resolvedTraitPath);
         if (resolvedTrait?.GetMethod(methodName) == null) return null;
 
-        // Find the impl definition for this trait + concrete type
-        var impl = ImplDefinitions.FirstOrDefault(i =>
-            i.TraitPath == resolvedTraitPath && i.ForTypePath == concreteType);
+        // Find the impl definition for this trait + concrete type (supports generic impls)
+        ImplDefinition? impl = null;
+        foreach (var candidate in ImplDefinitions)
+        {
+            if (candidate.TraitPath != resolvedTraitPath) continue;
+            var bindings = candidate.TryMatchConcreteType(concreteType);
+            if (bindings != null && candidate.CheckBoundsCodeGen(bindings, this))
+            {
+                impl = candidate;
+                break;
+            }
+        }
         if (impl == null) return null;
 
         // Build a unique key that includes the concrete type to avoid cross-monomorphization collisions

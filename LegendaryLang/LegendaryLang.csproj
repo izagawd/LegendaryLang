@@ -21,9 +21,9 @@
         <None Update="code\dark\next.rs">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
-        <None Update="std\**\*.rs">
+        <Content Include="std\**\*.rs">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </None>
+        </Content>
     </ItemGroup>
     <PropertyGroup>
         <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
