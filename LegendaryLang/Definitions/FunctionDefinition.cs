@@ -100,6 +100,9 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         ReturnTypePath = ReturnTypePath.Resolve(resolver);
         foreach (var i in Arguments)
             i.TypePath = i.TypePath?.Resolve(resolver);
+        foreach (var gp in GenericParameters)
+            if (gp.TraitBound != null)
+                gp.TraitBound = gp.TraitBound.Resolve(resolver);
     }
 
 
@@ -112,6 +115,12 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
     public void Analyze(SemanticAnalyzer analyzer)
     {
         analyzer.AddScope();
+        var bounds = GenericParameters
+            .Where(gp => gp.TraitBound != null)
+            .Select(gp => (gp.TraitBound!, gp.Name))
+            .ToList();
+        analyzer.PushTraitBounds(bounds);
+
         foreach (var i in Arguments)
             analyzer.RegisterVariableType(new NormalLangPath(i.IdentifierToken, [i.Name]), i.TypePath);
         BlockExpression.Analyze(analyzer);
@@ -143,6 +152,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
                     $"Not all paths return a value of the valid type\n{Token.GetLocationStringRepresentation()}'"));
             }
         }
+        analyzer.PopTraitBounds();
         analyzer.PopScope();
     }
 
@@ -184,8 +194,14 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
                 while (nextToken is not OperatorToken {OperatorType: Operator.GreaterThan})
                 {
                     var paramIdentifier = Identifier.Parse(parser);
+                    LangPath? traitBound = null;
+                    if (parser.Peek() is ColonToken)
+                    {
+                        parser.Pop(); // consume ':'
+                        traitBound = LangPath.Parse(parser);
+                    }
                     nextToken = parser.Peek();
-                    genericParameters.Add(new GenericParameter(paramIdentifier));
+                    genericParameters.Add(new GenericParameter(paramIdentifier, traitBound));
                     if (nextToken is CommaToken)
                     {
                         parser.Pop();

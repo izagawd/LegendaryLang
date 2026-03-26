@@ -221,6 +221,15 @@ public static class Lexer
                         case "fn":
                             file.AddToken(new FnToken(file, column, line));
                             break;
+                        case "trait":
+                            file.AddToken(new TraitToken(file, column, line));
+                            break;
+                        case "impl":
+                            file.AddToken(new ImplToken(file, column, line));
+                            break;
+                        case "for":
+                            file.AddToken(new ForToken(file, column, line));
+                            break;
                         default:
                             file.AddToken(new IdentifierToken(file, column, line, ident));
                             break;

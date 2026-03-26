@@ -6,6 +6,7 @@ public class GenericParameter
 {
     public readonly IdentifierToken? Identifier;
     public readonly string Name;
+    public LangPath? TraitBound;
 
     public GenericParameter(string name)
     {
@@ -16,5 +17,12 @@ public class GenericParameter
     {
         Identifier = identifier;
         Name = identifier.Identity;
+    }
+
+    public GenericParameter(IdentifierToken identifier, LangPath? traitBound)
+    {
+        Identifier = identifier;
+        Name = identifier.Identity;
+        TraitBound = traitBound;
     }
 }

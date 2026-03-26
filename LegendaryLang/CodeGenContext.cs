@@ -83,6 +83,92 @@ public class CodeGenContext
     private ValueRefItem Void;
 
     private List<IDefinition> TopLevelDefinitions;
+
+    /// <summary>
+    /// Stores all impl definitions for trait method resolution
+    /// </summary>
+    public List<ImplDefinition> ImplDefinitions { get; } = new();
+
+    /// <summary>
+    /// During generic function codegen, maps trait paths to concrete types
+    /// based on current generic param trait bounds
+    /// </summary>
+    private readonly Stack<List<(LangPath traitPath, LangPath concreteType)>> TraitBoundsStack = new();
+
+    public void PushTraitBounds(List<(LangPath, LangPath)> bounds)
+    {
+        TraitBoundsStack.Push(bounds);
+    }
+
+    public void PopTraitBounds()
+    {
+        if (TraitBoundsStack.Count > 0)
+            TraitBoundsStack.Pop();
+    }
+
+    /// <summary>
+    /// Gets the concrete type associated with a trait bound, if any
+    /// </summary>
+    public LangPath? GetConcreteTypeForTrait(LangPath traitPath)
+    {
+        foreach (var bounds in TraitBoundsStack)
+            foreach (var (tp, ct) in bounds)
+                if (tp == traitPath) return ct;
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves a trait method call path (e.g., TraitName::method) to a FunctionRefItem
+    /// </summary>
+    public IRefItem? ResolveTraitMethodCall(NormalLangPath path)
+    {
+        // path = module::TraitName::methodName
+        var methodName = path.GetLastPathSegment().ToString();
+        var traitPath = path.Pop();
+        if (traitPath == null) return null;
+
+        // Check if traitPath matches a known trait
+        var traitDef = DefinitionsCollection.OfType<TraitDefinition>()
+            .FirstOrDefault(t => (t as IDefinition).TypePath == traitPath);
+        if (traitDef == null) return null;
+
+        // Check the trait actually has this method
+        var traitMethod = traitDef.GetMethod(methodName);
+        if (traitMethod == null) return null;
+
+        // Find the concrete type for this trait from the trait bounds stack
+        var concreteType = GetConcreteTypeForTrait(traitPath);
+        if (concreteType == null) return null;
+
+        // Find the impl definition for this trait + concrete type
+        var impl = ImplDefinitions.FirstOrDefault(i =>
+            i.TraitPath == traitPath && i.ForTypePath == concreteType);
+        if (impl == null) return null;
+
+        // Build a unique key that includes the concrete type to avoid cross-monomorphization collisions
+        var implMethodPath = new NormalLangPath(null,
+            [new NormalLangPath.NormalPathSegment($"impl_{traitPath}_for_{concreteType}"),
+             new NormalLangPath.NormalPathSegment(methodName)]);
+
+        // Check if already created
+        foreach (var scope in ScopeItems)
+            if (scope.TryGetValue(implMethodPath, out var existing))
+                return existing;
+
+        // Get the method from the impl
+        var implMethod = impl.GetMethod(methodName);
+        if (implMethod == null) return null;
+
+        // Create the function ref (no generic args since Self is already resolved)
+        var refItem = implMethod.CreateRefDefinition(this, []);
+        if (refItem is FunctionRefItem functionRefItem)
+            UnimplementedFunctions.Push(functionRefItem);
+
+        // Store under the concrete-type-specific key at outermost scope
+        AddToScope(implMethodPath, refItem, 0);
+        return refItem;
+    }
+
     CodeGenContext(IEnumerable<IDefinition> definitions, NormalLangPath mainLangModule)
     {
         MainLangModule = mainLangModule;
@@ -90,8 +176,15 @@ public class CodeGenContext
     }
 
     CodeGenContext(IEnumerable<ParseResult> results, NormalLangPath mainLangModule) : this(
-        results.SelectMany(i => i.Items.OfType<IDefinition>()), mainLangModule)
+        results.SelectMany(i => i.Items.OfType<IDefinition>())
+            .Concat(results.SelectMany(i => i.Items.OfType<ImplDefinition>()
+                .SelectMany(impl => impl.Methods))),
+        mainLangModule)
     {
+        // Collect impl definitions from all parse results
+        foreach (var result in results)
+            foreach (var impl in result.Items.OfType<ImplDefinition>())
+                ImplDefinitions.Add(impl);
     }
 
     public NormalLangPath MainLangModule { get; }
@@ -170,6 +263,13 @@ public class CodeGenContext
             var scope = GetScope(ident).Value;
             AddToScope(ident, refItem, scope);
             return refItem;
+        }
+
+        // Try to resolve as a trait method call
+        if (ident is NormalLangPath normalPath)
+        {
+            var traitResult = ResolveTraitMethodCall(normalPath);
+            if (traitResult != null) return traitResult;
         }
 
         return null;

@@ -46,10 +46,19 @@ public class FunctionCallExpression : IExpression
         }
         else
         {
-            TypePath = LangPath.VoidBaseLangPath;
-            analyzer.AddException(
-                new SemanticException(
-                    $"Cannot find function {FunctionPath}\n{Token.GetLocationStringRepresentation()}"));
+            // Try trait method call: TraitName::method(...)
+            var traitMethodReturnType = analyzer.ResolveTraitMethodReturnType(FunctionPath);
+            if (traitMethodReturnType != null)
+            {
+                TypePath = traitMethodReturnType;
+            }
+            else
+            {
+                TypePath = LangPath.VoidBaseLangPath;
+                analyzer.AddException(
+                    new SemanticException(
+                        $"Cannot find function {FunctionPath}\n{Token.GetLocationStringRepresentation()}"));
+            }
         }
 
         foreach (var i in Arguments) i.Analyze(analyzer);

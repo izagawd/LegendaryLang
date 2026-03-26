@@ -48,6 +48,21 @@ public class Function : IConcreteDefinition,  IPathResolvable
                 context.GetRefItemFor(GenericArguments[i]));
         }
 
+        // Push trait bounds so trait method calls resolve to the correct impl
+        var traitBounds = new List<(LangPath, LangPath)>();
+        for (int i = 0; i < Definition.GenericParameters.Length; i++)
+        {
+            var gp = Definition.GenericParameters[i];
+            if (gp.TraitBound != null)
+            {
+                // The concrete type for this generic param
+                var concreteType = (context.GetRefItemFor(GenericArguments[i]) as TypeRefItem)?.Type.TypePath;
+                if (concreteType != null)
+                    traitBounds.Add((gp.TraitBound, concreteType));
+            }
+        }
+        context.PushTraitBounds(traitBounds);
+
         LLVMBasicBlockRef entryBlock = FunctionValueRef.AppendBasicBlock("entry"); 
         LLVM.PositionBuilderAtEnd(context.Builder, entryBlock);
 
@@ -100,7 +115,7 @@ public class Function : IConcreteDefinition,  IPathResolvable
         var gennedVal = BlockExpression.CodeGen(context);
         var built = context.Builder.BuildRet(gennedVal.LoadValue(context));
 
-
+        context.PopTraitBounds();
         context.PopScope();
     }
 

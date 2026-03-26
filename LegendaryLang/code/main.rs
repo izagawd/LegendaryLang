@@ -13,6 +13,7 @@ fn dd<T>(idk: i32) -> i32{
     }
 fn main() -> i32{
     let a = 5;
-    let b = &a;
+    let b = &  mut a;
+    let c = &mut b;
     return 5;
 }

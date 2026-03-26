@@ -31,5 +31,8 @@ public enum ParseType
     If,
     Else,
     While,
-    Ampersand
+    Ampersand,
+    Trait,
+    Impl,
+    For
 }

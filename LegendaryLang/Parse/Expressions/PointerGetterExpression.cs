@@ -1,6 +1,7 @@
 ﻿using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Semantics;
+using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse.Expressions;
 
@@ -39,12 +40,19 @@ public class PointerGetterExpression : IExpression
     public void Analyze(SemanticAnalyzer analyzer)
     {
         PointingTo.Analyze(analyzer);
+        if (PointingTo is not FieldAccessExpression && PointingTo is not PathExpression)
+        {
+            analyzer.AddException(new SemanticException("Pointer point must be a field access, or a variable access\n" + Token.GetLocationStringRepresentation()));
+        }
+
     }
 
     public bool HasGuaranteedExplicitReturn => PointingTo.HasGuaranteedExplicitReturn;
     public LangPath? TypePath => PointerTypeDefinition.GetPointerModule().Append(PointerTypeDefinition.GetPointerName(_isMut)).Append(new NormalLangPath.GenericTypesPathSegment([PointingTo.TypePath]));
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
-        throw new NotImplementedException();
+        return PointingTo.CodeGen(codeGenContext);
+        
+        
     }
 }
