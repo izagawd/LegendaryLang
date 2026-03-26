@@ -1,4 +1,5 @@
-﻿using LegendaryLang.Definitions;
+﻿using System.Collections.Immutable;
+using LegendaryLang.Definitions;
 using LegendaryLang.Definitions.Types;
 using LegendaryLang.Parse;
 using LegendaryLang.Parse.Expressions;
@@ -307,7 +308,7 @@ public class SemanticAnalyzer
     /// <summary>
     /// Checks whether a type has an impl block for the given trait.
     /// Handles concrete impls, generic impls via pattern matching,
-    /// and generic params with trait bounds.
+    /// generic params with trait bounds, and generic trait paths (e.g., Add&lt;i32&gt;).
     /// </summary>
     public bool TypeImplementsTrait(LangPath typePath, LangPath traitPath)
     {
@@ -321,14 +322,87 @@ public class SemanticAnalyzer
                         return true;
         }
 
+        // Strip generics from traitPath for base comparison
+        var traitBase = traitPath;
+        ImmutableArray<LangPath> traitGenericArgs = [];
+        if (traitPath is NormalLangPath nlpTrait && nlpTrait.GetFrontGenerics().Length > 0)
+        {
+            traitGenericArgs = nlpTrait.GetFrontGenerics();
+            traitBase = nlpTrait.PopGenerics();
+        }
+
         // Check concrete and generic impls
         return ImplDefinitions.Any(i =>
         {
-            if (i.TraitPath != traitPath) return false;
+            // Compare trait base paths
+            var implTraitBase = i.TraitPath;
+            ImmutableArray<LangPath> implTraitGenericArgs = [];
+            if (i.TraitPath is NormalLangPath nlpImplTrait && nlpImplTrait.GetFrontGenerics().Length > 0)
+            {
+                implTraitGenericArgs = nlpImplTrait.GetFrontGenerics();
+                implTraitBase = nlpImplTrait.PopGenerics();
+            }
+
+            if (implTraitBase != traitBase) return false;
+
+            // Match the implementing type
             var bindings = i.TryMatchConcreteType(typePath);
             if (bindings == null) return false;
+
+            // Also unify trait generic args if present
+            if (traitGenericArgs.Length > 0 || implTraitGenericArgs.Length > 0)
+            {
+                if (traitGenericArgs.Length != implTraitGenericArgs.Length) return false;
+                var freeVars = i.GenericParameters.Select(gp => gp.Name).ToHashSet();
+                for (int idx = 0; idx < traitGenericArgs.Length; idx++)
+                {
+                    if (!TypeInference.TryUnify(implTraitGenericArgs[idx], traitGenericArgs[idx], freeVars, bindings))
+                        return false;
+                }
+            }
+
             return i.CheckBounds(bindings, this);
         });
+    }
+
+    /// <summary>
+    /// Resolves an associated type for a given implementing type and trait.
+    /// E.g., for &lt;i32 as Add&gt;::Output, finds the impl of Add for i32 and returns Output's concrete type.
+    /// Also handles stripping trait generics for matching.
+    /// </summary>
+    public LangPath? ResolveAssociatedType(LangPath forType, LangPath traitPath, string associatedTypeName)
+    {
+        // Strip trait generics for lookup
+        var traitLookupPath = traitPath;
+        if (traitPath is NormalLangPath nlpTrait && nlpTrait.GetFrontGenerics().Length > 0)
+            traitLookupPath = nlpTrait.PopGenerics();
+
+        foreach (var impl in ImplDefinitions)
+        {
+            // Match trait path (strip generics on impl trait path too)
+            var implTraitLookup = impl.TraitPath;
+            if (implTraitLookup is NormalLangPath nlpImplTrait && nlpImplTrait.GetFrontGenerics().Length > 0)
+                implTraitLookup = nlpImplTrait.PopGenerics();
+
+            if (implTraitLookup != traitLookupPath) continue;
+
+            var bindings = impl.TryMatchConcreteType(forType);
+            if (bindings == null) continue;
+            if (!impl.CheckBounds(bindings, this)) continue;
+
+            var at = impl.AssociatedTypeAssignments.FirstOrDefault(a => a.Name == associatedTypeName);
+            if (at != null)
+            {
+                // Substitute any impl generic params in the associated type
+                var result = at.ConcreteType;
+                foreach (var gp in impl.GenericParameters)
+                    if (bindings.TryGetValue(gp.Name, out var bound))
+                        result = FieldAccessExpression.SubstituteGenerics(result,
+                            impl.GenericParameters, TypeInference.BuildGenericArgs(impl.GenericParameters, bindings) ?? []);
+                return result;
+            }
+        }
+        return null;
     }
 
     /// <summary>
@@ -363,6 +437,15 @@ public class SemanticAnalyzer
     /// </summary>
     public static readonly NormalLangPath CopyTraitPath =
         new(null, new NormalLangPath.PathSegment[] { "std", "core", "marker", "Copy" });
+
+    public static readonly NormalLangPath AddTraitPath =
+        new(null, new NormalLangPath.PathSegment[] { "std", "core", "ops", "Add" });
+    public static readonly NormalLangPath SubTraitPath =
+        new(null, new NormalLangPath.PathSegment[] { "std", "core", "ops", "Sub" });
+    public static readonly NormalLangPath MulTraitPath =
+        new(null, new NormalLangPath.PathSegment[] { "std", "core", "ops", "Mul" });
+    public static readonly NormalLangPath DivTraitPath =
+        new(null, new NormalLangPath.PathSegment[] { "std", "core", "ops", "Div" });
 
     private LangPath? GetCopyTraitPath()
     {

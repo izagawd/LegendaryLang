@@ -8,23 +8,33 @@ using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Definitions;
 
+public class ImplAssociatedType
+{
+    public required string Name { get; init; }
+    public required LangPath ConcreteType { get; set; }
+    public required Token Token { get; init; }
+}
+
 public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
 {
     public ImplDefinition(LangPath traitPath, LangPath forTypePath,
         IEnumerable<FunctionDefinition> methods, Token token,
-        IEnumerable<GenericParameter> genericParameters)
+        IEnumerable<GenericParameter> genericParameters,
+        IEnumerable<ImplAssociatedType> associatedTypes)
     {
         TraitPath = traitPath;
         ForTypePath = forTypePath;
         Methods = methods.ToImmutableArray();
         Token = token;
         GenericParameters = genericParameters.ToImmutableArray();
+        AssociatedTypeAssignments = associatedTypes.ToImmutableArray();
     }
 
     public LangPath TraitPath { get; set; }
     public LangPath ForTypePath { get; set; }
     public ImmutableArray<FunctionDefinition> Methods { get; }
     public ImmutableArray<GenericParameter> GenericParameters { get; }
+    public ImmutableArray<ImplAssociatedType> AssociatedTypeAssignments { get; }
 
     // IItem
     public bool ImplementsLater => false;
@@ -140,8 +150,11 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        // Validate that the trait exists
-        var traitDef = analyzer.GetDefinition(TraitPath) as TraitDefinition;
+        // Validate that the trait exists — strip generics for lookup
+        var traitLookupPath = TraitPath;
+        if (traitLookupPath is NormalLangPath nlpTrait && nlpTrait.GetFrontGenerics().Length > 0)
+            traitLookupPath = nlpTrait.PopGenerics();
+        var traitDef = analyzer.GetDefinition(traitLookupPath) as TraitDefinition;
         if (traitDef == null)
         {
             analyzer.AddException(new TraitNotFoundException(TraitPath, Token.GetLocationStringRepresentation()));
@@ -195,6 +208,39 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             method.Analyze(analyzer);
 
         analyzer.PopTraitBounds();
+
+        // Validate associated types
+        foreach (var traitAT in traitDef.AssociatedTypes)
+        {
+            var implAT = AssociatedTypeAssignments.FirstOrDefault(a => a.Name == traitAT.Name);
+            if (implAT == null)
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Missing associated type '{traitAT.Name}' in impl of '{TraitPath}'\n{Token.GetLocationStringRepresentation()}"));
+            }
+            else
+            {
+                // Validate associated type bounds
+                foreach (var bound in traitAT.TraitBounds)
+                {
+                    if (!analyzer.TypeImplementsTrait(implAT.ConcreteType, bound))
+                    {
+                        analyzer.AddException(new SemanticException(
+                            $"Associated type '{traitAT.Name} = {implAT.ConcreteType}' does not satisfy bound '{bound}'\n{Token.GetLocationStringRepresentation()}"));
+                    }
+                }
+            }
+        }
+
+        // Check for extra associated types not in the trait
+        foreach (var implAT in AssociatedTypeAssignments)
+        {
+            if (!traitDef.AssociatedTypes.Any(a => a.Name == implAT.Name))
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Associated type '{implAT.Name}' is not defined in trait '{TraitPath}'\n{Token.GetLocationStringRepresentation()}"));
+            }
+        }
 
         // If implementing Copy, validate that all fields of the implementing type also implement Copy
         if (TraitPath == SemanticAnalyzer.CopyTraitPath)
@@ -277,10 +323,19 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             for (int i = 0; i < gp.TraitBounds.Count; i++)
                 gp.TraitBounds[i] = gp.TraitBounds[i].Resolve(resolver);
 
+        // Resolve associated type concrete types
+        foreach (var at in AssociatedTypeAssignments)
+            at.ConcreteType = at.ConcreteType.Resolve(resolver);
+
         // Add a scope with Self mapped to the implementing type
         resolver.AddScope();
         if (ForTypePath is NormalLangPath nlp)
             resolver.AddToDeepestScope("Self", nlp);
+
+        // Register associated type assignments as path shortcuts (Output → i32)
+        foreach (var at in AssociatedTypeAssignments)
+            if (at.ConcreteType is NormalLangPath nlpAt)
+                resolver.AddToDeepestScope(at.Name, nlpAt);
 
         // Resolve paths in each method (Self in params/return types becomes the concrete type)
         foreach (var method in Methods)
@@ -354,13 +409,34 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             [new NormalLangPath.NormalPathSegment($"impl_{traitPath}_for_{forTypePath}")]);
 
         var methods = new List<FunctionDefinition>();
+        var associatedTypes = new List<ImplAssociatedType>();
         while (parser.Peek() is not RightCurlyBraceToken)
         {
-            methods.Add(FunctionDefinition.Parse(parser, implModule));
+            if (parser.Peek() is TypeKeywordToken)
+            {
+                // Parse: type Output = i32;
+                var typeTok = parser.Pop();
+                var atName = Identifier.Parse(parser);
+                var eqTok = parser.Pop();
+                if (eqTok is not EqualityToken)
+                    throw new ExpectedParserException(parser, ParseType.Equality, eqTok);
+                var concreteType = LangPath.Parse(parser, true);
+                SemiColon.Parse(parser);
+                associatedTypes.Add(new ImplAssociatedType
+                {
+                    Name = atName.Identity,
+                    ConcreteType = concreteType,
+                    Token = atName
+                });
+            }
+            else
+            {
+                methods.Add(FunctionDefinition.Parse(parser, implModule));
+            }
         }
 
         CurlyBrace.Parseight(parser);
 
-        return new ImplDefinition(traitPath, forTypePath, methods, (Token)implToken, genericParameters);
+        return new ImplDefinition(traitPath, forTypePath, methods, (Token)implToken, genericParameters, associatedTypes);
     }
 }
