@@ -211,6 +211,23 @@ public class DanglingReferenceException : SemanticException
     }
 }
 
+public class BorrowConflictException : SemanticException
+{
+    public string Source { get; }
+    public RefKind NewKind { get; }
+    public RefKind ExistingKind { get; }
+    public string ExistingBorrower { get; }
+    public BorrowConflictException(string source, string existingBorrower, RefKind existingKind, RefKind newKind, string location)
+        : base($"Cannot create &{RefTypeDefinition.GetRefName(newKind)} borrow of '{source}': " +
+               $"conflicts with existing &{RefTypeDefinition.GetRefName(existingKind)} borrow '{existingBorrower}'\n{location}")
+    {
+        Source = source;
+        ExistingBorrower = existingBorrower;
+        NewKind = newKind;
+        ExistingKind = existingKind;
+    }
+}
+
 public class TraitImplBoundsMismatchException : SemanticException
 {
     public TraitImplBoundsMismatchException(string details, string location)
@@ -262,6 +279,13 @@ public class SemanticAnalyzer
     private readonly Dictionary<string, HashSet<string>> _borrowSources = new();
 
     /// <summary>
+    /// Tracks active borrows per source variable with their RefKind.
+    /// Key: source variable name, Value: list of (borrower name, RefKind).
+    /// Used to enforce borrow compatibility rules.
+    /// </summary>
+    private readonly Dictionary<string, List<(string borrower, RefKind kind)>> _activeBorrows = new();
+
+    /// <summary>
     /// Set of variable names whose borrows have been invalidated
     /// (the thing they borrowed from was shadowed or went out of scope).
     /// </summary>
@@ -277,7 +301,7 @@ public class SemanticAnalyzer
     /// <summary>
     /// Register that <paramref name="borrower"/> borrows from <paramref name="source"/>.
     /// </summary>
-    public void RegisterBorrow(string source, string borrower)
+    public void RegisterBorrow(string source, string borrower, RefKind kind = RefKind.Shared)
     {
         if (!_borrowSources.TryGetValue(source, out var set))
         {
@@ -287,6 +311,45 @@ public class SemanticAnalyzer
         set.Add(borrower);
         // If borrower was previously invalidated, clear it (fresh borrow)
         _invalidatedBorrows.Remove(borrower);
+
+        // Track active borrows with their kind for compatibility checking
+        if (!_activeBorrows.TryGetValue(source, out var activeList))
+        {
+            activeList = new List<(string, RefKind)>();
+            _activeBorrows[source] = activeList;
+        }
+        activeList.Add((borrower, kind));
+    }
+
+    /// <summary>
+    /// Check borrow compatibility rules. Returns the conflicting RefKind if incompatible, null if ok.
+    /// Rules:
+    ///   &amp;T + &amp;T: ok,  &amp;T + &amp;const: ok,  &amp;T + &amp;mut: ok,  &amp;T + &amp;uniq: CONFLICT
+    ///   &amp;const + &amp;const: ok,  &amp;const + &amp;mut: CONFLICT
+    ///   &amp;mut + &amp;mut: ok,  &amp;mut + &amp;uniq: CONFLICT
+    ///   &amp;uniq + anything: CONFLICT
+    /// </summary>
+    public (string borrower, RefKind existingKind)? CheckBorrowCompatibility(string source, RefKind newKind)
+    {
+        if (!_activeBorrows.TryGetValue(source, out var activeList))
+            return null;
+
+        foreach (var (borrower, existingKind) in activeList)
+        {
+            if (!AreRefKindsCompatible(existingKind, newKind))
+                return (borrower, existingKind);
+        }
+        return null;
+    }
+
+    private static bool AreRefKindsCompatible(RefKind a, RefKind b)
+    {
+        // &uniq is incompatible with everything
+        if (a == RefKind.Uniq || b == RefKind.Uniq) return false;
+        // &const and &mut are incompatible with each other
+        if ((a == RefKind.Const && b == RefKind.Mut) || (a == RefKind.Mut && b == RefKind.Const))
+            return false;
+        return true;
     }
 
     /// <summary>
@@ -300,6 +363,7 @@ public class SemanticAnalyzer
                 _invalidatedBorrows.Add(b);
             _borrowSources.Remove(source);
         }
+        _activeBorrows.Remove(source);
     }
 
     /// <summary>
@@ -451,10 +515,19 @@ public class SemanticAnalyzer
     public LangPath? ResolveTraitMethodReturnType(NormalLangPath path)
     {
         if (path.PathSegments.Length < 2) return null;
-        var lastSeg = path.GetLastPathSegment();
+
+        // Strip trailing method-level generics (turbofish) if present
+        // e.g., T::kk::<U> → strip <U> to get T::kk
+        var workingPath = path;
+        if (workingPath.GetFrontGenerics().Length > 0)
+            workingPath = workingPath.PopGenerics()!;
+
+        if (workingPath.PathSegments.Length < 2) return null;
+
+        var lastSeg = workingPath.GetLastPathSegment();
         if (lastSeg == null) return null;
         var methodName = lastSeg.ToString();
-        var parentPath = path.Pop();
+        var parentPath = workingPath.Pop();
         if (parentPath == null || parentPath.PathSegments.Length == 0) return null;
 
         // Case 1: TraitName::method — parent is a trait directly (strip generics for lookup)

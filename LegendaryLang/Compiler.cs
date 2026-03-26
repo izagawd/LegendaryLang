@@ -79,6 +79,10 @@ public class Compiler
             MoveOutOfReferenceException e => new MoveOutOfReferenceError
                 { TypePath = e.TypePath },
             DanglingReferenceException => new DanglingReferenceError(),
+            BorrowConflictException e => new BorrowConflictError
+                { Source = e.Source, ExistingBorrower = e.ExistingBorrower,
+                  NewKindName = RefTypeDefinition.GetRefName(e.NewKind),
+                  ExistingKindName = RefTypeDefinition.GetRefName(e.ExistingKind) },
             TraitImplBoundsMismatchException e => new TraitImplBoundsMismatchError
                 { Details = e.Details },
             _ => new GenericSemanticError { Details = ex.Message }

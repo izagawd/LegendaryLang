@@ -160,4 +160,53 @@ public class TraitTests
         Assert.That(result.Success);
         Assert.That(5 == result.Function?.Invoke());
     }
+
+    [Test]
+    public void TraitQualifiedTurbofishTest()
+    {
+        // <i32 as Foo>::kk::<i32>() — qualified call with method-level turbofish
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_qualified_turbofish_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(42 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitGenericParamTurbofishTest()
+    {
+        // <T as Foo>::kk::<U>() inside generic fn — qualified generic param turbofish
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_generic_param_turbofish_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(7 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitShorthandTurbofishTest()
+    {
+        // T::kk::<U>() — shorthand turbofish on generic param
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_shorthand_turbofish_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(13 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitBothTurbofishTest()
+    {
+        // <T as Foo>::kk::<U>() + T::kk::<U>() — both forms in same fn
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_both_turbofish_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitTurbofishSemanticTest()
+    {
+        // Just checks that turbofish trait calls pass semantic analysis
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_turbofish_semantic_test", true, true);
+        Assert.That(result.Success);
+    }
 }

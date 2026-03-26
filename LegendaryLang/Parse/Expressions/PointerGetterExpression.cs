@@ -9,6 +9,7 @@ namespace LegendaryLang.Parse.Expressions;
 public class PointerGetterExpression : IExpression
 {
     private readonly RefKind _refKind;
+    public RefKind RefKind => _refKind;
 
     public static PointerGetterExpression Parse(Parser parser)
     {

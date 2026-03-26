@@ -347,3 +347,169 @@ public class RefBlockScopeTests
         Assert.That(result.HasError<DanglingReferenceError>());
     }
 }
+
+public class RefConstTests
+{
+    [Test]
+    public void RefConstBasicTest()
+    {
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_const_basic_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefConstMultipleTest()
+    {
+        // Multiple &const from same source — ok
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_const_multiple_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefConstWithSharedTest()
+    {
+        // &T + &const T from same source — ok
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_const_with_shared_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefConstWithMutFailTest()
+    {
+        // &const T + &mut T — conflict
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_const_with_mut_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowConflictError>());
+    }
+}
+
+public class RefMutTests
+{
+    [Test]
+    public void RefMutBasicTest()
+    {
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_mut_basic_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefMutMultipleTest()
+    {
+        // Multiple &mut from same source — ok (shared mutable)
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_mut_multiple_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefMutWithSharedTest()
+    {
+        // &mut T + &T from same source — ok
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_mut_with_shared_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefMutWithConstFailTest()
+    {
+        // &mut T + &const T — conflict
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_mut_with_const_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowConflictError>());
+    }
+}
+
+public class RefUniqTests
+{
+    [Test]
+    public void RefUniqBasicTest()
+    {
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_uniq_basic_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefUniqWithSharedFailTest()
+    {
+        // &T then &uniq T — conflict
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_uniq_with_shared_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowConflictError>());
+    }
+
+    [Test]
+    public void RefUniqWithConstFailTest()
+    {
+        // &const T then &uniq T — conflict
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_uniq_with_const_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowConflictError>());
+    }
+
+    [Test]
+    public void RefUniqWithMutFailTest()
+    {
+        // &mut T then &uniq T — conflict
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_uniq_with_mut_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowConflictError>());
+    }
+
+    [Test]
+    public void RefUniqDoubleFailTest()
+    {
+        // &uniq T then &uniq T — conflict (unique means exclusive)
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_uniq_double_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowConflictError>());
+    }
+
+    [Test]
+    public void RefSharedAfterUniqFailTest()
+    {
+        // &uniq T then &T — conflict (uniq blocks everything)
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_shared_after_uniq_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowConflictError>());
+    }
+
+    [Test]
+    public void RefSharedMultipleTest()
+    {
+        // Three &T from same source — all ok
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_shared_multiple_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(15 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefUniqAfterShadowTest()
+    {
+        // Shadow clears old borrows, so &uniq on new binding is fine
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_uniq_after_shadow_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+}

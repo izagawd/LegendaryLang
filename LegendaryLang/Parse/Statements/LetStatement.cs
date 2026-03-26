@@ -171,7 +171,16 @@ public class LetStatement : IStatement
 
             if (sourceName != null)
             {
-                analyzer.RegisterBorrow(sourceName, VariableDefinition.Name);
+                // Check borrow compatibility before registering
+                var conflict = analyzer.CheckBorrowCompatibility(sourceName, pge.RefKind);
+                if (conflict != null)
+                {
+                    analyzer.AddException(new BorrowConflictException(
+                        sourceName, conflict.Value.borrower, conflict.Value.existingKind,
+                        pge.RefKind, Token.GetLocationStringRepresentation()));
+                }
+
+                analyzer.RegisterBorrow(sourceName, VariableDefinition.Name, pge.RefKind);
 
                 // If borrowing from a local (not a function parameter), mark this variable
                 // as holding a local borrow — it cannot be returned from the function

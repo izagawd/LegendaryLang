@@ -129,10 +129,18 @@ public class CodeGenContext
     public IRefItem? ResolveTraitMethodCall(NormalLangPath path)
     {
         if (path.PathSegments.Length < 2) return null;
-        var lastSeg = path.GetLastPathSegment();
+
+        // Strip trailing method-level generics (turbofish) if present
+        var workingPath = path;
+        if (workingPath.GetFrontGenerics().Length > 0)
+            workingPath = workingPath.PopGenerics()!;
+
+        if (workingPath.PathSegments.Length < 2) return null;
+
+        var lastSeg = workingPath.GetLastPathSegment();
         if (lastSeg == null) return null;
         var methodName = lastSeg.ToString();
-        var parentPath = path.Pop();
+        var parentPath = workingPath.Pop();
         if (parentPath == null || parentPath.PathSegments.Length == 0) return null;
 
         LangPath? resolvedTraitPath = null;

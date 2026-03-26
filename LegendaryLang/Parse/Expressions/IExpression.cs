@@ -93,6 +93,22 @@ public interface IExpression : IStatement
         else
             throw new ParseException($"Expected a normal path for trait in qualified expression\n{asToken.GetLocationStringRepresentation()}");
 
+        // Parse optional turbofish generics ::<U>
+        if (parser.Peek() is DoubleColonToken && parser.PeekAt(1) is OperatorToken { OperatorType: Operator.LessThan })
+        {
+            parser.Pop(); // consume ::
+            parser.Pop(); // consume <
+            var typeArgs = new List<LangPath>();
+            while (parser.Peek() is not OperatorToken { OperatorType: Operator.GreaterThan })
+            {
+                typeArgs.Add(LangPath.Parse(parser, true));
+                if (parser.Peek() is CommaToken) parser.Pop();
+                else break;
+            }
+            Comparator.ParseGreater(parser);
+            synthesizedPath = synthesizedPath.Append(new NormalLangPath.GenericTypesPathSegment(typeArgs));
+        }
+
         // Check if followed by ( for function call
         if (parser.Peek() is LeftParenthesisToken)
         {
