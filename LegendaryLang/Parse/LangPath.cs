@@ -1,5 +1,6 @@
 ﻿using System.Collections.Immutable;
 using LegendaryLang.Definitions;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Expressions;
@@ -191,6 +192,24 @@ public abstract class LangPath
     public static LangPath Parse(Parser parser, bool typePosition = false)
     {
         var next = parser.Peek();
+
+        // Reference type: &T in type position
+        if (next is AmpersandToken && typePosition)
+        {
+            parser.Pop(); // consume &
+            bool isMut = false;
+            if (parser.Peek() is MutToken)
+            {
+                isMut = true;
+                parser.Pop();
+            }
+            var innerType = Parse(parser, true);
+            // Produce std::pointer::immut::<InnerType> or std::pointer::mut::<InnerType>
+            var pointerModule = PointerTypeDefinition.GetPointerModule();
+            var pointerName = PointerTypeDefinition.GetPointerName(isMut);
+            return pointerModule.Append(pointerName)
+                .Append(new NormalLangPath.GenericTypesPathSegment([innerType]));
+        }
 
         // Qualified associated type path: <Type as Trait>::AssocType
         // Also handles nested: <<i32 as Add<i32>>::Output as Add<i32>>::Output

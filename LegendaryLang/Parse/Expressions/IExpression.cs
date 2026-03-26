@@ -151,6 +151,10 @@ public interface IExpression : IStatement
             case OperatorToken {OperatorType: Operator.ExclamationMark}:
                 expression = UnaryOperationExpression.Parse(parser);
                 break;
+            case OperatorToken {OperatorType: Operator.Multiply}:
+                var derefTok = parser.Pop();
+                expression = new DerefExpression(ParsePrimary(parser), (Token)derefTok);
+                break;
             case OperatorToken {OperatorType: Operator.LessThan}:
                 expression = ParseQualifiedTraitExpression(parser);
                 break;

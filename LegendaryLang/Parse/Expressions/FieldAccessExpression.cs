@@ -20,12 +20,30 @@ public class FieldAccessExpression : IExpression
     public IEnumerable<ISyntaxNode> Children => [Caller];
     public Token Token => Field;
 
+    /// <summary>
+    /// Set during Analyze if the caller is a reference type and was auto-deref'd
+    /// </summary>
+    public bool AutoDeref { get; private set; }
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
         Caller.Analyze(analyzer);
 
         // Look up definition, stripping generics if needed
         var callerTypePath = Caller.TypePath;
+
+        // Auto-deref: if caller is a reference type (&T), unwrap to T
+        if (callerTypePath is NormalLangPath nlpRef
+            && nlpRef.Contains(PointerTypeDefinition.GetPointerModule()))
+        {
+            var generics = nlpRef.GetFrontGenerics();
+            if (generics.Length == 1)
+            {
+                callerTypePath = generics[0];
+                AutoDeref = true;
+            }
+        }
+
         var definition = analyzer.GetDefinition(callerTypePath);
         if (definition == null && callerTypePath is NormalLangPath nlpCaller && nlpCaller.GetFrontGenerics().Length > 0)
             definition = analyzer.GetDefinition(nlpCaller.PopGenerics());
@@ -112,6 +130,18 @@ public class FieldAccessExpression : IExpression
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         var variableRef = Caller.CodeGen(codeGenContext);
+
+        // Auto-deref: if the caller is a reference, load the pointer to get the struct address
+        if (AutoDeref && variableRef.Type is PointerType ptrType)
+        {
+            var derefPtr = ptrType.LoadValue(codeGenContext, variableRef);
+            variableRef = new ValueRefItem
+            {
+                Type = ptrType.PointingToType,
+                ValueRef = derefPtr
+            };
+        }
+
         var structType = variableRef?.Type as StructType;
         var fieldIndex = structType.GetIndexOfField(Field.Identity);
 

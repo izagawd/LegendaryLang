@@ -559,6 +559,11 @@ public class SemanticAnalyzer
         // Check concrete impl
         if (TypeImplementsTrait(typePath, copyPath)) return true;
 
+        // References (&T) are always Copy — they're just pointers
+        if (typePath is NormalLangPath nlpPtr
+            && nlpPtr.Contains(Definitions.Types.PointerTypeDefinition.GetPointerModule()))
+            return true;
+
         // Check if this is a generic param with a Copy trait bound
         if (typePath is NormalLangPath nlp && nlp.PathSegments.Length == 1)
         {

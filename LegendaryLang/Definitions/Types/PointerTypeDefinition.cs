@@ -53,7 +53,9 @@ public class PointerTypeDefinition : TypeDefinition
 
     public override ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
     {
-        throw new NotImplementedException();
+        if (path is NormalLangPath nlp && nlp.GetFrontGenerics().Length > 0)
+            return nlp.GetFrontGenerics();
+        return null;
     }
 
     public override Token Token { get; }
