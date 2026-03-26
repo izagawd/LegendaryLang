@@ -55,6 +55,10 @@ public class FieldAccessExpression : IExpression
         }
 
         TypePath = fieldType;
+
+        // Resolve qualified associated type paths (e.g., <i32 as Add<i32>>::Output → i32)
+        if (TypePath != null)
+            TypePath = analyzer.ResolveQualifiedTypePath(TypePath);
     }
 
     /// <summary>
