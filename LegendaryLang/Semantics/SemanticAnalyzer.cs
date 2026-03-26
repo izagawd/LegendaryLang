@@ -629,6 +629,19 @@ public class SemanticAnalyzer
                 foreach (var (tp, pName, _) in bounds)
                     if (pName == paramName && tp == traitPath)
                         return true;
+
+            // Check via supertraits: if T: Foo and Foo: Bar, then T satisfies Bar
+            foreach (var bounds in TraitBoundsStack)
+                foreach (var (tp, pName, _) in bounds)
+                    if (pName == paramName)
+                    {
+                        var boundTraitBase = tp;
+                        if (tp is NormalLangPath nlpBound && nlpBound.GetFrontGenerics().Length > 0)
+                            boundTraitBase = nlpBound.PopGenerics();
+                        var boundTraitDef = GetDefinition(boundTraitBase) as TraitDefinition;
+                        if (boundTraitDef != null && HasSupertraitTransitive(boundTraitDef, traitPath))
+                            return true;
+                    }
         }
 
         // Strip generics from traitPath for base comparison
@@ -672,6 +685,25 @@ public class SemanticAnalyzer
 
             return i.CheckBounds(bindings, this);
         });
+    }
+
+    /// <summary>
+    /// Checks if <paramref name="traitDef"/> has <paramref name="targetTrait"/> as a supertrait (transitively).
+    /// </summary>
+    private bool HasSupertraitTransitive(TraitDefinition traitDef, LangPath targetTrait)
+    {
+        foreach (var supertrait in traitDef.Supertraits)
+        {
+            if (supertrait == targetTrait) return true;
+            // Recurse: check supertraits of supertraits
+            var superBase = supertrait;
+            if (supertrait is NormalLangPath nlpS && nlpS.GetFrontGenerics().Length > 0)
+                superBase = nlpS.PopGenerics();
+            var superDef = GetDefinition(superBase) as TraitDefinition;
+            if (superDef != null && HasSupertraitTransitive(superDef, targetTrait))
+                return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -838,10 +870,15 @@ public class SemanticAnalyzer
         // Check concrete impl
         if (TypeImplementsTrait(typePath, copyPath)) return true;
 
-        // References (&T) are always Copy — they're just pointers
+        // References are Copy except &uniq T (which is unique/exclusive)
         if (typePath is NormalLangPath nlpPtr
             && nlpPtr.Contains(RefTypeDefinition.GetRefModule()))
-            return true;
+        {
+            // Check it's not &uniq — the path segment before the generic is the ref kind name
+            var refKindName = RefTypeDefinition.GetRefName(RefKind.Uniq);
+            bool isUniq = nlpPtr.PathSegments.Any(s => s.ToString() == refKindName);
+            if (!isUniq) return true;
+        }
 
         // Check if this is a generic param with a Copy trait bound
         if (typePath is NormalLangPath nlp && nlp.PathSegments.Length == 1)

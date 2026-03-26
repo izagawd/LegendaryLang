@@ -209,4 +209,43 @@ public class TraitTests
             "compiler_tests/trait_tests/trait_turbofish_semantic_test", true, true);
         Assert.That(result.Success);
     }
+
+    [Test]
+    public void TraitSupertraitBasicTest()
+    {
+        // T: Sub where Sub: Base — needs_base::<T>() should work via supertrait
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_supertrait_basic_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(15 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitSupertraitTransitiveTest()
+    {
+        // C: B, B: A — needs_a::<T>() works when T: C (transitive)
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_supertrait_transitive_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(4 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitSupertraitFailTest()
+    {
+        // T: Base does NOT satisfy T: Sub — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_supertrait_fail_test", true, true);
+        Assert.That(!result.Success);
+    }
+
+    [Test]
+    public void TraitSupertraitMultiTest()
+    {
+        // Both: Foo + Bar — T: Both satisfies both Foo and Bar
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_supertrait_multi_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(6 == result.Function?.Invoke());
+    }
 }

@@ -114,7 +114,8 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
     public TraitDefinition(string name, NormalLangPath module,
         IEnumerable<TraitMethodSignature> methods, Token token,
         IEnumerable<GenericParameter> genericParameters,
-        IEnumerable<TraitAssociatedType> associatedTypes)
+        IEnumerable<TraitAssociatedType> associatedTypes,
+        IEnumerable<LangPath>? supertraits = null)
     {
         Name = name;
         Module = module;
@@ -122,11 +123,13 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
         Token = token;
         GenericParameters = genericParameters.ToImmutableArray();
         AssociatedTypes = associatedTypes.ToImmutableArray();
+        Supertraits = supertraits?.ToImmutableArray() ?? [];
     }
 
     public ImmutableArray<TraitMethodSignature> MethodSignatures { get; }
     public ImmutableArray<GenericParameter> GenericParameters { get; }
     public ImmutableArray<TraitAssociatedType> AssociatedTypes { get; }
+    public ImmutableArray<LangPath> Supertraits { get; set; }
 
     // IDefinition
     public string Name { get; }
@@ -153,6 +156,11 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
         foreach (var gp in GenericParameters)
             for (int i = 0; i < gp.TraitBounds.Count; i++)
                 gp.TraitBounds[i] = gp.TraitBounds[i].Resolve(resolver);
+        // Resolve supertrait paths
+        var resolved = new List<LangPath>();
+        foreach (var st in Supertraits)
+            resolved.Add(st.Resolve(resolver));
+        Supertraits = resolved.ToImmutableArray();
     }
 
     public TraitMethodSignature? GetMethod(string name)
@@ -212,6 +220,19 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
             Comparator.ParseGreater(parser);
         }
 
+        // Parse optional supertraits: trait Foo: Bar + Baz { ... }
+        var supertraits = new List<LangPath>();
+        if (parser.Peek() is ColonToken)
+        {
+            parser.Pop();
+            supertraits.Add(LangPath.Parse(parser, true));
+            while (parser.Peek() is OperatorToken { OperatorType: Operator.Add })
+            {
+                parser.Pop();
+                supertraits.Add(LangPath.Parse(parser, true));
+            }
+        }
+
         CurlyBrace.ParseLeft(parser);
 
         var methods = new List<TraitMethodSignature>();
@@ -251,6 +272,6 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
         CurlyBrace.Parseight(parser);
 
         return new TraitDefinition(nameToken.Identity, module, methods, nameToken,
-            genericParameters, associatedTypes);
+            genericParameters, associatedTypes, supertraits);
     }
 }

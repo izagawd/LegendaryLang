@@ -513,3 +513,46 @@ public class RefUniqTests
         Assert.That(10 == result.Function?.Invoke());
     }
 }
+
+public class RefCopyTests
+{
+    [Test]
+    public void RefUniqNotCopyFailTest()
+    {
+        // &uniq is NOT Copy — second use after passing to fn should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_uniq_not_copy_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<UseAfterMoveError>());
+    }
+
+    [Test]
+    public void RefSharedIsCopyTest()
+    {
+        // &T is Copy — can use reference twice
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_shared_is_copy_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefConstIsCopyTest()
+    {
+        // &const T is Copy — can use reference twice
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_const_is_copy_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefMutIsCopyTest()
+    {
+        // &mut T is Copy — can use reference twice
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_mut_is_copy_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+}
