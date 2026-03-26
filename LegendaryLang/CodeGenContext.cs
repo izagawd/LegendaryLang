@@ -432,7 +432,7 @@ public class CodeGenContext
 
     public void AddToDeepestScope(LangPath symb, IRefItem refItem)
     {
-        ScopeItems.Peek().Add(symb, refItem);
+        ScopeItems.Peek()[symb] = refItem;
     }
     public void AddToDeepestScope(IDefinition definition)
     {
