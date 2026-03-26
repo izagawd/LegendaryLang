@@ -239,7 +239,11 @@ public class FunctionCallExpression : IExpression
 
                     if (!isGenericParam)
                     {
-                        var traitPath = FunctionPath.Pop();
+                        // Strip method-level generics first, then pop method name to get trait path
+                        var stripped = FunctionPath;
+                        if (stripped.GetFrontGenerics().Length > 0)
+                            stripped = stripped.PopGenerics()!;
+                        var traitPath = stripped.Pop();
                         if (traitPath != null && !analyzer.TypeImplementsTrait(QualifiedAsType, traitPath))
                         {
                             analyzer.AddException(new TraitBoundViolationException(QualifiedAsType, traitPath));
@@ -258,7 +262,10 @@ public class FunctionCallExpression : IExpression
                     else
                     {
                         // Try to resolve as an associated type
-                        var traitPath = FunctionPath.Pop();
+                        var stripped2 = FunctionPath;
+                        if (stripped2.GetFrontGenerics().Length > 0)
+                            stripped2 = stripped2.PopGenerics()!;
+                        var traitPath = stripped2.Pop();
                         LangPath? resolved = null;
                         if (QualifiedAsType != null && traitPath != null)
                         {
@@ -374,7 +381,11 @@ public class FunctionCallExpression : IExpression
         bool pushedTempBound = false;
         if (QualifiedAsType != null)
         {
-            var traitPath = FunctionPath.Pop(); // Trait path (parent of method)
+            // Strip method-level generics first, then pop method name to get trait path
+            var strippedForCodegen = FunctionPath;
+            if (strippedForCodegen.GetFrontGenerics().Length > 0)
+                strippedForCodegen = strippedForCodegen.PopGenerics()!;
+            var traitPath = strippedForCodegen.Pop(); // Trait path (parent of method)
             if (traitPath != null)
             {
                 var resolvedType = QualifiedAsType.Monomorphize(codeGenContext);

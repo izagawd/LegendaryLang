@@ -130,10 +130,14 @@ public class CodeGenContext
     {
         if (path.PathSegments.Length < 2) return null;
 
-        // Strip trailing method-level generics (turbofish) if present
+        // Strip trailing method-level generics (turbofish) if present, but remember them
         var workingPath = path;
+        ImmutableArray<LangPath> methodLevelGenerics = [];
         if (workingPath.GetFrontGenerics().Length > 0)
+        {
+            methodLevelGenerics = workingPath.GetFrontGenerics();
             workingPath = workingPath.PopGenerics()!;
+        }
 
         if (workingPath.PathSegments.Length < 2) return null;
 
@@ -267,9 +271,12 @@ public class CodeGenContext
         if (impl == null) return null;
 
         // Build a unique key that includes the impl's full trait path (with generics) for uniqueness
+        var methodGenericSuffix = methodLevelGenerics.Length > 0
+            ? $"::<{string.Join(",", methodLevelGenerics)}>"
+            : "";
         var implMethodPath = new NormalLangPath(null,
             [new NormalLangPath.NormalPathSegment($"impl_{impl.TraitPath}_for_{concreteType}"),
-             new NormalLangPath.NormalPathSegment(methodName)]);
+             new NormalLangPath.NormalPathSegment($"{methodName}{methodGenericSuffix}")]);
 
         // Check if already created
         foreach (var scope in ScopeItems)
@@ -294,8 +301,8 @@ public class CodeGenContext
             pushedImplScope = true;
         }
 
-        // Create the function ref
-        var refItem2 = implMethod.CreateRefDefinition(this, []);
+        // Create the function ref, forwarding method-level generics if present
+        var refItem2 = implMethod.CreateRefDefinition(this, methodLevelGenerics);
 
         if (pushedImplScope)
             PopScope();
