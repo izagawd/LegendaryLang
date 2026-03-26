@@ -2,7 +2,7 @@ struct Wrapper<T> {
     val: T
 }
 
-fn extract<T: Copy>(w: Wrapper::<T>) -> T {
+fn extract<T: Copy>(w: Wrapper<T>) -> T {
     w.val
 }
 

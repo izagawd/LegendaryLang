@@ -103,7 +103,7 @@ public abstract class LangPath
         return GetType().GetHashCode();
     }
 
-    public static LangPath Parse(Parser parser)
+    public static LangPath Parse(Parser parser, bool typePosition = false)
     {
         var next = parser.Peek();
         if (next is LeftParenthesisToken)
@@ -114,7 +114,7 @@ public abstract class LangPath
 
             while (parser.Peek() is not RightParenthesisToken)
             {
-                tuplePaths.Add(Parse(parser));
+                tuplePaths.Add(Parse(parser, true));
                 if (parser.Peek() is CommaToken)
                     parser.Pop();
                 else
@@ -127,7 +127,7 @@ public abstract class LangPath
 
         var firstIdent = Identifier.Parse(parser);
         var segments = new List<NormalLangPath.PathSegment> { firstIdent.Identity };
-        ;
+
         while (parser.Peek() is DoubleColonToken)
         {
             parser.Pop();
@@ -137,7 +137,7 @@ public abstract class LangPath
                 var arguments = new List<LangPath>();
                 while (parser.Peek() is not OperatorToken{OperatorType: Operator.GreaterThan})
                 {
-                    arguments.Add(Parse(parser));
+                    arguments.Add(Parse(parser, true));
                     if (parser.Peek() is CommaToken)
                         parser.Pop();
                     else
@@ -152,6 +152,24 @@ public abstract class LangPath
             {
                 segments.Add(Identifier.Parse(parser).Identity);
             }
+        }
+
+        // In type position, accept <T, U> directly without :: (like Rust's Wrapper<i32>)
+        if (typePosition && parser.Peek() is OperatorToken{OperatorType: Operator.LessThan})
+        {
+            parser.Pop();
+            var arguments = new List<LangPath>();
+            while (parser.Peek() is not OperatorToken{OperatorType: Operator.GreaterThan})
+            {
+                arguments.Add(Parse(parser, true));
+                if (parser.Peek() is CommaToken)
+                    parser.Pop();
+                else
+                    break;
+            }
+
+            Comparator.ParseGreater(parser);
+            segments.Add(new NormalLangPath.GenericTypesPathSegment(arguments));
         }
 
         return new NormalLangPath(firstIdent, segments.Select(i => i))

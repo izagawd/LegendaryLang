@@ -213,12 +213,12 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
                         if (parser.Peek() is not OperatorToken {OperatorType: Operator.GreaterThan}
                             && parser.Peek() is not CommaToken)
                         {
-                            traitBounds.Add(LangPath.Parse(parser));
+                            traitBounds.Add(LangPath.Parse(parser, true));
                             // Parse additional bounds separated by +
                             while (parser.Peek() is OperatorToken {OperatorType: Operator.Add})
                             {
                                 parser.Pop(); // consume '+'
-                                traitBounds.Add(LangPath.Parse(parser));
+                                traitBounds.Add(LangPath.Parse(parser, true));
                             }
                         }
                     }
@@ -257,7 +257,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
             if (nextToken is RightPointToken)
             {
                 parser.Pop();
-                returnTyp = LangPath.Parse(parser);
+                returnTyp = LangPath.Parse(parser, true);
             }
 
             return new FunctionDefinition(name, variables, returnTyp, BlockExpression.Parse(parser, returnTyp),

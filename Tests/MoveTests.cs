@@ -88,4 +88,46 @@ public class MoveTests
         Assert.That(!result.Success);
         Assert.That(result.HasError<UseAfterMoveError>());
     }
+
+    [Test]
+    public void CopyStructValidTest()
+    {
+        // All fields are i32 (Copy), so impl Copy for Point is valid
+        // let b = a should copy, a is still usable
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/copy_struct_valid_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(7 == result.Function?.Invoke()); // 3 + 4
+    }
+
+    [Test]
+    public void CopyStructInvalidFieldTest()
+    {
+        // Holder contains NonCopy (which doesn't impl Copy), so impl Copy for Holder should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/copy_struct_invalid_field_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.Errors.Any(e => e.Message.Contains("does not implement Copy")));
+    }
+
+    [Test]
+    public void CopyGenericStructValidTest()
+    {
+        // impl<T: Copy> Copy for Wrapper<T> — T has Copy bound, so valid
+        // Wrapper::<i32> is Copy, so let b = a doesn't move a
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/copy_generic_struct_valid_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke()); // 5 + 5
+    }
+
+    [Test]
+    public void CopyGenericStructNoBoundTest()
+    {
+        // impl<T> Copy for Wrapper<T> — T has NO Copy bound, should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/copy_generic_struct_no_bound_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.Errors.Any(e => e.Message.Contains("does not have a Copy bound")));
+    }
 }

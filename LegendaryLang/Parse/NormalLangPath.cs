@@ -9,6 +9,7 @@ public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
 {
     public override bool IsMonomorphizedFrom(LangPath langPath)
     {
+        if (PathSegments.Length == 0) return false;
         var poppedPath = this;
         if (GetLastPathSegment() is NormalLangPath.GenericTypesPathSegment)
         {
@@ -19,6 +20,7 @@ public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
 
     public override ImmutableArray<LangPath> GetGenericArguments()
     {
+        if (PathSegments.Length == 0) return [];
         var segment = GetLastPathSegment();
         if (segment is not GenericTypesPathSegment genericTypesPathSegment) return [];
 
@@ -97,8 +99,9 @@ public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
         return new NormalLangPath(FirstIdentifierToken, newSegments);
     }
 
-    public PathSegment GetLastPathSegment()
+    public PathSegment? GetLastPathSegment()
     {
+        if (PathSegments.Length == 0) return null;
         return PathSegments.Last();
     }
 

@@ -111,11 +111,11 @@ public class StructTypeDefinition : ComposableTypeDefinition
                         if (parser.Peek() is not OperatorToken { OperatorType: Operator.GreaterThan }
                             && parser.Peek() is not CommaToken)
                         {
-                            traitBounds.Add(LangPath.Parse(parser));
+                            traitBounds.Add(LangPath.Parse(parser, true));
                             while (parser.Peek() is OperatorToken { OperatorType: Operator.Add })
                             {
                                 parser.Pop();
-                                traitBounds.Add(LangPath.Parse(parser));
+                                traitBounds.Add(LangPath.Parse(parser, true));
                             }
                         }
                     }

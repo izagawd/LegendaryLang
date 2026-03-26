@@ -309,18 +309,15 @@ public class SemanticAnalyzer
         return false;
     }
 
-    private LangPath? _copyTraitPathCache;
+    /// <summary>
+    /// The canonical path of the Copy marker trait: std::core::marker::Copy
+    /// </summary>
+    public static readonly NormalLangPath CopyTraitPath =
+        new(null, new NormalLangPath.PathSegment[] { "std", "core", "marker", "Copy" });
+
     private LangPath? GetCopyTraitPath()
     {
-        if (_copyTraitPathCache != null) return _copyTraitPathCache;
-        foreach (var scope in DefinitionsStackMap)
-            foreach (var (_, def) in scope)
-                if (def is TraitDefinition td && td.Name == "Copy")
-                {
-                    _copyTraitPathCache = ((IDefinition)td).TypePath;
-                    return _copyTraitPathCache;
-                }
-        return null;
+        return CopyTraitPath;
     }
 
     public void MarkAsMoved(string variableName)
@@ -418,11 +415,12 @@ public class SemanticAnalyzer
             var usings = new UseDefinition((NormalLangPath)i.TypePath, null);
             usings.RegisterUsings(pathShortcutContext);
         }
-        // Register std library traits (like Copy) globally so they're available without 'use'
-        foreach (var result in ParseResults)
-            foreach (var td in result.Items.OfType<TraitDefinition>().Where(t => t.Name == "Copy"))
+        // Register std library definitions (like Copy) globally so they're available without 'use'
+        // User definitions at deeper scopes will shadow these if names conflict
+        foreach (var result in ParseResults.Where(r => r.File?.Path.StartsWith("std") == true))
+            foreach (var def in result.Items.OfType<IDefinition>())
             {
-                var usings = new UseDefinition((NormalLangPath)((IDefinition)td).TypePath, null);
+                var usings = new UseDefinition((NormalLangPath)def.TypePath, null);
                 usings.RegisterUsings(pathShortcutContext);
             }
         foreach (var result in ParseResults)

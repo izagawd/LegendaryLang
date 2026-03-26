@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
@@ -240,6 +241,75 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
         // Analyze each method body
         foreach (var method in Methods)
             method.Analyze(analyzer);
+
+        // If implementing Copy, validate that all fields of the implementing type also implement Copy
+        if (TraitPath == SemanticAnalyzer.CopyTraitPath)
+        {
+            var typeDef = analyzer.GetDefinition(ForTypePath);
+            // Strip generics for definition lookup
+            if (typeDef == null && ForTypePath is NormalLangPath nlpFor && nlpFor.GetFrontGenerics().Length > 0)
+                typeDef = analyzer.GetDefinition(nlpFor.PopGenerics());
+
+            if (typeDef is StructTypeDefinition structDef)
+            {
+                // Build a set of impl generic param names that have Copy bounds
+                var copyBoundParams = GenericParameters
+                    .Where(gp => gp.TraitBounds.Any(b => b == SemanticAnalyzer.CopyTraitPath))
+                    .Select(gp => gp.Name)
+                    .ToHashSet();
+
+                foreach (var field in structDef.Fields)
+                {
+                    var fieldType = field.TypePath;
+
+                    // If the field type is a generic param of the struct...
+                    if (fieldType is NormalLangPath nlpField && nlpField.PathSegments.Length == 1)
+                    {
+                        var paramName = nlpField.PathSegments[0].ToString();
+
+                        // Check if it's one of the impl's generic params
+                        if (GenericParameters.Any(gp => gp.Name == paramName))
+                        {
+                            // It must have a Copy bound on this impl
+                            if (!copyBoundParams.Contains(paramName))
+                            {
+                                analyzer.AddException(new SemanticException(
+                                    $"Cannot implement Copy for '{ForTypePath}': field '{field.Name}' has type '{paramName}' " +
+                                    $"which does not have a Copy bound\n{Token.GetLocationStringRepresentation()}"));
+                            }
+                            continue;
+                        }
+
+                        // Check if it's one of the struct's own generic params
+                        if (structDef.GenericParameters.Any(gp => gp.Name == paramName))
+                        {
+                            // For non-generic impls like `impl Copy for Wrapper<i32>`,
+                            // substitute the generic arg and check
+                            if (ForTypePath is NormalLangPath nlpForType)
+                            {
+                                var genericArgs = nlpForType.GetFrontGenerics();
+                                for (int i = 0; i < structDef.GenericParameters.Length && i < genericArgs.Length; i++)
+                                {
+                                    if (structDef.GenericParameters[i].Name == paramName)
+                                    {
+                                        fieldType = genericArgs[i];
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Check that the resolved field type implements Copy
+                    if (!analyzer.IsTypeCopy(fieldType))
+                    {
+                        analyzer.AddException(new SemanticException(
+                            $"Cannot implement Copy for '{ForTypePath}': field '{field.Name}' has type '{fieldType}' " +
+                            $"which does not implement Copy\n{Token.GetLocationStringRepresentation()}"));
+                    }
+                }
+            }
+        }
     }
 
     public void ResolvePaths(PathResolver resolver)
@@ -292,11 +362,11 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                     if (parser.Peek() is not OperatorToken { OperatorType: Operator.GreaterThan }
                         && parser.Peek() is not CommaToken)
                     {
-                        traitBounds.Add(LangPath.Parse(parser));
+                        traitBounds.Add(LangPath.Parse(parser, true));
                         while (parser.Peek() is OperatorToken { OperatorType: Operator.Add })
                         {
                             parser.Pop();
-                            traitBounds.Add(LangPath.Parse(parser));
+                            traitBounds.Add(LangPath.Parse(parser, true));
                         }
                     }
                 }
@@ -315,13 +385,13 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             Comparator.ParseGreater(parser);
         }
 
-        var traitPath = LangPath.Parse(parser);
+        var traitPath = LangPath.Parse(parser, true);
 
         var forTok = parser.Pop();
         if (forTok is not ForToken)
             throw new ExpectedParserException(parser, ParseType.For, forTok);
 
-        var forTypePath = LangPath.Parse(parser);
+        var forTypePath = LangPath.Parse(parser, true);
 
         CurlyBrace.ParseLeft(parser);
 

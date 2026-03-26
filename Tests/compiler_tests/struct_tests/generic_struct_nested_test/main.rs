@@ -4,6 +4,6 @@ struct Wrapper<T> {
 
 fn main() -> i32 {
     let inner = Wrapper::<i32> { val = 7 };
-    let outer = Wrapper::<Wrapper::<i32>> { val = inner };
+    let outer = Wrapper::<Wrapper<i32>> { val = inner };
     outer.val.val
 }

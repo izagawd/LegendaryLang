@@ -37,7 +37,7 @@ public class TraitMethodSignature
         if (parser.Peek() is RightPointToken)
         {
             parser.Pop();
-            returnType = LangPath.Parse(parser);
+            returnType = LangPath.Parse(parser, true);
         }
 
         SemiColon.Parse(parser);

@@ -66,13 +66,13 @@ public interface IExpression : IStatement
         // Consume <
         parser.Pop();
         // Parse type path (e.g., T)
-        var typePath = LangPath.Parse(parser);
+        var typePath = LangPath.Parse(parser, true);
         // Expect 'as'
         var asToken = parser.Pop();
         if (asToken is not AsToken)
             throw new ExpectedParserException(parser, ParseType.As, asToken);
         // Parse trait path
-        var traitPath = LangPath.Parse(parser);
+        var traitPath = LangPath.Parse(parser, true);
         // Expect >
         Comparator.ParseGreater(parser);
         // Expect ::
