@@ -141,4 +141,15 @@ public class MoveTests
         Assert.That(result.Success);
         Assert.That(5 == result.Function?.Invoke());
     }
+
+    [Test]
+    public void CopyImplBoundsInMethodTest()
+    {
+        // impl<T: Copy> Something for Wrapper<T> — inside bruh(), input is Wrapper<T>
+        // which is Copy because T: Copy from the impl bounds. Using input twice should work.
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/copy_impl_bounds_in_method_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
 }

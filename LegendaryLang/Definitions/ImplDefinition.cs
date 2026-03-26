@@ -249,9 +249,16 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             }
         }
 
-        // Analyze each method body
+        // Analyze each method body — push impl generic bounds so T: Copy is known inside methods
+        var implBounds = GenericParameters
+            .SelectMany(gp => gp.TraitBounds.Select(tb => (tb, gp.Name)))
+            .ToList();
+        analyzer.PushTraitBounds(implBounds);
+
         foreach (var method in Methods)
             method.Analyze(analyzer);
+
+        analyzer.PopTraitBounds();
 
         // If implementing Copy, validate that all fields of the implementing type also implement Copy
         if (TraitPath == SemanticAnalyzer.CopyTraitPath)
