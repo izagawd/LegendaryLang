@@ -5,6 +5,7 @@ using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Definitions;
 using LegendaryLang.Definitions.Types;
 using LegendaryLang.Parse;
+using LegendaryLang.Semantics;
 using LLVMSharp.Interop;
 using Type = LegendaryLang.ConcreteDefinition.Type;
 
@@ -208,6 +209,11 @@ public class CodeGenContext
             .FirstOrDefault(t => (t as IDefinition).TypePath == resolvedTraitPath);
         if (resolvedTrait?.GetMethod(methodName) == null) return null;
 
+        // Capture expected trait generics from the parentPath (e.g., Add<Foo> → [Foo])
+        ImmutableArray<LangPath> expectedTraitGenerics = [];
+        if (parentPath is NormalLangPath nlpParentWithGens && nlpParentWithGens.GetFrontGenerics().Length > 0)
+            expectedTraitGenerics = nlpParentWithGens.GetFrontGenerics();
+
         // Find the impl definition for this trait + concrete type (supports generic impls)
         ImplDefinition? impl = null;
         Dictionary<string, LangPath>? implBindings = null;
@@ -215,12 +221,35 @@ public class CodeGenContext
         {
             // Compare trait base paths (strip generics)
             var candidateTraitBase = candidate.TraitPath;
+            ImmutableArray<LangPath> candidateTraitGenerics = [];
             if (candidateTraitBase is NormalLangPath nlpCandTrait && nlpCandTrait.GetFrontGenerics().Length > 0)
+            {
+                candidateTraitGenerics = nlpCandTrait.GetFrontGenerics();
                 candidateTraitBase = nlpCandTrait.PopGenerics();
+            }
 
             if (candidateTraitBase != resolvedTraitPath) continue;
             var bindings = candidate.TryMatchConcreteType(concreteType);
-            if (bindings != null && candidate.CheckBoundsCodeGen(bindings, this))
+            if (bindings == null) continue;
+
+            // Also verify trait generic args match (e.g., Add<Foo> vs Add<i32>)
+            if (expectedTraitGenerics.Length > 0)
+            {
+                if (candidateTraitGenerics.Length != expectedTraitGenerics.Length) continue;
+                var freeVars = candidate.GenericParameters.Select(g => g.Name).ToHashSet();
+                bool genericsMatch = true;
+                for (int idx = 0; idx < expectedTraitGenerics.Length; idx++)
+                {
+                    if (!TypeInference.TryUnify(candidateTraitGenerics[idx], expectedTraitGenerics[idx], freeVars, bindings))
+                    {
+                        genericsMatch = false;
+                        break;
+                    }
+                }
+                if (!genericsMatch) continue;
+            }
+
+            if (candidate.CheckBoundsCodeGen(bindings, this))
             {
                 impl = candidate;
                 implBindings = bindings;
@@ -229,9 +258,9 @@ public class CodeGenContext
         }
         if (impl == null) return null;
 
-        // Build a unique key that includes the concrete type to avoid cross-monomorphization collisions
+        // Build a unique key that includes the impl's full trait path (with generics) for uniqueness
         var implMethodPath = new NormalLangPath(null,
-            [new NormalLangPath.NormalPathSegment($"impl_{resolvedTraitPath}_for_{concreteType}"),
+            [new NormalLangPath.NormalPathSegment($"impl_{impl.TraitPath}_for_{concreteType}"),
              new NormalLangPath.NormalPathSegment(methodName)]);
 
         // Check if already created

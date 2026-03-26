@@ -153,6 +153,16 @@ public class InferredTypeMismatchException : SemanticException
     }
 }
 
+public class DuplicateDefinitionException : SemanticException
+{
+    public LangPath DefinitionPath { get; }
+    public DuplicateDefinitionException(LangPath definitionPath, string location)
+        : base($"Duplicate definition '{definitionPath}'\n{location}")
+    {
+        DefinitionPath = definitionPath;
+    }
+}
+
 
 public class SemanticAnalyzer
 {
@@ -619,9 +629,21 @@ public class SemanticAnalyzer
     public SemanticException[] Analyze()
     {
         AddScope();
-        // registers path mapping
+        // registers path mapping — check for duplicates
+        var seenDefinitions = new Dictionary<LangPath, IDefinition>();
         foreach (var i in ParseResults.SelectMany(i => i.Items.OfType<IDefinition>()))
+        {
+            if (seenDefinitions.TryGetValue(i.TypePath, out var existing))
+            {
+                AddException(new DuplicateDefinitionException(
+                    i.TypePath, i.Token?.GetLocationStringRepresentation() ?? ""));
+            }
+            else
+            {
+                seenDefinitions[i.TypePath] = i;
+            }
             RegisterDefinitionAtDeepestScope(i.TypePath, i);
+        }
 
         // Collect impl definitions
         foreach (var impl in ParseResults.SelectMany(i => i.Items.OfType<ImplDefinition>()))

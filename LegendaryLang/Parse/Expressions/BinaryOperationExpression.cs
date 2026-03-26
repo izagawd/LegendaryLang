@@ -45,20 +45,25 @@ public class BinaryOperationExpression : IExpression
 
         var type = leftVal.Type;
 
-        // For non-primitive types, dispatch to the trait impl method
-        if (type is not PrimitiveType
+        // For non-primitive types on either side, dispatch to the trait impl method
+        if ((type is not PrimitiveType || rightVal.Type is not PrimitiveType)
             && OperatorToken.OperatorType is Operator.Add or Operator.Subtract or Operator.Multiply or Operator.Divide)
         {
             var traitPath = GetOperatorTraitPath(OperatorToken.OperatorType);
             var methodName = GetOperatorMethodName(OperatorToken.OperatorType);
             if (traitPath != null && methodName != null)
             {
-                // Build path: Add::add (trait base path + method name)
-                var methodPath = traitPath.Append(new NormalLangPath.NormalPathSegment(methodName));
+                // Build trait path with RHS generic: Add<RhsType> so impl matching
+                // can distinguish Add<i32> from Add<Foo>
+                var traitWithRhs = traitPath.Append(
+                    new NormalLangPath.GenericTypesPathSegment([rightVal.Type.TypePath]));
+
+                // Build path: Add<RhsType>::add
+                var methodPath = traitWithRhs.Append(new NormalLangPath.NormalPathSegment(methodName));
 
                 // Push a temporary trait bound so ResolveTraitMethodCall can find the impl
                 var concreteType = type.TypePath;
-                codeGenContext.PushTraitBounds([(traitPath, concreteType)]);
+                codeGenContext.PushTraitBounds([(traitWithRhs, concreteType)]);
 
                 var funcRef = codeGenContext.GetRefItemFor(methodPath) as FunctionRefItem;
 

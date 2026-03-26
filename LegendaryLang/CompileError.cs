@@ -155,3 +155,9 @@ public class InferredTypeMismatchError : CompileError
     public required LangPath InferredType { get; init; }
     public override string Message => $"Inferred type '{InferredType}' conflicts with declared type '{ExpectedType}'";
 }
+
+public class DuplicateDefinitionError : CompileError
+{
+    public required LangPath DefinitionPath { get; init; }
+    public override string Message => $"Duplicate definition '{DefinitionPath}'";
+}

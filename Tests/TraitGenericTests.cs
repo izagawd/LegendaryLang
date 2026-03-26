@@ -148,4 +148,34 @@ public class OperatorTraitTests
         Assert.That(result.Success);
         Assert.That(5 == result.Function?.Invoke());
     }
+
+    [Test]
+    public void OpsPrimitiveLhsCustomRhsTest()
+    {
+        // 4 + Foo{} via impl Add<Foo> for i32 — primitive left, custom right
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/ops_primitive_lhs_custom_rhs_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(4 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void OpsNestedCustomAddTest()
+    {
+        // Foo{} + 5 via nested impl Add<i32> for Foo inside main
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/ops_nested_custom_add_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void OpsNestedPrimitiveLhsTest()
+    {
+        // 4 + Foo{} via nested impl Add<Foo> for i32 inside main
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/ops_nested_primitive_lhs_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(4 == result.Function?.Invoke());
+    }
 }

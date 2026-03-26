@@ -134,8 +134,14 @@ public class BlockExpression : IExpression
             foreach (var i in syntaxNode.Children.Where(i => i is not IItem)) SetExpectedReturnTypesRecursively(i);
         }
 
+        var seenDefs = new HashSet<string>();
         foreach (var i in BlockSyntaxNodeContainers.Select(i => i.Node).OfType<IDefinition>() )
         {
+            if (!seenDefs.Add(i.Name))
+            {
+                analyzer.AddException(new DuplicateDefinitionException(
+                    i.TypePath, i.Token?.GetLocationStringRepresentation() ?? ""));
+            }
             analyzer.RegisterDefinitionAtDeepestScope(i.TypePath,i);
         }
         // Register nested impl definitions so their methods are visible

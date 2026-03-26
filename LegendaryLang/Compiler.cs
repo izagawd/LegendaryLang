@@ -68,6 +68,8 @@ public class Compiler
                 { TypeOrFunctionName = e.TypeOrFunctionName },
             InferredTypeMismatchException e => new InferredTypeMismatchError
                 { ExpectedType = e.ExpectedType, InferredType = e.InferredType },
+            DuplicateDefinitionException e => new DuplicateDefinitionError
+                { DefinitionPath = e.DefinitionPath },
             _ => new GenericSemanticError { Details = ex.Message }
         };
     }
