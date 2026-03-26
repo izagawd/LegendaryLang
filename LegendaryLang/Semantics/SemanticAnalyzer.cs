@@ -653,9 +653,9 @@ public class SemanticAnalyzer
     public void RegisterVariableType(LangPath variableLangPath, LangPath typPath, int? scope = null)
     {
         if (scope is null)
-            VariableToTypeMapper.Peek().Add(variableLangPath, typPath);
+            VariableToTypeMapper.Peek()[variableLangPath] = typPath;
         else
-            VariableToTypeMapper.Reverse().Skip(scope.Value).First().Add(variableLangPath, typPath);
+            VariableToTypeMapper.Reverse().Skip(scope.Value).First()[variableLangPath] = typPath;
     }
 
     public void RegisterDefinitionAtDeepestScope(LangPath path, IDefinition definition)
