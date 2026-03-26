@@ -7,15 +7,18 @@ namespace LegendaryLang.ConcreteDefinition;
 
 public class StructType : CustomType
 {
-    public StructType(StructTypeDefinition definition, LLVMTypeRef typeRef) : base(definition)
+    public StructType(StructTypeDefinition definition, LLVMTypeRef typeRef, LangPath? monomorphizedTypePath = null) : base(definition)
     {
         TypeRef = typeRef;
+        _monomorphizedTypePath = monomorphizedTypePath;
     }
+
+    private readonly LangPath? _monomorphizedTypePath;
 
     public StructTypeDefinition StructTypeDefinition => (StructTypeDefinition)TypeDefinition;
     public ImmutableArray<VariableDefinition> Fields => StructTypeDefinition.Fields;
     public override LLVMTypeRef TypeRef { get; protected set; }
-    public override LangPath TypePath => TypeDefinition.TypePath;
+    public override LangPath TypePath => _monomorphizedTypePath ?? TypeDefinition.TypePath;
     public override string Name => TypeDefinition.Name;
 
     public VariableDefinition? GetField(string fieldName)
