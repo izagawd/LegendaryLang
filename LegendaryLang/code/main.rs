@@ -1,7 +1,12 @@
-﻿fn do_sub<T: Sub<T, Output = i32> + Copy>(a: T, b: T) -> <T as Sub<T>>::Output {
-    a - b
-}
-
-fn main() -> i32 {
-    do_sub(10, 3)
+﻿
+struct Foo{}
+fn main() -> i32{
+    let a = Foo{};
+    {
+        let a = Foo{};
+        let c = a;
+        
+        }
+    let c = a;
+    5
 }

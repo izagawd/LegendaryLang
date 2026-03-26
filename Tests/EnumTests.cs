@@ -133,4 +133,14 @@ public class EnumTests
             "compiler_tests/enum_tests/enum_match_return_in_arm_test", true, true);
         Assert.That(result.Success);
     }
+
+    [Test]
+    public void EnumMatchAsExprTest()
+    {
+        // let b = match c { ... } — match used as expression assigned to variable
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/enum_tests/enum_match_as_expr_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(2 == result.Function?.Invoke());
+    }
 }
