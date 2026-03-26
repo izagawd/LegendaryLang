@@ -182,4 +182,34 @@ public class MoveTests
         Assert.That(!result.Success);
         Assert.That(result.HasError<UseAfterMoveError>());
     }
+
+    [Test]
+    public void MoveInnerScopeNoLeakTest()
+    {
+        // Inner block shadows a and moves it — outer a should still be usable
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/move_inner_scope_no_leak_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(4 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void MoveOuterVisibleInInnerTest()
+    {
+        // Outer a is moved, then inner block tries to use a — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/move_outer_visible_in_inner_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<UseAfterMoveError>());
+    }
+
+    [Test]
+    public void MoveOuterStillMovedAfterInnerTest()
+    {
+        // Outer a is moved, inner block does unrelated work, outer a is still moved
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/move_outer_still_moved_after_inner_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<UseAfterMoveError>());
+    }
 }
