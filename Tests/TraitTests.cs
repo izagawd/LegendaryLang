@@ -135,9 +135,28 @@ public class TraitTests
     [Test]
     public void TraitImplMethodMatchingBoundsTest()
     {
-        // impl bounds match trait definition — should pass
+        // impl method matches trait definition — should pass
         var result = Compiler.CompileWithResult(
             "compiler_tests/trait_tests/trait_impl_method_matching_bounds_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitGenericBoundPropagationFailTest()
+    {
+        // bar<T: Foo + Bar> called inside idk<T: Foo> — T lacks Bar bound
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_generic_bound_propagation_fail_test", true, true);
+        Assert.That(!result.Success);
+    }
+
+    [Test]
+    public void TraitGenericBoundPropagationPassTest()
+    {
+        // bar<T: Foo + Bar> called inside idk<T: Foo + Bar> — bounds satisfied
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_generic_bound_propagation_pass_test", true, true);
         Assert.That(result.Success);
         Assert.That(5 == result.Function?.Invoke());
     }

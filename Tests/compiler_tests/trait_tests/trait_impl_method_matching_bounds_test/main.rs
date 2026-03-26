@@ -1,11 +1,11 @@
 trait Foo {
-    fn bro<T: Copy>(to_add: T) -> i32;
+    fn bro(x: i32) -> i32;
 }
 impl Foo for i32 {
-    fn bro<T: Copy>(to_add: T) -> i32 {
-        5
+    fn bro(x: i32) -> i32 {
+        x
     }
 }
 fn main() -> i32 {
-    <i32 as Foo>::bro(3)
+    <i32 as Foo>::bro(5)
 }

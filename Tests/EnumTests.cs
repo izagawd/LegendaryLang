@@ -124,4 +124,13 @@ public class EnumTests
         Assert.That(!result.Success);
         Assert.That(result.Errors.Any(e => e.Message.Contains("field")));
     }
+
+    [Test]
+    public void EnumMatchReturnInArmTest()
+    {
+        // Match arm with explicit return — arm type is void but shouldn't cause type mismatch
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/enum_tests/enum_match_return_in_arm_test", true, true);
+        Assert.That(result.Success);
+    }
 }

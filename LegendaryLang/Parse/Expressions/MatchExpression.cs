@@ -155,8 +155,12 @@ public class MatchExpression : IExpression
             arm.Body.Analyze(analyzer);
 
             if (armType == null)
-                armType = arm.Body.TypePath;
-            else if (arm.Body.TypePath != armType)
+            {
+                // Don't use an arm with guaranteed explicit return as the "expected" type
+                if (!arm.Body.HasGuaranteedExplicitReturn)
+                    armType = arm.Body.TypePath;
+            }
+            else if (arm.Body.TypePath != armType && !arm.Body.HasGuaranteedExplicitReturn)
                 analyzer.AddException(new SemanticException(
                     $"Match arm type '{arm.Body.TypePath}' does not match previous arm type '{armType}'\n{arm.Body.Token.GetLocationStringRepresentation()}"));
 
