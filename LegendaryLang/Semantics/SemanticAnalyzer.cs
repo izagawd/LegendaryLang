@@ -278,13 +278,28 @@ public class SemanticAnalyzer
     /// <summary>
     /// Checks whether a type implements the Copy trait.
     /// Copy types are bitwise-copied on assignment; non-Copy types are moved.
+    /// Also recognizes generic params that have Copy as a trait bound.
     /// </summary>
     public bool IsTypeCopy(LangPath? typePath)
     {
         if (typePath == null) return true;
         var copyPath = GetCopyTraitPath();
         if (copyPath == null) return true;
-        return TypeImplementsTrait(typePath, copyPath);
+
+        // Check concrete impl
+        if (TypeImplementsTrait(typePath, copyPath)) return true;
+
+        // Check if this is a generic param with a Copy trait bound
+        if (typePath is NormalLangPath nlp && nlp.PathSegments.Length == 1)
+        {
+            var paramName = nlp.PathSegments[0].ToString();
+            foreach (var bounds in TraitBoundsStack)
+                foreach (var (tp, pName) in bounds)
+                    if (pName == paramName && tp == copyPath)
+                        return true;
+        }
+
+        return false;
     }
 
     private LangPath? _copyTraitPathCache;

@@ -18,7 +18,7 @@ impl Multiplier for i32 {
     }
 }
 
-fn compute<T: Adder + Multiplier>(a: T, b: T) -> T {
+fn compute<T: Adder + Multiplier + Copy>(a: T, b: T) -> T {
     <T as Adder>::add(<T as Multiplier>::mul(a, b), b)
 }
 

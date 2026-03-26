@@ -58,4 +58,34 @@ public class MoveTests
         Assert.That(result.Success);
         Assert.That(11 == result.Function?.Invoke()); // 5 + 6
     }
+
+    [Test]
+    public void GenericCopyBoundTest()
+    {
+        // T: Copy — using a twice inside the body is fine
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/generic_copy_bound_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void GenericNoCopyBoundBodyTest()
+    {
+        // T without Copy — let b = a; let c = a; should fail (use after move inside body)
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/generic_no_copy_bound_body_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<UseAfterMoveError>());
+    }
+
+    [Test]
+    public void GenericNoCopyBoundCallSiteTest()
+    {
+        // Wrapper doesn't impl Copy — use_twice::<Wrapper>(w, w) should fail (w used after move)
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/generic_no_copy_bound_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<UseAfterMoveError>());
+    }
 }

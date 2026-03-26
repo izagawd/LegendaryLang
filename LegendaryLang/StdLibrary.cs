@@ -1,35 +1,35 @@
 ﻿using LegendaryLang.Lex;
 using LegendaryLang.Parse;
+using File = System.IO.File;
 
 namespace LegendaryLang;
 
 /// <summary>
-/// Standard library definitions embedded as source code.
-/// Parsed alongside user code — no compiler magic.
+/// Standard library loader. Reads .rs files from the std/ directory
+/// next to the compiler executable.
 /// </summary>
 public static class StdLibrary
 {
-    /// <summary>
-    /// The Copy marker trait and its implementations for primitives.
-    /// Types that implement Copy are bitwise-copied on assignment
-    /// instead of being moved.
-    /// </summary>
-    private static readonly string CopySource =
-        "trait Copy {}\n" +
-        "impl Copy for i32 {}\n" +
-        "impl Copy for bool {}\n";
-
-    public static ParseResult ParseCopy()
+    private static string GetStdDirectory()
     {
-        return Parser.Parse(Lexer.Lex(CopySource, Path.Combine("std", "copy")));
+        return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "std");
     }
 
     /// <summary>
-    /// Returns all standard library parse results.
-    /// Add new modules here as the std grows.
+    /// Parses all .rs files under std/ and returns them as ParseResults.
     /// </summary>
     public static IEnumerable<ParseResult> ParseAll()
     {
-        yield return ParseCopy();
+        var stdDir = GetStdDirectory();
+        if (!Directory.Exists(stdDir))
+            yield break;
+
+        foreach (var file in Directory.GetFiles(stdDir, $"*.{Compiler.extension}", SearchOption.AllDirectories))
+        {
+            var content = File.ReadAllText(file);
+            // Use a relative path so module paths resolve correctly (e.g., std::copy)
+            var relativePath = Path.GetRelativePath(AppDomain.CurrentDomain.BaseDirectory, file);
+            yield return Parser.Parse(Lexer.Lex(content, relativePath));
+        }
     }
 }

@@ -90,11 +90,13 @@ public class FunctionCallExpression : IExpression
             }
         }
 
-        foreach (var i in Arguments) i.Analyze(analyzer);
-
-        // Mark non-Copy arguments as moved (consumed by the call)
+        // Analyze each argument and immediately mark as moved if not Copy.
+        // This ensures f(w, w) catches use-after-move on the second w.
         foreach (var arg in Arguments)
+        {
+            arg.Analyze(analyzer);
             analyzer.TryMarkExpressionAsMoved(arg);
+        }
     }
 
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
