@@ -35,6 +35,14 @@ public class Function : IConcreteDefinition,  IPathResolvable
 
 
     public ImmutableArray<LangPath> GenericArguments { get; }
+
+    /// <summary>
+    /// Resolved concrete argument types captured during CreateRefDefinition,
+    /// when generic scopes are active. Used in CodeGen to avoid re-resolving
+    /// paths like Wrapper&lt;T&gt; after the generic scope is gone.
+    /// </summary>
+    public ImmutableArray<Type>? ResolvedArgTypes { get; init; }
+
     IDefinition? IConcreteDefinition.Definition => Definition;
 
     public NormalLangPath FullPath { get; private set; }
@@ -71,10 +79,19 @@ public class Function : IConcreteDefinition,  IPathResolvable
         for (uint i = 0; i < (uint)Definition.Arguments.Length; i++)
         {
             var argument = Definition.Arguments[(int)i];
-            var argType = context.GetRefItemFor(argument.TypePath) as TypeRefItem;
+            Type argType;
+            // Use pre-resolved types if available (handles impl generic methods where T is out of scope)
+            if (ResolvedArgTypes != null && (int)i < ResolvedArgTypes.Value.Length)
+            {
+                argType = ResolvedArgTypes.Value[(int)i];
+            }
+            else
+            {
+                argType = (context.GetRefItemFor(argument.TypePath) as TypeRefItem).Type;
+            }
             argumentsToMonomorphize[i] = new Variable
             {
-                Type = argType.Type,
+                Type = argType,
                 Name = argument.Name
             };
         }
@@ -105,7 +122,7 @@ public class Function : IConcreteDefinition,  IPathResolvable
             // adds the stack ptr to codegen so argument can be referenced by name
             context.AddToDeepestScope(new NormalLangPath(null, [argument.Name]), new ValueRefItem
             {
-                Type = (context.GetRefItemFor(argument.Type.TypePath) as TypeRefItem).Type,
+                Type = argument.Type,
                 ValueRef = alloca
             });
         }

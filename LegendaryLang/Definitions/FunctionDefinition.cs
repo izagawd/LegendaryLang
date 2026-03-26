@@ -68,10 +68,15 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
 
             // 1. Determine the LLVM return type.
             var llvmReturnType = returnTypeRefItem.TypeRef;
-            // 2. Gather LLVM types for each parameter.
+            // 2. Gather LLVM types for each parameter — also capture the resolved Type objects
             var paramTypes = new LLVMTypeRef[Arguments.Length];
+            var resolvedArgTypes = new Type[Arguments.Length];
             for (var i = 0; i < Arguments.Length; i++)
-                paramTypes[i] = (context.GetRefItemFor(Arguments[i].TypePath) as TypeRefItem).TypeRef;
+            {
+                var argTypeRef = context.GetRefItemFor(Arguments[i].TypePath) as TypeRefItem;
+                paramTypes[i] = argTypeRef.TypeRef;
+                resolvedArgTypes[i] = argTypeRef.Type;
+            }
 
             LLVMTypeRef functionType;
             // 3. Create the function type and add the function to the module.
@@ -88,6 +93,9 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
             return new FunctionRefItem()
             {
                 Function = new Function(this, genericArguments,FunctionValueRef,functionType,ReturnType, FullPath)
+                {
+                    ResolvedArgTypes = resolvedArgTypes.ToImmutableArray()
+                }
             };
             
         }

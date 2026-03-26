@@ -130,4 +130,15 @@ public class MoveTests
         Assert.That(!result.Success);
         Assert.That(result.Errors.Any(e => e.Message.Contains("does not have a Copy bound")));
     }
+
+    [Test]
+    public void CopyGenericWrapperInFnTest()
+    {
+        // fn idk<T: Copy> — Wrapper<T> is Copy because impl<T: Copy> Copy for Wrapper<T>
+        // Using made twice should succeed (it's Copy)
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/copy_generic_wrapper_in_fn_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
 }

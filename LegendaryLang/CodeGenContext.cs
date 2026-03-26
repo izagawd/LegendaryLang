@@ -93,7 +93,7 @@ public class CodeGenContext
     /// During generic function codegen, maps trait paths to concrete types
     /// based on current generic param trait bounds
     /// </summary>
-    private readonly Stack<List<(LangPath traitPath, LangPath concreteType)>> TraitBoundsStack = new();
+    public readonly Stack<List<(LangPath traitPath, LangPath concreteType)>> TraitBoundsStack = new();
 
     public void PushTraitBounds(List<(LangPath, LangPath)> bounds)
     {

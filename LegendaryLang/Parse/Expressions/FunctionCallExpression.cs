@@ -72,12 +72,20 @@ public class FunctionCallExpression : IExpression
             if (traitMethodReturnType != null)
             {
                 // For <ConcreteType as Trait>::method() — verify the type implements the trait
+                // Skip if QualifiedAsType is a generic parameter (bounds validated at call site)
                 if (QualifiedAsType != null)
                 {
-                    var traitPath = FunctionPath.Pop();
-                    if (traitPath != null && !analyzer.TypeImplementsTrait(QualifiedAsType, traitPath))
+                    bool isGenericParam = QualifiedAsType is NormalLangPath nlpQual
+                        && nlpQual.PathSegments.Length == 1
+                        && analyzer.IsGenericParam(nlpQual.PathSegments[0].ToString());
+
+                    if (!isGenericParam)
                     {
-                        analyzer.AddException(new TraitBoundViolationException(QualifiedAsType, traitPath));
+                        var traitPath = FunctionPath.Pop();
+                        if (traitPath != null && !analyzer.TypeImplementsTrait(QualifiedAsType, traitPath))
+                        {
+                            analyzer.AddException(new TraitBoundViolationException(QualifiedAsType, traitPath));
+                        }
                     }
                 }
 

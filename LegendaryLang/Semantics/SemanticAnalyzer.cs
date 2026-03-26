@@ -194,6 +194,18 @@ public class SemanticAnalyzer
     }
 
     /// <summary>
+    /// Checks if a name is currently in scope as a generic parameter.
+    /// </summary>
+    public bool IsGenericParam(string name)
+    {
+        foreach (var bounds in TraitBoundsStack)
+            foreach (var (_, paramName) in bounds)
+                if (paramName == name)
+                    return true;
+        return false;
+    }
+
+    /// <summary>
     /// Checks if a path resolves to a trait method call (TraitName::method)
     /// and returns the method's return type path
     /// </summary>
@@ -272,10 +284,22 @@ public class SemanticAnalyzer
 
     /// <summary>
     /// Checks whether a type has an impl block for the given trait.
-    /// Handles both non-generic and generic impls via pattern matching.
+    /// Handles concrete impls, generic impls via pattern matching,
+    /// and generic params with trait bounds.
     /// </summary>
     public bool TypeImplementsTrait(LangPath typePath, LangPath traitPath)
     {
+        // Check if typePath is a generic param with this trait as a bound
+        if (typePath is NormalLangPath nlp && nlp.PathSegments.Length == 1)
+        {
+            var paramName = nlp.PathSegments[0].ToString();
+            foreach (var bounds in TraitBoundsStack)
+                foreach (var (tp, pName) in bounds)
+                    if (pName == paramName && tp == traitPath)
+                        return true;
+        }
+
+        // Check concrete and generic impls
         return ImplDefinitions.Any(i =>
         {
             if (i.TraitPath != traitPath) return false;

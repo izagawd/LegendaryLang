@@ -160,6 +160,17 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             if (!bindings.TryGetValue(gp.Name, out var boundType)) return false;
             foreach (var bound in gp.TraitBounds)
             {
+                // Check if boundType is a generic param with this trait bound in scope
+                if (boundType is NormalLangPath nlpBound && nlpBound.PathSegments.Length == 1)
+                {
+                    bool foundInBounds = false;
+                    foreach (var bounds in context.TraitBoundsStack)
+                        foreach (var (tp, _) in bounds)
+                            if (tp == bound)
+                            { foundInBounds = true; break; }
+                    if (foundInBounds) continue;
+                }
+
                 if (!context.ImplDefinitions.Any(i =>
                 {
                     var match = i.TryMatchConcreteType(boundType);
