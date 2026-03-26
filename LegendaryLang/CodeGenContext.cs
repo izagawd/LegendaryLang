@@ -164,6 +164,25 @@ public class CodeGenContext
                     }
                     if (resolvedTraitPath != null) break;
                 }
+
+                // Case 3: ConcreteType::method — no trait bounds, search impls directly
+                // Handles i32::default() syntax
+                if (resolvedTraitPath == null)
+                {
+                    foreach (var i in ImplDefinitions)
+                    {
+                        if (i.ForTypePath == concreteType)
+                        {
+                            var candidateTrait = DefinitionsCollection.OfType<TraitDefinition>()
+                                .FirstOrDefault(t => (t as IDefinition).TypePath == i.TraitPath);
+                            if (candidateTrait?.GetMethod(methodName) != null)
+                            {
+                                resolvedTraitPath = i.TraitPath;
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
 

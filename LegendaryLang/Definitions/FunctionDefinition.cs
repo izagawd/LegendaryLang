@@ -115,6 +115,18 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
     public void Analyze(SemanticAnalyzer analyzer)
     {
         analyzer.AddScope();
+
+        // Check for duplicate generic parameter names
+        var seen = new HashSet<string>();
+        foreach (var gp in GenericParameters)
+        {
+            if (!seen.Add(gp.Name))
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Duplicate generic parameter name '{gp.Name}'\n{Token.GetLocationStringRepresentation()}"));
+            }
+        }
+
         var bounds = GenericParameters
             .SelectMany(gp => gp.TraitBounds.Select(tb => (tb, gp.Name)))
             .ToList();

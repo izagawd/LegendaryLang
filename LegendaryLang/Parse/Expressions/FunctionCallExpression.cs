@@ -20,6 +20,13 @@ public class FunctionCallExpression : IExpression
         (FunctionPath?.GetLastPathSegment() as NormalLangPath.GenericTypesPathSegment)?.TypePaths ?? [];
 
     public NormalLangPath FunctionPath { get; set; }
+
+    /// <summary>
+    /// Set when parsing &lt;ConcreteType as Trait&gt;::method() — the concrete type (e.g., i32).
+    /// Used to substitute Self in trait method return types.
+    /// </summary>
+    public LangPath? QualifiedAsType { get; set; }
+
     public IEnumerable<ISyntaxNode> Children => Arguments;
 
     public Token Token => FunctionPath.FirstIdentifierToken!;
@@ -64,7 +71,16 @@ public class FunctionCallExpression : IExpression
             var traitMethodReturnType = analyzer.ResolveTraitMethodReturnType(FunctionPath);
             if (traitMethodReturnType != null)
             {
-                TypePath = traitMethodReturnType;
+                // If return type is Self, substitute with the qualified concrete type if available
+                if (traitMethodReturnType is NormalLangPath nlpRet && nlpRet.PathSegments.Length == 1
+                    && nlpRet.PathSegments[0].ToString() == "Self" && QualifiedAsType != null)
+                {
+                    TypePath = QualifiedAsType;
+                }
+                else
+                {
+                    TypePath = traitMethodReturnType;
+                }
             }
             else
             {
@@ -79,7 +95,25 @@ public class FunctionCallExpression : IExpression
 
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
+        // For <ConcreteType as Trait>::method() calls, push a temporary trait bound
+        // so ResolveTraitMethodCall can find the impl
+        bool pushedTempBound = false;
+        if (QualifiedAsType != null)
+        {
+            var traitPath = FunctionPath.Pop(); // Trait path (parent of method)
+            if (traitPath != null)
+            {
+                var resolvedType = QualifiedAsType.Monomorphize(codeGenContext);
+                codeGenContext.PushTraitBounds([(traitPath, resolvedType)]);
+                pushedTempBound = true;
+            }
+        }
+
         var zaPath = codeGenContext.GetRefItemFor(FunctionPath) as FunctionRefItem;
+
+        if (pushedTempBound)
+            codeGenContext.PopTraitBounds();
+
         var callResult = codeGenContext.Builder.BuildCall2(zaPath.Function.FunctionType,
             zaPath.Function.FunctionValueRef,
             Arguments.Select(i =>
@@ -109,6 +143,8 @@ public class FunctionCallExpression : IExpression
     public void ResolvePaths(PathResolver resolver)
     {
         FunctionPath = (NormalLangPath)FunctionPath.Resolve(resolver);
+        if (QualifiedAsType != null)
+            QualifiedAsType = QualifiedAsType.Resolve(resolver);
         foreach (var i in Children.OfType<IPathResolvable>())
         {
             i.ResolvePaths(resolver);

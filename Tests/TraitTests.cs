@@ -71,4 +71,34 @@ public class TraitTests
         Assert.That(traitNames.Any(t => t.Contains("Multiplier")));
         Assert.That(violations.All(v => v.TypePath.ToString().Contains("bool")));
     }
+
+    [Test]
+    public void TraitDuplicateGenericParamTest()
+    {
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_duplicate_generic_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<GenericSemanticError>());
+        Assert.That(result.Errors.Any(e => e.Message.Contains("Duplicate generic parameter")));
+    }
+
+    [Test]
+    public void TraitQualifiedCallTest()
+    {
+        // <i32 as Default>::default() should resolve Self to i32
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_qualified_call_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(42 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitConcreteTypeCallTest()
+    {
+        // i32::default() should find the impl and resolve to 99
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_concrete_type_call_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(99 == result.Function?.Invoke());
+    }
 }

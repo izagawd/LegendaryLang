@@ -89,7 +89,11 @@ public interface IExpression : IStatement
 
         // Check if followed by ( for function call
         if (parser.Peek() is LeftParenthesisToken)
-            return FunctionCallExpression.ParseFunctionCallExpression(parser, synthesizedPath);
+        {
+            var callExpr = FunctionCallExpression.ParseFunctionCallExpression(parser, synthesizedPath);
+            callExpr.QualifiedAsType = typePath;
+            return callExpr;
+        }
 
         // Otherwise return as path expression
         return new PathExpression(synthesizedPath);

@@ -192,16 +192,46 @@ public class SemanticAnalyzer
                 .FirstOrDefault(td => td.GetMethod(methodName) != null);
         }
 
+        // Case 3: ConcreteType::method — parent is a concrete type, search impls for a trait with the method
+        if (traitDef == null)
+        {
+            var typeDef = GetDefinition(parentPath);
+            if (typeDef != null && typeDef is not TraitDefinition)
+            {
+                // Search all impls where ForTypePath matches this type
+                foreach (var impl in ImplDefinitions)
+                {
+                    if (impl.ForTypePath == parentPath)
+                    {
+                        var implTraitDef = GetDefinition(impl.TraitPath) as TraitDefinition;
+                        if (implTraitDef?.GetMethod(methodName) != null)
+                        {
+                            traitDef = implTraitDef;
+                            // Self resolves to the concrete type
+                            var method = traitDef.GetMethod(methodName);
+                            var returnType = method!.ReturnTypePath;
+                            if (returnType is NormalLangPath nlpSelf && nlpSelf.PathSegments.Length == 1
+                                && nlpSelf.PathSegments[0].ToString() == "Self")
+                            {
+                                return parentPath;
+                            }
+                            return returnType;
+                        }
+                    }
+                }
+            }
+        }
+
         if (traitDef == null) return null;
 
-        var method = traitDef.GetMethod(methodName);
-        if (method == null) return null;
+        var foundMethod = traitDef.GetMethod(methodName);
+        if (foundMethod == null) return null;
 
-        var returnType = method.ReturnTypePath;
+        var foundReturnType = foundMethod.ReturnTypePath;
 
         // If the return type is "Self", substitute it with the generic parameter
         // that has this trait as its bound
-        if (returnType is NormalLangPath nlp && nlp.PathSegments.Length == 1
+        if (foundReturnType is NormalLangPath nlp && nlp.PathSegments.Length == 1
             && nlp.PathSegments[0].ToString() == "Self")
         {
             var traitTypePath = (traitDef as IDefinition).TypePath;
@@ -211,7 +241,7 @@ public class SemanticAnalyzer
                         return new NormalLangPath(null, [paramName]);
         }
 
-        return returnType;
+        return foundReturnType;
     }
 
     /// <summary>
