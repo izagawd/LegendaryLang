@@ -28,7 +28,7 @@ public class TupleTypeDefinition : ComposableTypeDefinition
         get
         {
             var genericParameters = new List<GenericParameter>();
-            for (var i = 0; i < GenericParameters.Length; i++) genericParameters.Add(new GenericParameter(i.ToString()));
+            for (var i = 0; i < ComposedTypes.Length; i++) genericParameters.Add(new GenericParameter(i.ToString()));
             return genericParameters.ToImmutableArray();
         }
     }
@@ -62,7 +62,8 @@ public class TupleTypeDefinition : ComposableTypeDefinition
         {
             Type = new TupleType(this,types, structt)
             {
-                TypeDefinition = { }
+                TypeDefinition = { },
+                ResolvedFieldTypes = types.ToImmutableArray()
             }
         };
     }

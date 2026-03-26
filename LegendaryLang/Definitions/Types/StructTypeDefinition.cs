@@ -190,12 +190,15 @@ public class StructTypeDefinition : ComposableTypeDefinition
                 context.GetRefItemFor(genericArguments[i])!);
         }
 
+        // Resolve field types while generic scope is active
+        var resolvedFieldTypes = Fields.Select(i => ((TypeRefItem) context.GetRefItemFor(i.TypePath)).Type)
+            .ToImmutableArray();
+
         var structt 
             = context.LLVMContext.CreateNamedStruct(((NormalLangPath) TypePath).Append(new NormalLangPath.GenericTypesPathSegment(genericArguments)).ToString());
         structt.StructSetBody(
-            Fields.Select(i => ((TypeRefItem) context.GetRefItemFor(i.TypePath)).TypeRef)
-                .ToArray()
-            ,false);
+            resolvedFieldTypes.Select(t => t.TypeRef).ToArray(),
+            false);
 
         context.PopScope();
 
@@ -203,7 +206,8 @@ public class StructTypeDefinition : ComposableTypeDefinition
         {
             Type = new StructType(this, structt)
             {
-                TypeDefinition = { }
+                TypeDefinition = { },
+                ResolvedFieldTypes = resolvedFieldTypes
             }
         };
     }

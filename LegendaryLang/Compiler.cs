@@ -160,7 +160,10 @@ public class Compiler
             return new CompileResult { Errors = errors };
         }
 
-        var function = CodeGenContext.CodeGenMain(parseResults, new NormalLangPath(null, [codeDirectory, "main"]), showLLVMIR,
+        var mainModuleSegments = codeDirectory.Split(new[] { '\\', '/' })
+            .Select(s => (NormalLangPath.PathSegment)s)
+            .Append((NormalLangPath.PathSegment)"main");
+        var function = CodeGenContext.CodeGenMain(parseResults, new NormalLangPath(null, mainModuleSegments), showLLVMIR,
             optimized);
 
         if (function == null)

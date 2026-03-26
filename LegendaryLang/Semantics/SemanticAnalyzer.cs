@@ -199,9 +199,12 @@ public class SemanticAnalyzer
     /// </summary>
     public LangPath? ResolveTraitMethodReturnType(NormalLangPath path)
     {
-        var methodName = path.GetLastPathSegment().ToString();
+        if (path.PathSegments.Length < 2) return null;
+        var lastSeg = path.GetLastPathSegment();
+        if (lastSeg == null) return null;
+        var methodName = lastSeg.ToString();
         var parentPath = path.Pop();
-        if (parentPath == null) return null;
+        if (parentPath == null || parentPath.PathSegments.Length == 0) return null;
 
         // Case 1: TraitName::method — parent is a trait directly
         var traitDef = GetDefinition(parentPath) as TraitDefinition;
