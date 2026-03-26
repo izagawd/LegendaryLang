@@ -238,6 +238,6 @@ public class LetStatement : IStatement
     private static bool IsReferenceType(LangPath? typePath)
     {
         return typePath is NormalLangPath nlp
-               && nlp.Contains(PointerTypeDefinition.GetPointerModule());
+               && nlp.Contains(RefTypeDefinition.GetRefModule());
     }
 }

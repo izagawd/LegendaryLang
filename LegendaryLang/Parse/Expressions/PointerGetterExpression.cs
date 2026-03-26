@@ -1,4 +1,4 @@
-﻿using LegendaryLang.ConcreteDefinition;
+using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Semantics;
@@ -8,7 +8,7 @@ namespace LegendaryLang.Parse.Expressions;
 
 public class PointerGetterExpression : IExpression
 {
-    private readonly bool _isMut;
+    private readonly RefKind _refKind;
 
     public static PointerGetterExpression Parse(Parser parser)
     {
@@ -17,21 +17,32 @@ public class PointerGetterExpression : IExpression
         {
             throw new ExpectedParserException(parser,[ParseType. Ampersand],popped);
         }
-        var peeked = parser.Peek();
-        var isMut = false;
-        if (peeked is MutToken mutToken)
+
+        var refKind = RefKind.Shared;
+        if (parser.Peek() is MutToken)
         {
-            isMut = true;
+            refKind = RefKind.Mut;
             parser.Pop();
         }
+        else if (parser.Peek() is IdentifierToken { Identity: "const" })
+        {
+            refKind = RefKind.Const;
+            parser.Pop();
+        }
+        else if (parser.Peek() is IdentifierToken { Identity: "uniq" })
+        {
+            refKind = RefKind.Uniq;
+            parser.Pop();
+        }
+
         var expr = IExpression.ParsePrimary(parser);
-        return new PointerGetterExpression(expr, ampersandToken, isMut);
+        return new PointerGetterExpression(expr, ampersandToken, refKind);
     }
 
     
-    public PointerGetterExpression(IExpression pointingTo, AmpersandToken token, bool isMut)
+    public PointerGetterExpression(IExpression pointingTo, AmpersandToken token, RefKind refKind)
     {
-        _isMut = isMut;
+        _refKind = refKind;
         PointingTo = pointingTo;
         Token = token;
     }
@@ -47,7 +58,7 @@ public class PointerGetterExpression : IExpression
         PointingTo.Analyze(analyzer);
         if (PointingTo is not FieldAccessExpression && PointingTo is not PathExpression)
         {
-            analyzer.AddException(new SemanticException("Pointer point must be a field access, or a variable access\n" + Token.GetLocationStringRepresentation()));
+            analyzer.AddException(new SemanticException("Reference target must be a field access or a variable access\n" + Token.GetLocationStringRepresentation()));
         }
 
         // Track borrow origin for lifetime checking
@@ -68,7 +79,10 @@ public class PointerGetterExpression : IExpression
     }
 
     public bool HasGuaranteedExplicitReturn => PointingTo.HasGuaranteedExplicitReturn;
-    public LangPath? TypePath => PointerTypeDefinition.GetPointerModule().Append(PointerTypeDefinition.GetPointerName(_isMut)).Append(new NormalLangPath.GenericTypesPathSegment([PointingTo.TypePath]));
+    public LangPath? TypePath => RefTypeDefinition.GetRefModule()
+        .Append(RefTypeDefinition.GetRefName(_refKind))
+        .Append(new NormalLangPath.GenericTypesPathSegment([PointingTo.TypePath]));
+
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         // The inner expression's CodeGen returns a ValueRefItem whose ValueRef
@@ -77,15 +91,15 @@ public class PointerGetterExpression : IExpression
 
         // Resolve the pointer type
         var ptrTypeRef = codeGenContext.GetRefItemFor(TypePath) as TypeRefItem;
-        if (ptrTypeRef?.Type is PointerType ptrType)
+        if (ptrTypeRef?.Type is RefType refType)
         {
             // The inner ValueRef is the address we want to store as the reference value.
             // Allocate a stack slot for the reference (pointer) and store the address.
-            var alloca = codeGenContext.Builder.BuildAlloca(ptrType.TypeRef);
+            var alloca = codeGenContext.Builder.BuildAlloca(refType.TypeRef);
             codeGenContext.Builder.BuildStore(innerVal.ValueRef, alloca);
             return new ValueRefItem
             {
-                Type = ptrType,
+                Type = refType,
                 ValueRef = alloca
             };
         }
@@ -93,4 +107,6 @@ public class PointerGetterExpression : IExpression
         // Fallback — shouldn't happen
         return innerVal;
     }
+
+    public void ResolvePaths(PathResolver resolver) { }
 }

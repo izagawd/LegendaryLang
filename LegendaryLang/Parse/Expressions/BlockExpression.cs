@@ -196,7 +196,7 @@ public class BlockExpression : IExpression
         if (last is not null && !last.Value.HasSemiColonAfter
             && last.Value.Node is IExpression lastExpr
             && TypePath is NormalLangPath nlpBlock
-            && nlpBlock.Contains(PointerTypeDefinition.GetPointerModule())
+            && nlpBlock.Contains(RefTypeDefinition.GetRefModule())
             && analyzer.IsExpressionBorrowingFromCurrentScope(lastExpr))
         {
             analyzer.AddException(new DanglingReferenceException(

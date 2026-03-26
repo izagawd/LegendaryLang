@@ -166,7 +166,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
             var lastNode = BlockExpression.BlockSyntaxNodeContainers.Last();
             if (lastNode.Node is IExpression lastExpr
                 && BlockExpression.TypePath is NormalLangPath nlpRet
-                && nlpRet.Contains(PointerTypeDefinition.GetPointerModule())
+                && nlpRet.Contains(RefTypeDefinition.GetRefModule())
                 && analyzer.IsExpressionLocalBorrow(lastExpr))
             {
                 analyzer.AddException(new DanglingReferenceException(

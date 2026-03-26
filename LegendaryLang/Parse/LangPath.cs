@@ -193,21 +193,30 @@ public abstract class LangPath
     {
         var next = parser.Peek();
 
-        // Reference type: &T in type position
+        // Reference type: &T, &const T, &mut T, &uniq T in type position
         if (next is AmpersandToken && typePosition)
         {
             parser.Pop(); // consume &
-            bool isMut = false;
+            var refKind = RefKind.Shared;
             if (parser.Peek() is MutToken)
             {
-                isMut = true;
+                refKind = RefKind.Mut;
+                parser.Pop();
+            }
+            else if (parser.Peek() is IdentifierToken { Identity: "const" })
+            {
+                refKind = RefKind.Const;
+                parser.Pop();
+            }
+            else if (parser.Peek() is IdentifierToken { Identity: "uniq" })
+            {
+                refKind = RefKind.Uniq;
                 parser.Pop();
             }
             var innerType = Parse(parser, true);
-            // Produce std::pointer::immut::<InnerType> or std::pointer::mut::<InnerType>
-            var pointerModule = PointerTypeDefinition.GetPointerModule();
-            var pointerName = PointerTypeDefinition.GetPointerName(isMut);
-            return pointerModule.Append(pointerName)
+            var refModule = RefTypeDefinition.GetRefModule();
+            var refName = RefTypeDefinition.GetRefName(refKind);
+            return refModule.Append(refName)
                 .Append(new NormalLangPath.GenericTypesPathSegment([innerType]));
         }
 

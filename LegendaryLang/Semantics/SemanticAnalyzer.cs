@@ -767,7 +767,7 @@ public class SemanticAnalyzer
 
         // References (&T) are always Copy — they're just pointers
         if (typePath is NormalLangPath nlpPtr
-            && nlpPtr.Contains(Definitions.Types.PointerTypeDefinition.GetPointerModule()))
+            && nlpPtr.Contains(RefTypeDefinition.GetRefModule()))
             return true;
 
         // Check if this is a generic param with a Copy trait bound

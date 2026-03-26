@@ -12,9 +12,11 @@ public class PrimitiveTypeGenerator
             .Where(t => t.IsAssignableTo(typeof(PrimitiveTypeDefinition)) && !t.IsAbstract)
             .Select(i => (IItem)Activator.CreateInstance(i)).ToList();
 
-        // Add pointer type definitions (immutable and mutable references)
-        items.Add(new PointerTypeDefinition(false)); // &T
-        items.Add(new PointerTypeDefinition(true));  // &mut T
+        // Add reference type definitions for all 4 reference kinds
+        items.Add(new RefTypeDefinition(RefKind.Shared)); // &T
+        items.Add(new RefTypeDefinition(RefKind.Const));  // &const T
+        items.Add(new RefTypeDefinition(RefKind.Mut));    // &mut T
+        items.Add(new RefTypeDefinition(RefKind.Uniq));   // &uniq T
 
         return new ParseResult
         {

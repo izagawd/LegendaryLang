@@ -402,7 +402,7 @@ public class FunctionCallExpression : IExpression
         // For pointer/reference return types, the call result IS the raw pointer value —
         // just store it directly. AssignToStack would incorrectly dereference it.
         LLVMValueRef stackPtr;
-        if (returnType is PointerType)
+        if (returnType is RefType)
         {
             stackPtr = codeGenContext.Builder.BuildAlloca(returnType.TypeRef);
             codeGenContext.Builder.BuildStore(callResult, stackPtr);

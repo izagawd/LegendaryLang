@@ -34,7 +34,7 @@ public class FieldAccessExpression : IExpression
 
         // Auto-deref: if caller is a reference type (&T), unwrap to T
         if (callerTypePath is NormalLangPath nlpRef
-            && nlpRef.Contains(PointerTypeDefinition.GetPointerModule()))
+            && nlpRef.Contains(RefTypeDefinition.GetRefModule()))
         {
             var generics = nlpRef.GetFrontGenerics();
             if (generics.Length == 1)
@@ -132,7 +132,7 @@ public class FieldAccessExpression : IExpression
         var variableRef = Caller.CodeGen(codeGenContext);
 
         // Auto-deref: if the caller is a reference, load the pointer to get the struct address
-        if (AutoDeref && variableRef.Type is PointerType ptrType)
+        if (AutoDeref && variableRef.Type is RefType ptrType)
         {
             var derefPtr = ptrType.LoadValue(codeGenContext, variableRef);
             variableRef = new ValueRefItem

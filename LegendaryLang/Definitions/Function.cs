@@ -165,7 +165,7 @@ public class Function : IConcreteDefinition,  IPathResolvable
 
             // For pointer/reference types, the param IS the raw pointer value —
             // just store it directly. AssignTo would incorrectly dereference it.
-            if (argument.Type is PointerType)
+            if (argument.Type is RefType)
             {
                 context.Builder.BuildStore(param, alloca);
             }

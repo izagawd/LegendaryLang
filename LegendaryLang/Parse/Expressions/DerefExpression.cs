@@ -26,13 +26,13 @@ public class DerefExpression : IExpression
     {
         Inner.Analyze(analyzer);
 
-        // Check that inner is a reference type (std::pointer::immut::<T> or std::pointer::mut::<T>)
+        // Check that inner is a reference type (std::reference::shared::<T>, etc.)
         if (Inner.TypePath is NormalLangPath nlp)
         {
-            var pointerModule = PointerTypeDefinition.GetPointerModule();
-            // Check if path starts with std::pointer
+            var refModule = RefTypeDefinition.GetRefModule();
+            // Check if path starts with std::reference
             if (nlp.PathSegments.Length >= 3
-                && nlp.Contains(pointerModule))
+                && nlp.Contains(refModule))
             {
                 // Inner type is the generic arg
                 var generics = nlp.GetFrontGenerics();
@@ -59,7 +59,7 @@ public class DerefExpression : IExpression
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         var innerVal = Inner.CodeGen(codeGenContext);
-        var ptrType = innerVal.Type as PointerType;
+        var ptrType = innerVal.Type as RefType;
         if (ptrType == null)
             throw new InvalidOperationException("Cannot dereference non-pointer type");
 
