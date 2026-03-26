@@ -1,3 +1,5 @@
 bin
 LegendaryLang/bin
 Tests/bin
+LegendaryLang/obj
+Tests/obj
