@@ -38,7 +38,12 @@ public static class Lexer
                 case ' ':
                     break;
                 case '=':
-                    if (index + 1 < code.Length && code[index + 1] == '=')
+                    if (index + 1 < code.Length && code[index + 1] == '>')
+                    {
+                        file.AddToken(new FatArrowToken(file, column, line));
+                        index++;
+                    }
+                    else if (index + 1 < code.Length && code[index + 1] == '=')
                     {
                         file.AddToken(new DoubleEquality(file, column, line));
                         index++;
@@ -235,6 +240,12 @@ public static class Lexer
                             break;
                         case "type":
                             file.AddToken(new TypeKeywordToken(file, column, line));
+                            break;
+                        case "enum":
+                            file.AddToken(new EnumToken(file, column, line));
+                            break;
+                        case "match":
+                            file.AddToken(new MatchToken(file, column, line));
                             break;
                         default:
                             file.AddToken(new IdentifierToken(file, column, line, ident));

@@ -1,7 +1,10 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Definitions;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Semantics;
+using LLVMSharp.Interop;
 
 namespace LegendaryLang.Parse.Expressions;
 
@@ -37,6 +40,13 @@ public class FunctionCallExpression : IExpression
     /// </summary>
     public LangPath? ExpectedReturnType { get; set; }
 
+    /// <summary>
+    /// Set during Analyze if this is an enum tuple variant construction.
+    /// </summary>
+    public EnumTypeDefinition? EnumDef { get; set; }
+    public EnumVariant? EnumVariant { get; set; }
+    public LangPath? EnumTypePath { get; set; }
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
         // Analyze args first — we need their types for inference
@@ -44,6 +54,91 @@ public class FunctionCallExpression : IExpression
         {
             arg.Analyze(analyzer);
             analyzer.TryMarkExpressionAsMoved(arg);
+        }
+
+        // Check for enum tuple variant construction: EnumName::Variant(args) or EnumName::Variant::<Generics>(args)
+        if (FunctionPath.PathSegments.Length >= 2)
+        {
+            // Strip trailing generics (turbofish) if present
+            var workingPath = FunctionPath;
+            ImmutableArray<LangPath> turbofishGenerics = [];
+            if (workingPath.GetFrontGenerics().Length > 0)
+            {
+                turbofishGenerics = workingPath.GetFrontGenerics();
+                workingPath = workingPath.PopGenerics()!;
+            }
+
+            if (workingPath.PathSegments.Length >= 2)
+            {
+                var parentPath = workingPath.Pop();
+                var variantName = workingPath.GetLastPathSegment()?.ToString();
+                if (parentPath != null && variantName != null)
+                {
+                    var enumDefLookup = analyzer.GetDefinition(parentPath);
+                    if (enumDefLookup == null && parentPath is NormalLangPath nlpP && nlpP.GetFrontGenerics().Length > 0)
+                        enumDefLookup = analyzer.GetDefinition(nlpP.PopGenerics());
+                    if (enumDefLookup is EnumTypeDefinition enumDef)
+                    {
+                        var variant = enumDef.GetVariant(variantName);
+                        if (variant != null)
+                        {
+                            EnumDef = enumDef;
+                            EnumVariant = variant;
+
+                            // Determine generic args — from turbofish or parent path generics
+                            ImmutableArray<LangPath> genericArgs = turbofishGenerics;
+                            if (genericArgs.Length == 0 && parentPath is NormalLangPath nlpParent)
+                                genericArgs = nlpParent.GetFrontGenerics();
+
+                        // Try to infer generics from arguments if not provided
+                        if (genericArgs.Length == 0 && enumDef.GenericParameters.Length > 0)
+                        {
+                            var constraints = new List<(LangPath, LangPath)>();
+                            for (int i = 0; i < variant.FieldTypes.Length && i < Arguments.Length; i++)
+                                if (Arguments[i].TypePath != null)
+                                    constraints.Add((variant.FieldTypes[i], Arguments[i].TypePath));
+                            var inferred = TypeInference.InferFromConstraints(enumDef.GenericParameters, constraints);
+                            if (inferred != null)
+                                genericArgs = inferred.Value;
+                        }
+
+                        // Build enum type path with generics
+                        if (genericArgs.Length > 0)
+                        {
+                            var basePath = (NormalLangPath)enumDef.TypePath;
+                            EnumTypePath = basePath.Append(
+                                new NormalLangPath.GenericTypesPathSegment(genericArgs));
+                        }
+                        else
+                        {
+                            EnumTypePath = enumDef.TypePath;
+                        }
+                        TypePath = EnumTypePath;
+
+                        // Type-check arguments against variant field types
+                        if (variant.FieldTypes.Length != Arguments.Length)
+                        {
+                            analyzer.AddException(new SemanticException(
+                                $"Variant '{variantName}' expects {variant.FieldTypes.Length} field(s), got {Arguments.Length}\n{Token.GetLocationStringRepresentation()}"));
+                        }
+                        else
+                        {
+                            for (int i = 0; i < variant.FieldTypes.Length; i++)
+                            {
+                                var expectedType = variant.FieldTypes[i];
+                                if (genericArgs.Length > 0 && enumDef.GenericParameters.Length > 0)
+                                    expectedType = FieldAccessExpression.SubstituteGenerics(
+                                        expectedType, enumDef.GenericParameters, genericArgs);
+                                if (Arguments[i].TypePath != expectedType)
+                                    analyzer.AddException(new SemanticException(
+                                        $"Variant '{variantName}' field {i} expects type '{expectedType}', found '{Arguments[i].TypePath}'\n{Token.GetLocationStringRepresentation()}"));
+                            }
+                        }
+                        return;
+                    }
+                }
+            }
+            }
         }
 
         var def = analyzer.GetDefinition(FunctionPath);
@@ -220,6 +315,58 @@ public class FunctionCallExpression : IExpression
 
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
+        // Enum tuple variant construction
+        if (EnumDef != null && EnumVariant != null && EnumTypePath != null)
+        {
+            var typeRef = codeGenContext.GetRefItemFor(EnumTypePath) as TypeRefItem;
+            var enumType = typeRef?.Type as EnumType;
+            if (enumType != null)
+            {
+                var alloca = codeGenContext.Builder.BuildAlloca(enumType.TypeRef);
+
+                // Store tag
+                var tagPtr = codeGenContext.Builder.BuildStructGEP2(enumType.TypeRef, alloca, 0);
+                codeGenContext.Builder.BuildStore(
+                    LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, (ulong)EnumVariant.Tag, false),
+                    tagPtr);
+
+                // Store payload fields
+                if (enumType.HasPayloads && Arguments.Length > 0)
+                {
+                    var payloadPtr = codeGenContext.Builder.BuildStructGEP2(enumType.TypeRef, alloca, 1);
+                    var resolved = enumType.GetResolvedVariant(EnumVariant.Name);
+                    if (resolved != null)
+                    {
+                        ulong offset = 0;
+                        for (int i = 0; i < Arguments.Length && i < resolved.Value.fieldTypes.Length; i++)
+                        {
+                            var argVal = Arguments[i].CodeGen(codeGenContext);
+                            var fieldType = resolved.Value.fieldTypes[i];
+                            var loadedArg = fieldType.LoadValue(codeGenContext, argVal);
+
+                            var fieldPtr = payloadPtr;
+                            if (offset > 0)
+                            {
+                                fieldPtr = codeGenContext.Builder.BuildGEP2(
+                                    LLVMTypeRef.Int8, payloadPtr,
+                                    [LLVMValueRef.CreateConstInt(LLVMTypeRef.Int64, offset, false)]);
+                            }
+
+                            codeGenContext.Builder.BuildStore(loadedArg, fieldPtr);
+
+                            unsafe
+                            {
+                                var dataLayout = LLVM.GetModuleDataLayout(codeGenContext.Module);
+                                offset += LLVM.StoreSizeOfType(dataLayout, fieldType.TypeRef);
+                            }
+                        }
+                    }
+                }
+
+                return new ValueRefItem { Type = enumType, ValueRef = alloca };
+            }
+        }
+
         // For <ConcreteType as Trait>::method() calls, push a temporary trait bound
         // so ResolveTraitMethodCall can find the impl
         bool pushedTempBound = false;

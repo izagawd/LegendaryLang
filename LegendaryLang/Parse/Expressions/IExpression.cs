@@ -151,6 +151,9 @@ public interface IExpression : IStatement
             case IfToken:
                 expression = IfExpression.Parse(parser);
                 break;
+            case MatchToken:
+                expression = MatchExpression.Parse(parser);
+                break;
             case NumberToken:
                 expression = NumberExpression.Parse(parser);
                 break;

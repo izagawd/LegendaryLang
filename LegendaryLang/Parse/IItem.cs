@@ -16,7 +16,7 @@ public interface IItem : ISyntaxNode
     public static bool NextTokenIsItem(Parser parser)
     {
         var next = parser.Peek();
-        return next is FnToken or StructToken or UseToken or TraitToken or ImplToken;
+        return next is FnToken or StructToken or UseToken or TraitToken or ImplToken or EnumToken;
     }
     public static IItem Parse(Parser parser, NormalLangPath module)
     {
@@ -29,6 +29,8 @@ public interface IItem : ISyntaxNode
                 return FunctionDefinition.Parse(parser,module);
             else if (gotten is StructToken)
                 return StructTypeDefinition.Parse(parser,module);
+            else if (gotten is EnumToken)
+                return EnumTypeDefinition.Parse(parser,module);
             else if (gotten is UseToken)
                 return  UseDefinition.Parse(parser);
             else if (gotten is TraitToken)
@@ -36,11 +38,11 @@ public interface IItem : ISyntaxNode
             else if (gotten is ImplToken)
                 return ImplDefinition.Parse(parser,module);
             else
-                throw new ExpectedParserException(parser, [ParseType.Struct, ParseType.Fn, ParseType.Trait, ParseType.Impl], gotten);
+                throw new ExpectedParserException(parser, [ParseType.Struct, ParseType.Fn, ParseType.Trait, ParseType.Impl, ParseType.Enum], gotten);
         }
         else
         {
-            throw new ExpectedParserException(parser, [ParseType.Struct, ParseType.Fn, ParseType.Trait, ParseType.Impl], parser.Peek());
+            throw new ExpectedParserException(parser, [ParseType.Struct, ParseType.Fn, ParseType.Trait, ParseType.Impl, ParseType.Enum], parser.Peek());
         }
     }
 }

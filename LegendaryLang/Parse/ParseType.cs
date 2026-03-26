@@ -35,5 +35,8 @@ public enum ParseType
     Trait,
     Impl,
     For,
-    As
+    As,
+    Enum,
+    Match,
+    FatArrow
 }
