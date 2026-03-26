@@ -162,15 +162,25 @@ public class Function : IConcreteDefinition,  IPathResolvable
 
             // Allocate space for the parameter in the entry block.
             LLVMValueRef alloca = context.Builder.BuildAlloca(paramTypes[(int)i], argument.Name);
-            argument.Type.AssignTo(context, new ValueRefItem
+
+            // For pointer/reference types, the param IS the raw pointer value —
+            // just store it directly. AssignTo would incorrectly dereference it.
+            if (argument.Type is PointerType)
             {
-                Type = argument.Type,
-                ValueRef = param
-            }, new ValueRefItem
+                context.Builder.BuildStore(param, alloca);
+            }
+            else
             {
-                Type = argument.Type,
-                ValueRef = alloca
-            });
+                argument.Type.AssignTo(context, new ValueRefItem
+                {
+                    Type = argument.Type,
+                    ValueRef = param
+                }, new ValueRefItem
+                {
+                    Type = argument.Type,
+                    ValueRef = alloca
+                });
+            }
 
             // adds the stack ptr to codegen so argument can be referenced by name
             context.AddToDeepestScope(new NormalLangPath(null, [argument.Name]), new ValueRefItem

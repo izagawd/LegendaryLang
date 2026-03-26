@@ -24,7 +24,7 @@ public class PointerGetterExpression : IExpression
             isMut = true;
             parser.Pop();
         }
-        var expr = IExpression.Parse(parser);
+        var expr = IExpression.ParsePrimary(parser);
         return new PointerGetterExpression(expr, ampersandToken, isMut);
     }
 

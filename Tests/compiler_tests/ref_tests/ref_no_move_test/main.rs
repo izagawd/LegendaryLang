@@ -6,6 +6,5 @@ fn peek(r: &Foo) -> i32 {
 }
 fn main() -> i32 {
     let f = Foo { val = 7 };
-    let r = &f;
-    peek(r)
+    peek(&f)
 }

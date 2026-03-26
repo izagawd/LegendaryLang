@@ -398,11 +398,23 @@ public class FunctionCallExpression : IExpression
         );
 
         var returnType = zaPath.Function.ReturnType;
-        var stackPtr = returnType.AssignToStack(codeGenContext, new ValueRefItem
+
+        // For pointer/reference return types, the call result IS the raw pointer value —
+        // just store it directly. AssignToStack would incorrectly dereference it.
+        LLVMValueRef stackPtr;
+        if (returnType is PointerType)
         {
-            Type = returnType,
-            ValueRef = callResult
-        });
+            stackPtr = codeGenContext.Builder.BuildAlloca(returnType.TypeRef);
+            codeGenContext.Builder.BuildStore(callResult, stackPtr);
+        }
+        else
+        {
+            stackPtr = returnType.AssignToStack(codeGenContext, new ValueRefItem
+            {
+                Type = returnType,
+                ValueRef = callResult
+            });
+        }
 
 
         return new ValueRefItem
