@@ -264,10 +264,10 @@ public class MatchExpression : IExpression
                                 [LLVMValueRef.CreateConstInt(LLVMTypeRef.Int64, offset, false)]);
                         }
 
-                        var fieldVal = codeGenContext.Builder.BuildLoad2(fieldType.TypeRef, fieldPtr);
                         var fieldAlloca = codeGenContext.Builder.BuildAlloca(fieldType.TypeRef, bindingName);
+                        // Use pointer-to-pointer AssignTo — works for both primitives and structs
                         fieldType.AssignTo(codeGenContext,
-                            new ValueRefItem { Type = fieldType, ValueRef = fieldVal },
+                            new ValueRefItem { Type = fieldType, ValueRef = fieldPtr },
                             new ValueRefItem { Type = fieldType, ValueRef = fieldAlloca });
 
                         if (bindingName != "_")

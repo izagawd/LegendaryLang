@@ -342,7 +342,6 @@ public class FunctionCallExpression : IExpression
                         {
                             var argVal = Arguments[i].CodeGen(codeGenContext);
                             var fieldType = resolved.Value.fieldTypes[i];
-                            var loadedArg = fieldType.LoadValue(codeGenContext, argVal);
 
                             var fieldPtr = payloadPtr;
                             if (offset > 0)
@@ -352,7 +351,10 @@ public class FunctionCallExpression : IExpression
                                     [LLVMValueRef.CreateConstInt(LLVMTypeRef.Int64, offset, false)]);
                             }
 
-                            codeGenContext.Builder.BuildStore(loadedArg, fieldPtr);
+                            // Use pointer-to-pointer AssignTo — works for both primitives and structs
+                            fieldType.AssignTo(codeGenContext,
+                                argVal,
+                                new ValueRefItem { Type = fieldType, ValueRef = fieldPtr });
 
                             unsafe
                             {

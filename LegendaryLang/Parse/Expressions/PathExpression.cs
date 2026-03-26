@@ -1,4 +1,5 @@
-﻿using LegendaryLang.ConcreteDefinition;
+﻿using System.Collections.Immutable;
+using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Semantics;
@@ -63,33 +64,58 @@ public class PathExpression : IExpression
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        // Check if this is an enum unit variant: EnumName::VariantName
+        // Check if this is an enum unit variant: EnumName::VariantName or EnumName::VariantName::<Generics>
         if (Path is NormalLangPath nlp && nlp.PathSegments.Length >= 2)
         {
-            var parentPath = nlp.Pop();
-            var variantName = nlp.GetLastPathSegment()?.ToString();
-            if (parentPath != null && variantName != null)
+            // Strip trailing turbofish generics if present
+            var workingPath = nlp;
+            ImmutableArray<LangPath> turbofishGenerics = [];
+            if (workingPath.GetFrontGenerics().Length > 0)
             {
-                var def = analyzer.GetDefinition(parentPath);
-                if (def == null && parentPath is NormalLangPath nlpP && nlpP.GetFrontGenerics().Length > 0)
-                    def = analyzer.GetDefinition(nlpP.PopGenerics());
-                if (def is EnumTypeDefinition enumDef)
+                turbofishGenerics = workingPath.GetFrontGenerics();
+                workingPath = workingPath.PopGenerics()!;
+            }
+
+            if (workingPath.PathSegments.Length >= 2)
+            {
+                var parentPath = workingPath.Pop();
+                var variantName = workingPath.GetLastPathSegment()?.ToString();
+                if (parentPath != null && variantName != null)
                 {
-                    var variant = enumDef.GetVariant(variantName);
-                    if (variant != null)
+                    var def = analyzer.GetDefinition(parentPath);
+                    if (def == null && parentPath is NormalLangPath nlpP && nlpP.GetFrontGenerics().Length > 0)
+                        def = analyzer.GetDefinition(nlpP.PopGenerics());
+                    if (def is EnumTypeDefinition enumDef)
                     {
-                        if (variant.FieldTypes.Length > 0)
+                        var variant = enumDef.GetVariant(variantName);
+                        if (variant != null)
                         {
-                            analyzer.AddException(new SemanticException(
-                                $"Variant '{variantName}' has fields — use '{variantName}(...)' syntax\n{Token.GetLocationStringRepresentation()}"));
+                            if (variant.FieldTypes.Length > 0)
+                            {
+                                analyzer.AddException(new SemanticException(
+                                    $"Variant '{variantName}' has fields — use '{variantName}(...)' syntax\n{Token.GetLocationStringRepresentation()}"));
+                            }
+                            EnumDef = enumDef;
+                            EnumVariant = variant;
+
+                            // Use turbofish generics or parent path generics
+                            ImmutableArray<LangPath> genericArgs = turbofishGenerics;
+                            if (genericArgs.Length == 0 && parentPath is NormalLangPath nlpParent)
+                                genericArgs = nlpParent.GetFrontGenerics();
+
+                            if (genericArgs.Length > 0)
+                            {
+                                var basePath = (NormalLangPath)enumDef.TypePath;
+                                EnumTypePath = basePath.Append(
+                                    new NormalLangPath.GenericTypesPathSegment(genericArgs));
+                            }
+                            else
+                            {
+                                EnumTypePath = enumDef.TypePath;
+                            }
+                            TypePath = EnumTypePath;
+                            return;
                         }
-                        EnumDef = enumDef;
-                        EnumVariant = variant;
-                        // Build enum type path with generics if present
-                        EnumTypePath = parentPath is NormalLangPath nlpParent && nlpParent.GetFrontGenerics().Length > 0
-                            ? parentPath : enumDef.TypePath;
-                        TypePath = EnumTypePath;
-                        return;
                     }
                 }
             }
