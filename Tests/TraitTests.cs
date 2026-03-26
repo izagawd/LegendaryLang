@@ -249,3 +249,131 @@ public class TraitTests
         Assert.That(6 == result.Function?.Invoke());
     }
 }
+
+public class MethodCallTests
+{
+    [Test]
+    public void TraitMethodCallTest()
+    {
+        // f.value() where Foo impl Greet with self: &Self
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_method_call_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(42 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitMethodCallI32Test()
+    {
+        // x.double() where i32 impl Double
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_method_call_i32_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitMethodCallWithArgsTest()
+    {
+        // v.add_to(5) with explicit extra arg
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_method_call_with_args_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(15 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitMethodChainTest()
+    {
+        // w.get() on Wrapper
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_method_chain_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(7 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitReceiverSupertraitTest()
+    {
+        // T: Child where Child: Base — use_base::<T>() works
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_receiver_supertrait_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(30 == result.Function?.Invoke());
+    }
+}
+
+public class SupertraitGenericTests
+{
+    [Test]
+    public void TraitSupertraitGenericPassthroughTest()
+    {
+        // trait Foo<T>: Bar<T> — T: Foo<U> satisfies Bar<U>
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_supertrait_generic_passthrough_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(15 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitSupertraitGenericWithPlainTest()
+    {
+        // trait Foo<T>: Bar (non-generic supertrait) — T: Foo<U> satisfies Bar
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_supertrait_generic_with_plain_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(23 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitSupertraitConcreteGenericTest()
+    {
+        // trait Foo: Bar<i32> — T: Foo satisfies Bar<i32>
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_supertrait_concrete_generic_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(15 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitSupertraitGenericMismatchFailTest()
+    {
+        // trait Foo: Bar<i32> — T: Foo should NOT satisfy Bar<bool>
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_supertrait_generic_mismatch_fail_test", true, true);
+        Assert.That(!result.Success);
+    }
+
+    [Test]
+    public void TraitSupertraitDeepGenericTest()
+    {
+        // C<T>: B<T>, B<T>: A<T> — T: C<U> satisfies A<U> transitively
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_supertrait_deep_generic_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(4 == result.Function?.Invoke());
+    }
+}
+
+public class MethodChainTests
+{
+    [Test]
+    public void TraitMethodChainCallTest()
+    {
+        // x.get().get() — chained i32 method calls
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_method_chain_call_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(7 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitMethodChainStructTest()
+    {
+        // n.inc().get() — inc returns Num, then get returns i32
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_method_chain_struct_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(6 == result.Function?.Invoke());
+    }
+}

@@ -209,6 +209,13 @@ public interface IExpression : IStatement
         {
             expression = FieldAccessExpression.Parse(parser, expression);
             token = parser.Peek();
+
+            // Check for method call: expr.method(args)
+            if (token is LeftParenthesisToken && expression is FieldAccessExpression fieldExpr)
+            {
+                expression = MethodCallExpression.FromFieldAccess(parser, fieldExpr);
+                token = parser.Peek();
+            }
         }
 
         if (token is EqualityToken) expression = AssignVariableExpression.Parse(parser, expression);

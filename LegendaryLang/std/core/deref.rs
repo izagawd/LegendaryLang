@@ -1,16 +1,19 @@
-trait Deref {
+trait Receiver {
     type Target;
-    fn deref(self_ref: &Self) -> &Target;
+}
+
+trait Deref: Receiver {
+    fn deref(self: &Self) -> &Target;
 }
 
 trait DerefConst: Deref {
-    fn deref_const(self_ref: &const Self) -> &const Target;
+    fn deref_const(self: &const Self) -> &const Target;
 }
 
 trait DerefMut: Deref {
-    fn deref_mut(self_ref: &mut Self) -> &mut Target;
+    fn deref_mut(self: &mut Self) -> &mut Target;
 }
 
 trait DerefUniq: Deref + DerefConst + DerefMut {
-    fn deref_uniq(self_ref: &uniq Self) -> &uniq Target;
+    fn deref_uniq(self: &uniq Self) -> &uniq Target;
 }
