@@ -98,8 +98,11 @@ public class BinaryOperationExpression : IExpression
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        // Analyze and mark operands as moved (same as function call args)
         Left.Analyze(analyzer);
+        analyzer.TryMarkExpressionAsMoved(Left);
         Right.Analyze(analyzer);
+        analyzer.TryMarkExpressionAsMoved(Right);
 
         if (OperatorToken.OperatorType is Operator.LessThan or Operator.GreaterThan)
         {

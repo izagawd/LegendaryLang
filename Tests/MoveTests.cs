@@ -152,4 +152,34 @@ public class MoveTests
         Assert.That(result.Success);
         Assert.That(5 == result.Function?.Invoke());
     }
+
+    [Test]
+    public void OperatorMovesNonCopyGenericTest()
+    {
+        // T: Add<T> + Sub<T> (no Copy) — using two twice in one + two - two should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/operator_moves_non_copy_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<UseAfterMoveError>());
+    }
+
+    [Test]
+    public void OperatorCopyAllowsReuseTest()
+    {
+        // T: Add<T> + Copy — using two twice in one + two + two should succeed
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/operator_copy_allows_reuse_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(8 == result.Function?.Invoke()); // 2 + 3 + 3
+    }
+
+    [Test]
+    public void OperatorConcreteMovesTest()
+    {
+        // Foo (not Copy) with Add impl — let c = a + b; let d = a + b; should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/move_tests/operator_concrete_moves_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<UseAfterMoveError>());
+    }
 }
