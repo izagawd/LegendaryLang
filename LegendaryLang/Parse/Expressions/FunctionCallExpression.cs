@@ -172,9 +172,41 @@ public class FunctionCallExpression : IExpression
                         TypePath = resolved ?? traitMethodReturnType;
                     }
                 }
+                else if (traitMethodReturnType is QualifiedAssocTypePath qpRet)
+                {
+                    // Substitute Self with the concrete qualified-as type
+                    var resolvedQp = qpRet;
+                    if (QualifiedAsType != null)
+                    {
+                        var forType = qpRet.ForType;
+                        var traitInQp = qpRet.TraitPath;
+                        if (forType is NormalLangPath nlpFor && nlpFor.PathSegments.Length == 1
+                            && nlpFor.PathSegments[0].ToString() == "Self")
+                            forType = QualifiedAsType;
+                        if (traitInQp is NormalLangPath nlpTrait)
+                        {
+                            var newSegs = new List<NormalLangPath.PathSegment>();
+                            foreach (var seg in nlpTrait.PathSegments)
+                            {
+                                if (seg is NormalLangPath.GenericTypesPathSegment gts)
+                                {
+                                    var newTypes = gts.TypePaths.Select(tp =>
+                                        tp is NormalLangPath nlpTp && nlpTp.PathSegments.Length == 1
+                                        && nlpTp.PathSegments[0].ToString() == "Self" && QualifiedAsType != null
+                                            ? QualifiedAsType : tp).ToList();
+                                    newSegs.Add(new NormalLangPath.GenericTypesPathSegment(newTypes));
+                                }
+                                else newSegs.Add(seg);
+                            }
+                            traitInQp = new NormalLangPath(nlpTrait.FirstIdentifierToken, newSegs);
+                        }
+                        resolvedQp = new QualifiedAssocTypePath(forType, traitInQp, qpRet.AssociatedTypeName);
+                    }
+                    TypePath = analyzer.ResolveQualifiedTypePath(resolvedQp);
+                }
                 else
                 {
-                    TypePath = traitMethodReturnType;
+                    TypePath = analyzer.ResolveQualifiedTypePath(traitMethodReturnType);
                 }
             }
             else

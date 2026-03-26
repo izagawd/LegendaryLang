@@ -307,6 +307,9 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                 {
                     var fieldType = field.TypePath;
 
+                    // Resolve qualified associated type paths (e.g., <i32 as Add<i32>>::Output → i32)
+                    fieldType = analyzer.ResolveQualifiedTypePath(fieldType);
+
                     // If the field type is a generic param of the struct...
                     if (fieldType is NormalLangPath nlpField && nlpField.PathSegments.Length == 1)
                     {
