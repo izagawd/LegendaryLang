@@ -1,4 +1,5 @@
-﻿using LegendaryLang.Lex.Tokens;
+﻿using LegendaryLang.Definitions.Types;
+using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Expressions;
 using LegendaryLang.Semantics;
 
@@ -139,8 +140,45 @@ public class LetStatement : IStatement
 
         if (TypePath is null) return;
 
+        // Shadowing: invalidate borrows from the old binding before replacing it
+        analyzer.InvalidateBorrowsFrom(VariableDefinition.Name);
+
         // Fresh binding — unmark this variable from moved (handles shadowing)
         analyzer.UnmarkMoved(VariableDefinition.Name);
+
+        // Track this variable in the current scope for lifetime invalidation
+        analyzer.TrackScopeVariable(VariableDefinition.Name);
+
+        // If RHS is a borrow (&expr), register the borrow relationship
+        if (EqualsTo is PointerGetterExpression pge)
+        {
+            // Extract the source variable name from the borrowed expression
+            string? sourceName = null;
+            if (pge.PointingTo is PathExpression srcPe && srcPe.Path is NormalLangPath srcNlp
+                && srcNlp.PathSegments.Length == 1)
+            {
+                sourceName = srcNlp.PathSegments[0].ToString();
+            }
+            else if (pge.PointingTo is FieldAccessExpression fae)
+            {
+                // &foo.bar — source is "foo"
+                var root = fae.Caller;
+                while (root is FieldAccessExpression innerFae) root = innerFae.Caller;
+                if (root is PathExpression rootPe && rootPe.Path is NormalLangPath rootNlp
+                    && rootNlp.PathSegments.Length == 1)
+                    sourceName = rootNlp.PathSegments[0].ToString();
+            }
+
+            if (sourceName != null)
+            {
+                analyzer.RegisterBorrow(sourceName, VariableDefinition.Name);
+
+                // If borrowing from a local (not a function parameter), mark this variable
+                // as holding a local borrow — it cannot be returned from the function
+                if (!analyzer.IsFunctionParameter(sourceName))
+                    analyzer.MarkAsLocalBorrow(VariableDefinition.Name);
+            }
+        }
 
         // If RHS is a variable and the type is not Copy, mark the source as moved
         if (EqualsTo is not null)
@@ -195,4 +233,11 @@ public class LetStatement : IStatement
     }
 
     public bool HasGuaranteedExplicitReturn => EqualsTo?.HasGuaranteedExplicitReturn ?? false;
+
+    /// <summary>Check if a type path is a reference type (&amp;T).</summary>
+    private static bool IsReferenceType(LangPath? typePath)
+    {
+        return typePath is NormalLangPath nlp
+               && nlp.Contains(PointerTypeDefinition.GetPointerModule());
+    }
 }

@@ -30,6 +30,13 @@ public class ReturnStatement : IStatement
     public void Analyze(SemanticAnalyzer analyzer)
     {
         ToReturn?.Analyze(analyzer);
+
+        // Check if returning a reference to a local variable (dangling reference)
+        if (ToReturn != null && analyzer.IsExpressionLocalBorrow(ToReturn))
+        {
+            analyzer.AddException(new SemanticException(
+                $"Cannot return reference to local variable — it does not live long enough\n{Token.GetLocationStringRepresentation()}"));
+        }
     }
 
     /// <summary>

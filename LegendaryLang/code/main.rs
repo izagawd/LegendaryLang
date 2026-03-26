@@ -1,12 +1,11 @@
-﻿
-struct Foo{}
-fn main() -> i32{
-    let a = Foo{};
-    {
-        let a = Foo{};
-        let c = a;
-        
-        }
-    let c = a;
-    5
+﻿struct Foo {
+    val: i32
+}
+
+fn main() -> i32 {
+    let gotten ={
+        let a = 5;
+        &a
+        };
+    *gotten
 }

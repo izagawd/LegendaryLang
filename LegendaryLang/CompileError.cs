@@ -161,3 +161,9 @@ public class DuplicateDefinitionError : CompileError
     public required LangPath DefinitionPath { get; init; }
     public override string Message => $"Duplicate definition '{DefinitionPath}'";
 }
+
+public class BorrowInvalidatedError : CompileError
+{
+    public required string VariableName { get; init; }
+    public override string Message => $"Cannot use '{VariableName}': the value it borrows from has been invalidated (shadowed or out of scope)";
+}

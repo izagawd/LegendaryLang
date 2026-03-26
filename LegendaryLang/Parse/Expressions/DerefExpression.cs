@@ -39,6 +39,13 @@ public class DerefExpression : IExpression
                 if (generics.Length == 1)
                 {
                     TypePath = generics[0];
+
+                    // Cannot move out of a shared reference if the type is not Copy
+                    if (!analyzer.IsTypeCopy(TypePath))
+                    {
+                        analyzer.AddException(new SemanticException(
+                            $"Cannot move out of shared reference '&{TypePath}' — type '{TypePath}' does not implement Copy\n{Token.GetLocationStringRepresentation()}"));
+                    }
                     return;
                 }
             }

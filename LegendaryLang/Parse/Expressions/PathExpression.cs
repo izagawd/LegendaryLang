@@ -137,6 +137,13 @@ public class PathExpression : IExpression
                 analyzer.AddException(new UseAfterMoveException(
                     Path, Token.GetLocationStringRepresentation()));
             }
+
+            // Check if this variable's borrow has been invalidated
+            if (analyzer.IsBorrowInvalidated(varName))
+            {
+                analyzer.AddException(new BorrowInvalidatedException(
+                    varName, Token.GetLocationStringRepresentation()));
+            }
         }
     }
 

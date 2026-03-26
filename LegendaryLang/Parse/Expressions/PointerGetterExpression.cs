@@ -38,6 +38,10 @@ public class PointerGetterExpression : IExpression
     public IExpression PointingTo { get; }
     public IEnumerable<ISyntaxNode> Children => [PointingTo];
     public Token Token { get; }
+
+    /// <summary>Name of the variable being borrowed, if it's a simple variable.</summary>
+    public string? BorrowOriginName { get; private set; }
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
         PointingTo.Analyze(analyzer);
@@ -46,6 +50,21 @@ public class PointerGetterExpression : IExpression
             analyzer.AddException(new SemanticException("Pointer point must be a field access, or a variable access\n" + Token.GetLocationStringRepresentation()));
         }
 
+        // Track borrow origin for lifetime checking
+        if (PointingTo is PathExpression pe && pe.Path is NormalLangPath nlp && nlp.PathSegments.Length == 1)
+        {
+            BorrowOriginName = nlp.PathSegments[0].ToString();
+        }
+        else if (PointingTo is FieldAccessExpression fae)
+        {
+            // For &s.field, the origin is s
+            IExpression root = fae;
+            while (root is FieldAccessExpression f) root = f.Caller;
+            if (root is PathExpression rpe && rpe.Path is NormalLangPath rnlp && rnlp.PathSegments.Length == 1)
+            {
+                BorrowOriginName = rnlp.PathSegments[0].ToString();
+            }
+        }
     }
 
     public bool HasGuaranteedExplicitReturn => PointingTo.HasGuaranteedExplicitReturn;

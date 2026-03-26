@@ -70,6 +70,8 @@ public class Compiler
                 { ExpectedType = e.ExpectedType, InferredType = e.InferredType },
             DuplicateDefinitionException e => new DuplicateDefinitionError
                 { DefinitionPath = e.DefinitionPath },
+            BorrowInvalidatedException e => new BorrowInvalidatedError
+                { VariableName = e.VariableName },
             _ => new GenericSemanticError { Details = ex.Message }
         };
     }

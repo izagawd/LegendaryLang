@@ -152,7 +152,24 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
 
         foreach (var i in Arguments)
             analyzer.RegisterVariableType(new NormalLangPath(i.IdentifierToken, [i.Name]), i.TypePath);
+
+        // Register parameter names for lifetime analysis
+        analyzer.SetFunctionParameters(Arguments.Select(a => a.Name));
+
         BlockExpression.Analyze(analyzer);
+
+        // Check implicit return for dangling references
+        // (the block's last expression is the implicit return value)
+        var lastNode = BlockExpression.BlockSyntaxNodeContainers.LastOrDefault();
+        if (lastNode.Node is IExpression lastExpr
+            && BlockExpression.TypePath != null
+            && IsReferenceType(BlockExpression.TypePath)
+            && analyzer.IsExpressionLocalBorrow(lastExpr))
+        {
+            analyzer.AddException(new SemanticException(
+                $"Cannot return reference to local variable — it does not live long enough\n{Token.GetLocationStringRepresentation()}"));
+        }
+
         if (BlockExpression.TypePath != ReturnTypePath)
         {
             IEnumerable<ReturnStatement> GuaranteedReturnStatements(ISyntaxNode node)
@@ -279,5 +296,11 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         }
 
         throw new ExpectedParserException(parser, ParseType.Fn, token);
+    }
+
+    private static bool IsReferenceType(LangPath? typePath)
+    {
+        return typePath is NormalLangPath nlp
+               && nlp.Contains(Types.PointerTypeDefinition.GetPointerModule());
     }
 }

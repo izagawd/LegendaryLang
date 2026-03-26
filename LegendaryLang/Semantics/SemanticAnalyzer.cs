@@ -163,6 +163,16 @@ public class DuplicateDefinitionException : SemanticException
     }
 }
 
+public class BorrowInvalidatedException : SemanticException
+{
+    public string VariableName { get; }
+    public BorrowInvalidatedException(string variableName, string location)
+        : base($"Cannot use '{variableName}': the value it borrows from has been invalidated (shadowed or out of scope)\n{location}")
+    {
+        VariableName = variableName;
+    }
+}
+
 
 public class SemanticAnalyzer
 {
@@ -184,6 +194,128 @@ public class SemanticAnalyzer
     /// trigger use-after-move (assignment restores usability).
     /// </summary>
     public bool SuppressMoveChecks { get; set; }
+
+    /// <summary>
+    /// Names of the current function's parameters. References to these can be returned.
+    /// </summary>
+    private HashSet<string> _functionParameterNames = new();
+
+    /// <summary>
+    /// Variables that hold references pointing to local variables (not parameters).
+    /// If returned, this would be a dangling reference.
+    /// </summary>
+    private readonly HashSet<string> _referencesToLocals = new();
+
+    /// <summary>
+    /// Tracks which variables borrow from which source.
+    /// Key: source variable name, Value: set of borrowing variable names.
+    /// When the source is shadowed or goes out of scope, all borrowers are invalidated.
+    /// </summary>
+    private readonly Dictionary<string, HashSet<string>> _borrowSources = new();
+
+    /// <summary>
+    /// Set of variable names whose borrows have been invalidated
+    /// (the thing they borrowed from was shadowed or went out of scope).
+    /// </summary>
+    private readonly HashSet<string> _invalidatedBorrows = new();
+
+    /// <summary>
+    /// Tracks which scope level each variable was declared at,
+    /// so we know which borrows to invalidate when a scope is popped.
+    /// Stack of sets of variable names declared in that scope.
+    /// </summary>
+    private readonly Stack<HashSet<string>> _scopeVariables = new();
+
+    /// <summary>
+    /// Register that <paramref name="borrower"/> borrows from <paramref name="source"/>.
+    /// </summary>
+    public void RegisterBorrow(string source, string borrower)
+    {
+        if (!_borrowSources.TryGetValue(source, out var set))
+        {
+            set = new HashSet<string>();
+            _borrowSources[source] = set;
+        }
+        set.Add(borrower);
+        // If borrower was previously invalidated, clear it (fresh borrow)
+        _invalidatedBorrows.Remove(borrower);
+    }
+
+    /// <summary>
+    /// Invalidate all borrows from <paramref name="source"/> (called on shadowing or scope exit).
+    /// </summary>
+    public void InvalidateBorrowsFrom(string source)
+    {
+        if (_borrowSources.TryGetValue(source, out var borrowers))
+        {
+            foreach (var b in borrowers)
+                _invalidatedBorrows.Add(b);
+            _borrowSources.Remove(source);
+        }
+    }
+
+    /// <summary>
+    /// Check if a variable's borrow has been invalidated.
+    /// </summary>
+    public bool IsBorrowInvalidated(string variableName) => _invalidatedBorrows.Contains(variableName);
+
+    /// <summary>
+    /// Track a variable declared in the current scope for lifetime tracking.
+    /// </summary>
+    public void TrackScopeVariable(string name)
+    {
+        if (_scopeVariables.Count > 0)
+            _scopeVariables.Peek().Add(name);
+    }
+
+    /// <summary>
+    /// Set the current function's parameter names for lifetime analysis.
+    /// </summary>
+    public void SetFunctionParameters(IEnumerable<string> names)
+    {
+        _functionParameterNames = new HashSet<string>(names);
+        _referencesToLocals.Clear();
+    }
+
+    /// <summary>
+    /// Check if a variable is a function parameter (not a local).
+    /// </summary>
+    public bool IsFunctionParameter(string name) => _functionParameterNames.Contains(name);
+
+    /// <summary>
+    /// Mark a variable as holding a reference to a local (cannot be returned).
+    /// </summary>
+    public void MarkAsLocalBorrow(string name) => _referencesToLocals.Add(name);
+
+    /// <summary>
+    /// Check if a variable holds a reference to a local variable.
+    /// </summary>
+    public bool IsLocalBorrow(string name) => _referencesToLocals.Contains(name);
+
+    /// <summary>
+    /// Check if an expression, when used as a return value, would return a dangling reference.
+    /// </summary>
+    public bool IsExpressionLocalBorrow(IExpression expr)
+    {
+        // Direct borrow of a local: &local_var
+        if (expr is PointerGetterExpression pge)
+        {
+            if (pge.BorrowOriginName != null && !IsFunctionParameter(pge.BorrowOriginName))
+                return true;
+            return false;
+        }
+
+        // Variable that holds a local borrow: let r = &local; return r;
+        if (expr is PathExpression pe && pe.Path is NormalLangPath nlp && nlp.PathSegments.Length == 1)
+        {
+            var name = nlp.PathSegments[0].ToString();
+            if (IsLocalBorrow(name))
+                return true;
+            return false;
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Tracks trait bounds for generic parameters currently in scope.
@@ -669,12 +801,17 @@ public class SemanticAnalyzer
 
     }
 
+    /// <summary>Current scope nesting depth. Deeper = shorter lifetime.</summary>
+    public int CurrentScopeDepth { get; private set; }
+
     public void AddScope()
     {
 
         DefinitionsStackMap.Push(new ());
         VariableToTypeMapper.Push(new Dictionary<LangPath, LangPath>());
         MovedVariablesStack.Push(new HashSet<string>());
+        _scopeVariables.Push(new HashSet<string>());
+        CurrentScopeDepth++;
     }
 
     
@@ -686,6 +823,15 @@ public class SemanticAnalyzer
      
         VariableToTypeMapper.Pop();
         MovedVariablesStack.Pop();
+        CurrentScopeDepth--;
+
+        // Invalidate borrows from variables going out of scope
+        if (_scopeVariables.Count > 0)
+        {
+            var exiting = _scopeVariables.Pop();
+            foreach (var varName in exiting)
+                InvalidateBorrowsFrom(varName);
+        }
     }
 
     private void ResolvePaths()
