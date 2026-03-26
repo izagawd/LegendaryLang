@@ -102,7 +102,11 @@ public class LetStatement : IStatement
         if (TypePath is null)
         {
             if (VariableDefinition.TypePath is null && EqualsTo is null)
-                throw new SemanticUnableToDetermineTypeOfLetVarException(this);
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Cannot determine type of variable '{VariableDefinition.Name}' — no type annotation and no initializer\n{Token.GetLocationStringRepresentation()}"));
+                return;
+            }
 
             if (VariableDefinition.TypePath is null && EqualsTo is not null)
             {
@@ -114,12 +118,22 @@ public class LetStatement : IStatement
             }
             else if (EqualsTo is not null && VariableDefinition.TypePath is not null)
             {
-                if (EqualsTo.TypePath != VariableDefinition.TypePath) throw new LetConflictingTypesException(this);
-                TypePath = VariableDefinition.TypePath;
+                if (EqualsTo.TypePath != VariableDefinition.TypePath)
+                {
+                    analyzer.AddException(new TypeMismatchException(
+                        VariableDefinition.TypePath, EqualsTo.TypePath,
+                        "Conflicting types in let binding",
+                        Token.GetLocationStringRepresentation()));
+                    TypePath = VariableDefinition.TypePath;
+                }
+                else
+                {
+                    TypePath = VariableDefinition.TypePath;
+                }
             }
         }
 
-        ArgumentNullException.ThrowIfNull(TypePath);
+        if (TypePath is null) return;
 
         // Fresh binding — unmark this variable from moved (handles shadowing)
         analyzer.UnmarkMoved(VariableDefinition.Name);
