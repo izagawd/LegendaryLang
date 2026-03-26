@@ -99,6 +99,10 @@ public class LetStatement : IStatement
 
         EqualsTo?.Analyze(analyzer);
 
+        // Resolve qualified associated type paths (e.g., <i32 as Add<i32>>::Output → i32)
+        if (VariableDefinition.TypePath != null)
+            VariableDefinition.TypePath = analyzer.ResolveQualifiedTypePath(VariableDefinition.TypePath);
+
         if (TypePath is null)
         {
             if (VariableDefinition.TypePath is null && EqualsTo is null)

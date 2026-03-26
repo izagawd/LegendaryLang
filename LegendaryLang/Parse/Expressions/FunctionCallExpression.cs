@@ -95,6 +95,10 @@ public class FunctionCallExpression : IExpression
             {
                 TypePath = fd.GetMonomorphizedReturnTypePath(FunctionPath);
 
+                // Resolve qualified associated type paths in the monomorphized return type
+                if (TypePath != null)
+                    TypePath = analyzer.ResolveQualifiedTypePath(TypePath);
+
                 var genericArgs = FunctionPath.GetFrontGenerics();
                 for (int i = 0; i < fd.GenericParameters.Length; i++)
                 {

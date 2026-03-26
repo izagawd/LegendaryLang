@@ -449,6 +449,103 @@ public class SemanticAnalyzer
     }
 
     /// <summary>
+    /// Resolves a type path that may contain qualified associated types.
+    /// Handles:
+    /// - QualifiedAssocTypePath: &lt;i32 as Add&lt;i32&gt;&gt;::Output → i32
+    /// - T::Output where T is a generic param with trait bound → resolved via constraints
+    /// - ConcreteType::Output where a unique impl provides Output → resolved via impl search
+    /// Returns the resolved path, or the original path if no resolution applies.
+    /// </summary>
+    public LangPath ResolveQualifiedTypePath(LangPath path)
+    {
+        // Case 1: Explicit qualified path <Type as Trait>::AssocType
+        if (path is QualifiedAssocTypePath qp)
+        {
+            var resolvedFor = ResolveQualifiedTypePath(qp.ForType);
+            var resolvedTrait = ResolveQualifiedTypePath(qp.TraitPath);
+            var result = ResolveAssociatedType(resolvedFor, resolvedTrait, qp.AssociatedTypeName);
+            return result ?? path;
+        }
+
+        // Case 2 & 3: NormalLangPath with T::AssocType or ConcreteType::AssocType
+        if (path is NormalLangPath nlp && nlp.PathSegments.Length >= 2)
+        {
+            var firstName = nlp.PathSegments[0].ToString();
+            var lastName = nlp.GetLastPathSegment()?.ToString();
+            if (lastName == null) return path;
+
+            // Case 2: first segment is a generic param (T::Output)
+            if (nlp.PathSegments.Length == 2
+                && nlp.PathSegments[0] is NormalLangPath.NormalPathSegment
+                && nlp.PathSegments[1] is NormalLangPath.NormalPathSegment
+                && IsGenericParam(firstName))
+            {
+                var paramPath = new NormalLangPath(null, [firstName]);
+                foreach (var bounds in TraitBoundsStack)
+                {
+                    foreach (var (tp, pName, assocConstraints) in bounds)
+                    {
+                        if (pName != firstName) continue;
+                        // Check explicit constraint (e.g., Output = T)
+                        if (assocConstraints != null && assocConstraints.TryGetValue(lastName, out var constrained))
+                            return constrained;
+                        // Check if the trait has this associated type
+                        var traitBasePath = tp;
+                        if (tp is NormalLangPath nlpTp && nlpTp.GetFrontGenerics().Length > 0)
+                            traitBasePath = nlpTp.PopGenerics();
+                        var traitDef = GetDefinition(traitBasePath) as TraitDefinition;
+                        if (traitDef?.GetAssociatedType(lastName) != null)
+                            return new QualifiedAssocTypePath(paramPath, tp, lastName);
+                    }
+                }
+            }
+
+            // Case 3: ConcreteType::AssocType — search impls for a unique match
+            var parentPath = nlp.Pop();
+            if (parentPath != null && parentPath.PathSegments.Length > 0
+                && nlp.GetLastPathSegment() is NormalLangPath.NormalPathSegment lastSeg)
+            {
+                var assocName = lastSeg.ToString();
+                var typeDef = GetDefinition(parentPath);
+                if (typeDef != null && typeDef is not TraitDefinition)
+                {
+                    var matches = new List<LangPath>();
+                    foreach (var impl in ImplDefinitions)
+                    {
+                        var bindings = impl.TryMatchConcreteType(parentPath);
+                        if (bindings == null) continue;
+                        var at = impl.AssociatedTypeAssignments.FirstOrDefault(a => a.Name == assocName);
+                        if (at != null)
+                        {
+                            var result = at.ConcreteType;
+                            if (impl.GenericParameters.Length > 0)
+                            {
+                                var args = TypeInference.BuildGenericArgs(impl.GenericParameters, bindings);
+                                if (args != null)
+                                    result = FieldAccessExpression.SubstituteGenerics(
+                                        result, impl.GenericParameters, args.Value);
+                            }
+                            matches.Add(result);
+                        }
+                    }
+                    if (matches.Count == 1)
+                        return matches[0];
+                    if (matches.Count > 1)
+                    {
+                        AddException(new SemanticException(
+                            $"Ambiguous associated type '{assocName}' for type '{parentPath}'. " +
+                            $"Use qualified syntax: <{parentPath} as Trait>::{assocName}\n" +
+                            $"{path.FirstIdentifierToken?.GetLocationStringRepresentation() ?? ""}"));
+                        return matches[0];
+                    }
+                }
+            }
+        }
+
+        return path;
+    }
+
+    /// <summary>
     /// Checks whether a type implements the Copy trait.
     /// Copy types are bitwise-copied on assignment; non-Copy types are moved.
     /// Also recognizes generic params that have Copy as a trait bound.

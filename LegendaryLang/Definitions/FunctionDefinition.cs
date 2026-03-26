@@ -140,6 +140,16 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
             .ToList();
         analyzer.PushTraitBounds(bounds);
 
+        // Resolve qualified associated type paths in return type (e.g., T::Output, <T as Add<T>>::Output)
+        ReturnTypePath = analyzer.ResolveQualifiedTypePath(ReturnTypePath);
+
+        // Also resolve argument types
+        foreach (var i in Arguments)
+        {
+            if (i.TypePath != null)
+                i.TypePath = analyzer.ResolveQualifiedTypePath(i.TypePath);
+        }
+
         foreach (var i in Arguments)
             analyzer.RegisterVariableType(new NormalLangPath(i.IdentifierToken, [i.Name]), i.TypePath);
         BlockExpression.Analyze(analyzer);

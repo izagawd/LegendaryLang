@@ -91,6 +91,13 @@ public class FieldAccessExpression : IExpression
         if (path is TupleLangPath tlp)
             return new TupleLangPath(tlp.TypePaths.Select(tp => SubstituteGenerics(tp, genericParams, genericArgs)));
 
+        if (path is QualifiedAssocTypePath qp)
+            return new QualifiedAssocTypePath(
+                SubstituteGenerics(qp.ForType, genericParams, genericArgs),
+                SubstituteGenerics(qp.TraitPath, genericParams, genericArgs),
+                qp.AssociatedTypeName,
+                qp.FirstIdentifierToken);
+
         return path;
     }
 

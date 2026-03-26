@@ -143,6 +143,8 @@ public class StructCreationExpression : IExpression
             // Substitute generic params in field type
             if (genericArgs.Length > 0 && asStruct.GenericParameters.Length > 0)
                 fieldType = FieldAccessExpression.SubstituteGenerics(fieldType, asStruct.GenericParameters, genericArgs);
+            // Resolve qualified associated type paths in field type
+            fieldType = analyzer.ResolveQualifiedTypePath(fieldType);
             if (field.EqualsTo.TypePath != fieldType)
                 analyzer.AddException(new SemanticException(
                     $"Field '{field.FieldToken.Identity}' expects type '{fieldType}', found '{field.EqualsTo.TypePath}'\n" +

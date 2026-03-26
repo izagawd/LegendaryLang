@@ -1,6 +1,8 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Definitions;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
+using LegendaryLang.Parse.Expressions;
 using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse;
@@ -57,6 +59,89 @@ public class TupleLangPath : LangPath
 }
 
 /// <summary>
+/// Represents a qualified associated type path like &lt;i32 as Add&lt;i32&gt;&gt;::Output.
+/// Resolved to a concrete type during semantic analysis.
+/// </summary>
+public class QualifiedAssocTypePath : LangPath
+{
+    public LangPath ForType { get; set; }
+    public LangPath TraitPath { get; set; }
+    public string AssociatedTypeName { get; }
+
+    public QualifiedAssocTypePath(LangPath forType, LangPath traitPath, string assocTypeName,
+        IdentifierToken? firstIdentifierToken = null)
+    {
+        ForType = forType;
+        TraitPath = traitPath;
+        AssociatedTypeName = assocTypeName;
+        FirstIdentifierToken = firstIdentifierToken;
+    }
+
+    public override bool IsMonomorphizedFrom(LangPath langPath) => false;
+    public override ImmutableArray<LangPath> GetGenericArguments() => [];
+
+    public override LangPath Resolve(PathResolver resolver)
+    {
+        return new QualifiedAssocTypePath(
+            ForType.Resolve(resolver),
+            TraitPath.Resolve(resolver),
+            AssociatedTypeName,
+            FirstIdentifierToken);
+    }
+
+    public override LangPath Monomorphize(CodeGenContext codeGen)
+    {
+        var resolvedFor = ForType.Monomorphize(codeGen);
+        var resolvedTrait = TraitPath.Monomorphize(codeGen);
+        // Try to resolve to concrete type via codegen context
+        var forTypeRef = codeGen.GetRefItemFor(resolvedFor) as TypeRefItem;
+        if (forTypeRef != null)
+        {
+            // Search impls for this type + trait with the associated type
+            foreach (var impl in codeGen.ImplDefinitions)
+            {
+                var implTraitBase = impl.TraitPath;
+                if (implTraitBase is NormalLangPath nlpIT && nlpIT.GetFrontGenerics().Length > 0)
+                    implTraitBase = nlpIT.PopGenerics();
+                var traitBase = resolvedTrait;
+                if (traitBase is NormalLangPath nlpTB && nlpTB.GetFrontGenerics().Length > 0)
+                    traitBase = nlpTB.PopGenerics();
+                if (implTraitBase != traitBase) continue;
+                var bindings = impl.TryMatchConcreteType(forTypeRef.Type.TypePath);
+                if (bindings == null) continue;
+                var at = impl.AssociatedTypeAssignments.FirstOrDefault(a => a.Name == AssociatedTypeName);
+                if (at != null)
+                {
+                    var result = at.ConcreteType;
+                    if (impl.GenericParameters.Length > 0)
+                    {
+                        var args = TypeInference.BuildGenericArgs(impl.GenericParameters, bindings);
+                        if (args != null)
+                            result = FieldAccessExpression.SubstituteGenerics(
+                                result, impl.GenericParameters, args.Value);
+                    }
+                    return result.Monomorphize(codeGen);
+                }
+            }
+        }
+        return this;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (obj is QualifiedAssocTypePath other)
+            return ForType == other.ForType && TraitPath == other.TraitPath
+                   && AssociatedTypeName == other.AssociatedTypeName;
+        return false;
+    }
+
+    public override string ToString()
+    {
+        return $"<{ForType} as {TraitPath}>::{AssociatedTypeName}";
+    }
+}
+
+/// <summary>
 ///     Used to represent a path. could be a path to a variable, function or type
 /// Premonomorphized paths will not contain generic arguments
 /// </summary>
@@ -106,6 +191,38 @@ public abstract class LangPath
     public static LangPath Parse(Parser parser, bool typePosition = false)
     {
         var next = parser.Peek();
+
+        // Qualified associated type path: <Type as Trait>::AssocType
+        // Also handles nested: <<i32 as Add<i32>>::Output as Add<i32>>::Output
+        if (next is OperatorToken { OperatorType: Operator.LessThan } && typePosition)
+        {
+            // Lookahead: is this <Type as Trait>::Name or a generic arg list?
+            // If the token after '<' is a type-starting token (identifier, '(', or another '<'),
+            // AND eventually we see 'as', it's a qualified path.
+            // We use a simple heuristic: parse speculatively.
+            // Actually, we check if after parsing a type we see 'as'.
+            // Since '<' in type position at the START (no preceding identifier) is unambiguous,
+            // we can safely parse it as a qualified path.
+            parser.Pop(); // consume '<'
+            var forType = Parse(parser, true);
+            if (parser.Peek() is AsToken)
+            {
+                parser.Pop(); // consume 'as'
+                var traitPath = Parse(parser, true);
+                Comparator.ParseGreater(parser);
+                DoubleColon.Parse(parser);
+                var assocName = Identifier.Parse(parser);
+                return new QualifiedAssocTypePath(forType, traitPath, assocName.Identity, assocName);
+            }
+            else
+            {
+                // Not a qualified path — this shouldn't normally happen in well-formed code
+                // since '<' at the start of a type position without a preceding identifier
+                // only makes sense for qualified paths
+                throw new ExpectedParserException(parser, ParseType.As, parser.Peek());
+            }
+        }
+
         if (next is LeftParenthesisToken)
         {
             Parenthesis.ParseLeft(parser);
