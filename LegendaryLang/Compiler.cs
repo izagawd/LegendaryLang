@@ -7,15 +7,71 @@ using File = System.IO.File;
 
 namespace LegendaryLang;
 
+public class CompileResult
+{
+    public Func<int>? Function { get; init; }
+    public List<CompileError> Errors { get; init; } = [];
+
+    public bool Success => Function != null && Errors.Count == 0;
+
+    /// <summary>
+    /// Whether any error of the given type occurred
+    /// </summary>
+    public bool HasError<T>() where T : CompileError => Errors.Any(e => e is T);
+
+    /// <summary>
+    /// All errors of a given type
+    /// </summary>
+    public IEnumerable<T> GetErrors<T>() where T : CompileError => Errors.OfType<T>();
+}
+
 public class Compiler
 {
     public const string extension = "rs";
 
+    /// <summary>
+    /// Old signature kept for backwards compat — returns null on failure
+    /// </summary>
     public static Func<int>? Compile(string codeDirectory, bool showLLVMIR = false, bool optimized = false)
     {
+        return CompileWithResult(codeDirectory, showLLVMIR, optimized).Function;
+    }
+
+    /// <summary>
+    /// Maps a SemanticException to its typed CompileError counterpart
+    /// </summary>
+    private static CompileError MapSemanticException(SemanticException ex)
+    {
+        return ex switch
+        {
+            TraitBoundViolationException e => new TraitBoundViolationError
+                { TypePath = e.TypePath, TraitPath = e.TraitPath },
+            TraitNotFoundException e => new TraitNotFoundError
+                { TraitPath = e.TraitPath },
+            TraitMethodNotImplementedException e => new TraitMethodNotImplementedError
+                { MethodName = e.MethodName, TraitPath = e.TraitPath },
+            TraitExtraMethodException e => new TraitExtraMethodError
+                { MethodName = e.MethodName, TraitPath = e.TraitPath },
+            FunctionNotFoundException e => new FunctionNotFoundError
+                { FunctionPath = e.FunctionPath },
+            GenericParamCountException e => new GenericParamCountError
+                { Expected = e.Expected, Found = e.Found },
+            UndefinedVariableException e => new UndefinedVariableError
+                { VariablePath = e.VariablePath },
+            ReturnTypeMismatchException e => new ReturnTypeMismatchError
+                { ExpectedType = e.ExpectedType, FoundType = e.FoundType },
+            TypeMismatchException e => new TypeMismatchError
+                { ExpectedType = e.ExpectedType, FoundType = e.FoundType, Context = e.Context },
+            _ => new GenericSemanticError { Details = ex.Message }
+        };
+    }
+
+    public static CompileResult CompileWithResult(string codeDirectory, bool showLLVMIR = false, bool optimized = false)
+    {
+        var errors = new List<CompileError>();
         var directoryPath = codeDirectory;
 
-        const string extensionFinder = $"*.{extension}"; // Change this to your desired extension
+        const string extensionFinder = $"*.{extension}";
         Dictionary<string, string> codeFiles = new();
         if (Directory.Exists(directoryPath))
         {
@@ -32,14 +88,16 @@ public class Compiler
         }
         else
         {
-            Console.WriteLine("Directory does not exist.");
-            return null;
+            errors.Add(new DirectoryNotFoundError { Directory = directoryPath });
+            return new CompileResult { Errors = errors };
         }
 
-        var mainFileDir = $"{codeDirectory}\\main.{extension}";
-        if (!codeFiles.Any(i => i.Key == mainFileDir)) Console.WriteLine($"No main.{extension} file found!!!");
-
-        List<string> parserExceptionsText = [];
+        var mainFileDir = Path.Combine(codeDirectory, $"main.{extension}");
+        if (!codeFiles.Any(i => Path.GetFullPath(i.Key) == Path.GetFullPath(mainFileDir)))
+        {
+            errors.Add(new MainFileNotFoundError { Directory = codeDirectory });
+            return new CompileResult { Errors = errors };
+        }
 
         var parseResults = codeFiles.Select(i =>
             {
@@ -49,49 +107,65 @@ public class Compiler
                 }
                 catch (Exception e)
                 {
-                    parserExceptionsText.Add(e.Message);
+                    errors.Add(new ParseError { Details = e.Message });
                     return null;
                 }
             })
             .Append(PrimitiveTypeGenerator.Generate())
             .ToList();
-        if (parserExceptionsText.Any())
+
+        if (errors.Any())
         {
-            foreach (var i in parserExceptionsText) Console.WriteLine(i);
-            return null;
+            foreach (var e in errors) Console.WriteLine(e);
+            return new CompileResult { Errors = errors };
         }
 
-        var mainFile = parseResults.First(i => i.File!.Path == $"{codeDirectory}\\main.{extension}");
+        var mainFile = parseResults.First(i => i.File != null && Path.GetFullPath(i.File.Path) == Path.GetFullPath(mainFileDir));
 
         var analysis = new SemanticAnalyzer(parseResults).Analyze();
         if (analysis.Any())
         {
             Console.WriteLine("SEMANTIC ERRORS FOUND\n");
-            Console.WriteLine(string.Join("\n\n", analysis.Select(i => i.Message)));
-            return null;
+            foreach (var a in analysis)
+            {
+                Console.WriteLine(a.Message + "\n");
+                errors.Add(MapSemanticException(a));
+            }
+            return new CompileResult { Errors = errors };
         }
 
         var mainFn = mainFile.Items.OfType<FunctionDefinition>().FirstOrDefault(i => i.Name == "main");
         if (mainFn == null)
         {
-            Console.WriteLine($"'fn main' function not found in {mainFileDir}!!!");
-            return null;
+            errors.Add(new MainFunctionMissingError { FilePath = mainFileDir });
+            return new CompileResult { Errors = errors };
         }
 
         if (mainFn.ReturnTypePath != new I32TypeDefinition().TypePath)
         {
-            Console.WriteLine(
-                $"'fn main' return type must be '{new I32TypeDefinition().TypePath}', not '{mainFn.ReturnTypePath}'!!!");
-            return null;
+            errors.Add(new MainReturnTypeError
+            {
+                ExpectedType = new I32TypeDefinition().TypePath.ToString(),
+                FoundType = mainFn.ReturnTypePath.ToString()
+            });
+            return new CompileResult { Errors = errors };
         }
 
         if (mainFn.Arguments.Length != 0)
         {
-            Console.WriteLine("'fn main' arguments are not empty!!!");
-            return null;
+            errors.Add(new MainArgumentsError());
+            return new CompileResult { Errors = errors };
         }
 
-        return CodeGenContext.CodeGenMain(parseResults, new NormalLangPath(null, [codeDirectory, "main"]), showLLVMIR,
+        var function = CodeGenContext.CodeGenMain(parseResults, new NormalLangPath(null, [codeDirectory, "main"]), showLLVMIR,
             optimized);
+
+        if (function == null)
+        {
+            errors.Add(new CodeGenError());
+            return new CompileResult { Errors = errors };
+        }
+
+        return new CompileResult { Function = function, Errors = errors };
     }
 }

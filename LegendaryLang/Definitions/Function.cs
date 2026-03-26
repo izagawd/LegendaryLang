@@ -53,12 +53,12 @@ public class Function : IConcreteDefinition,  IPathResolvable
         for (int i = 0; i < Definition.GenericParameters.Length; i++)
         {
             var gp = Definition.GenericParameters[i];
-            if (gp.TraitBound != null)
+            foreach (var bound in gp.TraitBounds)
             {
                 // The concrete type for this generic param
                 var concreteType = (context.GetRefItemFor(GenericArguments[i]) as TypeRefItem)?.Type.TypePath;
                 if (concreteType != null)
-                    traitBounds.Add((gp.TraitBound, concreteType));
+                    traitBounds.Add((bound, concreteType));
             }
         }
         context.PushTraitBounds(traitBounds);

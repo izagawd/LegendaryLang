@@ -35,8 +35,7 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
         var traitDef = analyzer.GetDefinition(TraitPath) as TraitDefinition;
         if (traitDef == null)
         {
-            analyzer.AddException(new SemanticException(
-                $"Trait '{TraitPath}' not found\n{Token.GetLocationStringRepresentation()}"));
+            analyzer.AddException(new TraitNotFoundException(TraitPath, Token.GetLocationStringRepresentation()));
             return;
         }
 
@@ -46,8 +45,8 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             var implMethod = Methods.FirstOrDefault(m => m.Name == traitMethod.Name);
             if (implMethod == null)
             {
-                analyzer.AddException(new SemanticException(
-                    $"Method '{traitMethod.Name}' from trait '{TraitPath}' is not implemented\n{Token.GetLocationStringRepresentation()}"));
+                analyzer.AddException(new TraitMethodNotImplementedException(
+                    traitMethod.Name, TraitPath, Token.GetLocationStringRepresentation()));
                 continue;
             }
 
@@ -64,8 +63,8 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
         {
             if (!traitDef.MethodSignatures.Any(m => m.Name == implMethod.Name))
             {
-                analyzer.AddException(new SemanticException(
-                    $"Method '{implMethod.Name}' is not defined in trait '{TraitPath}'\n{implMethod.Token.GetLocationStringRepresentation()}"));
+                analyzer.AddException(new TraitExtraMethodException(
+                    implMethod.Name, TraitPath, implMethod.Token.GetLocationStringRepresentation()));
             }
         }
 

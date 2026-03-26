@@ -34,5 +34,6 @@ public enum ParseType
     Ampersand,
     Trait,
     Impl,
-    For
+    For,
+    As
 }

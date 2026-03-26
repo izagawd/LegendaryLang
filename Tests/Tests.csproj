@@ -21,25 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="compiler_tests\if_tests\if_implicit_return\main.rs">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="compiler_tests\generic_tests\generic_nested_test\main.rs">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="compiler_tests\generic_tests\generic_return_test\main.rs">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="compiler_tests\struct_tests\nested_struct_test\main.rs">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="compiler_tests\trait_tests\trait_generic_param_call_test\main.rs">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="compiler_tests\trait_tests\trait_bound_violation_test\main.rs">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="compiler_tests\trait_tests\trait_basic_test\main.rs">
+      <None Update="compiler_tests\**\*.rs">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>

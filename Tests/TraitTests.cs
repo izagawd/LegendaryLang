@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using LegendaryLang;
+using NUnit.Framework;
 
 namespace Tests;
 
@@ -7,29 +8,67 @@ public class TraitTests
     [Test]
     public void TraitBasicTest()
     {
-        var result = LegendaryLang.Compiler.Compile(
+        var result = Compiler.CompileWithResult(
             "compiler_tests/trait_tests/trait_basic_test", true, true);
-        // add_things::<i32>(10, 20) = 30
-        // get_val::<Point>(Point{x=3,y=7}) = 10
-        // total = 40
-        Assert.That(40 == result?.Invoke());
+        Assert.That(result.Success);
+        Assert.That(40 == result.Function?.Invoke());
     }
 
     [Test]
     public void TraitGenericParamCallTest()
     {
-        var result = LegendaryLang.Compiler.Compile(
+        var result = Compiler.CompileWithResult(
             "compiler_tests/trait_tests/trait_generic_param_call_test", true, true);
-        // the_fooer::<i32>() calls T::bro() which resolves to impl Foo for i32 -> 3
-        Assert.That(3 == result?.Invoke());
+        Assert.That(result.Success);
+        Assert.That(3 == result.Function?.Invoke());
     }
 
     [Test]
     public void TraitBoundViolationTest()
     {
-        // bool does not implement Foo, so this should fail to compile
-        var result = LegendaryLang.Compiler.Compile(
+        var result = Compiler.CompileWithResult(
             "compiler_tests/trait_tests/trait_bound_violation_test", true, true);
-        Assert.That(result == null);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<TraitBoundViolationError>());
+
+        var violations = result.GetErrors<TraitBoundViolationError>().ToList();
+        Assert.That(violations.Count == 1);
+        Assert.That(violations[0].TypePath.ToString().Contains("bool"));
+        Assert.That(violations[0].TraitPath.ToString().Contains("Foo"));
+    }
+
+    [Test]
+    public void TraitEmptyBoundTest()
+    {
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_empty_bound_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitMultiBoundTest()
+    {
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_multi_bound_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(16 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitMultiBoundViolationTest()
+    {
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_multi_bound_violation_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<TraitBoundViolationError>());
+
+        var violations = result.GetErrors<TraitBoundViolationError>().ToList();
+        Assert.That(violations.Count == 2);
+
+        var traitNames = violations.Select(v => v.TraitPath.ToString()).ToList();
+        Assert.That(traitNames.Any(t => t.Contains("Adder")));
+        Assert.That(traitNames.Any(t => t.Contains("Multiplier")));
+        Assert.That(violations.All(v => v.TypePath.ToString().Contains("bool")));
     }
 }

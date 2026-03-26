@@ -230,6 +230,9 @@ public static class Lexer
                         case "for":
                             file.AddToken(new ForToken(file, column, line));
                             break;
+                        case "as":
+                            file.AddToken(new AsToken(file, column, line));
+                            break;
                         default:
                             file.AddToken(new IdentifierToken(file, column, line, ident));
                             break;

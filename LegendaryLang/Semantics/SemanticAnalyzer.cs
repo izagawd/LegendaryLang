@@ -16,6 +16,110 @@ public class SemanticException : Exception
     }
 }
 
+public class TraitBoundViolationException : SemanticException
+{
+    public LangPath TypePath { get; }
+    public LangPath TraitPath { get; }
+    public TraitBoundViolationException(LangPath typePath, LangPath traitPath)
+        : base($"The type '{typePath}' does not implement trait '{traitPath}'")
+    {
+        TypePath = typePath;
+        TraitPath = traitPath;
+    }
+}
+
+public class TraitNotFoundException : SemanticException
+{
+    public LangPath TraitPath { get; }
+    public TraitNotFoundException(LangPath traitPath, string location)
+        : base($"Trait '{traitPath}' not found\n{location}")
+    {
+        TraitPath = traitPath;
+    }
+}
+
+public class TraitMethodNotImplementedException : SemanticException
+{
+    public string MethodName { get; }
+    public LangPath TraitPath { get; }
+    public TraitMethodNotImplementedException(string methodName, LangPath traitPath, string location)
+        : base($"Method '{methodName}' from trait '{traitPath}' is not implemented\n{location}")
+    {
+        MethodName = methodName;
+        TraitPath = traitPath;
+    }
+}
+
+public class TraitExtraMethodException : SemanticException
+{
+    public string MethodName { get; }
+    public LangPath TraitPath { get; }
+    public TraitExtraMethodException(string methodName, LangPath traitPath, string location)
+        : base($"Method '{methodName}' is not defined in trait '{traitPath}'\n{location}")
+    {
+        MethodName = methodName;
+        TraitPath = traitPath;
+    }
+}
+
+public class FunctionNotFoundException : SemanticException
+{
+    public LangPath FunctionPath { get; }
+    public FunctionNotFoundException(LangPath functionPath, string location)
+        : base($"Cannot find function {functionPath}\n{location}")
+    {
+        FunctionPath = functionPath;
+    }
+}
+
+public class TypeMismatchException : SemanticException
+{
+    public LangPath ExpectedType { get; }
+    public LangPath FoundType { get; }
+    public string Context { get; }
+    public TypeMismatchException(LangPath expectedType, LangPath foundType, string context, string location)
+        : base($"{context}: expected '{expectedType}', found '{foundType}'\n{location}")
+    {
+        ExpectedType = expectedType;
+        FoundType = foundType;
+        Context = context;
+    }
+}
+
+public class GenericParamCountException : SemanticException
+{
+    public int Expected { get; }
+    public int Found { get; }
+    public GenericParamCountException(int expected, int found, string location)
+        : base($"Incorrect number of generic parameters: {found}, expected: {expected}\n{location}")
+    {
+        Expected = expected;
+        Found = found;
+    }
+}
+
+public class UndefinedVariableException : SemanticException
+{
+    public LangPath VariablePath { get; }
+    public UndefinedVariableException(LangPath variablePath, string location)
+        : base($"Path to variable '{variablePath}' not found, or the path is not a variable\n{location}")
+    {
+        VariablePath = variablePath;
+    }
+}
+
+public class ReturnTypeMismatchException : SemanticException
+{
+    public LangPath ExpectedType { get; }
+    public LangPath FoundType { get; }
+    public ReturnTypeMismatchException(LangPath expectedType, LangPath foundType, string location)
+        : base($"Return type of function does not match its definition. Expected: '{expectedType}', found: '{foundType}'\n{location}")
+    {
+        ExpectedType = expectedType;
+        FoundType = foundType;
+    }
+}
+
 
 public class SemanticAnalyzer
 {
@@ -55,15 +159,15 @@ public class SemanticAnalyzer
     }
 
     /// <summary>
-    /// Gets the trait definition associated with a trait bound for a given generic param name
+    /// Gets all trait definitions associated with trait bounds for a given generic param name
     /// </summary>
-    public TraitDefinition? GetTraitBoundFor(string genericParamName)
+    public IEnumerable<TraitDefinition> GetTraitBoundsFor(string genericParamName)
     {
         foreach (var bounds in TraitBoundsStack)
             foreach (var (traitPath, paramName) in bounds)
                 if (paramName == genericParamName)
-                    return GetDefinition(traitPath) as TraitDefinition;
-        return null;
+                    if (GetDefinition(traitPath) is TraitDefinition td)
+                        yield return td;
     }
 
     /// <summary>
@@ -79,11 +183,13 @@ public class SemanticAnalyzer
         // Case 1: TraitName::method — parent is a trait directly
         var traitDef = GetDefinition(parentPath) as TraitDefinition;
 
-        // Case 2: T::method — parent is a generic param with a trait bound
+        // Case 2: T::method — parent is a generic param with trait bound(s)
         if (traitDef == null && parentPath is NormalLangPath nlpParent && nlpParent.PathSegments.Length == 1)
         {
             var paramName = nlpParent.PathSegments[0].ToString();
-            traitDef = GetTraitBoundFor(paramName);
+            // Search all bounds for this param to find one that has the method
+            traitDef = GetTraitBoundsFor(paramName)
+                .FirstOrDefault(td => td.GetMethod(methodName) != null);
         }
 
         if (traitDef == null) return null;

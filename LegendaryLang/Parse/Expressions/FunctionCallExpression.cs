@@ -33,29 +33,26 @@ public class FunctionCallExpression : IExpression
         {
             if (fd.GenericParameters.Length != FunctionPath.GetFrontGenerics().Length)
             {
-                analyzer.AddException(new SemanticException(
-                    $"Incorrect number of generic parameters: {FunctionPath.GetFrontGenerics().Length}\n" +
-                    $"Expected: {fd.GenericParameters.Length}\n\n" +
-                    $"{Token.GetLocationStringRepresentation()}"));
+                analyzer.AddException(new GenericParamCountException(
+                    fd.GenericParameters.Length, FunctionPath.GetFrontGenerics().Length,
+                    Token.GetLocationStringRepresentation()));
                 TypePath = fd.ReturnTypePath;
             }
             else
             {
                 TypePath = fd.GetMonomorphizedReturnTypePath(FunctionPath);
 
-                // Check trait bounds: each generic arg must satisfy its param's trait bound
+                // Check trait bounds: each generic arg must satisfy its param's trait bounds
                 var genericArgs = FunctionPath.GetFrontGenerics();
                 for (int i = 0; i < fd.GenericParameters.Length; i++)
                 {
                     var gp = fd.GenericParameters[i];
-                    if (gp.TraitBound != null)
+                    foreach (var bound in gp.TraitBounds)
                     {
                         var argType = genericArgs[i];
-                        if (!analyzer.TypeImplementsTrait(argType, gp.TraitBound))
+                        if (!analyzer.TypeImplementsTrait(argType, bound))
                         {
-                            analyzer.AddException(new SemanticException(
-                                $"The type '{argType}' does not implement trait '{gp.TraitBound}'\n" +
-                                $"{Token.GetLocationStringRepresentation()}"));
+                            analyzer.AddException(new TraitBoundViolationException(argType, bound));
                         }
                     }
                 }
@@ -73,8 +70,7 @@ public class FunctionCallExpression : IExpression
             {
                 TypePath = LangPath.VoidBaseLangPath;
                 analyzer.AddException(
-                    new SemanticException(
-                        $"Cannot find function {FunctionPath}\n{Token.GetLocationStringRepresentation()}"));
+                    new FunctionNotFoundException(FunctionPath, Token.GetLocationStringRepresentation()));
             }
         }
 

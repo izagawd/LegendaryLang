@@ -57,6 +57,45 @@ public interface IExpression : IStatement
     }
 
 
+    /// <summary>
+    ///     Parses &lt;T as Trait&gt;::method(args) syntax.
+    ///     Synthesizes a Trait::method path so the existing resolution machinery handles it.
+    /// </summary>
+    public static IExpression ParseQualifiedTraitExpression(Parser parser)
+    {
+        // Consume <
+        parser.Pop();
+        // Parse type path (e.g., T)
+        var typePath = LangPath.Parse(parser);
+        // Expect 'as'
+        var asToken = parser.Pop();
+        if (asToken is not AsToken)
+            throw new ExpectedParserException(parser, ParseType.As, asToken);
+        // Parse trait path
+        var traitPath = LangPath.Parse(parser);
+        // Expect >
+        Comparator.ParseGreater(parser);
+        // Expect ::
+        DoubleColon.Parse(parser);
+        // Parse method name
+        var methodIdent = Identifier.Parse(parser);
+
+        // Synthesize path: traitPath::methodName
+        NormalLangPath synthesizedPath;
+        if (traitPath is NormalLangPath nlp)
+            synthesizedPath = nlp.Append(methodIdent.Identity);
+        else
+            throw new ParseException($"Expected a normal path for trait in qualified expression\n{asToken.GetLocationStringRepresentation()}");
+
+        // Check if followed by ( for function call
+        if (parser.Peek() is LeftParenthesisToken)
+            return FunctionCallExpression.ParseFunctionCallExpression(parser, synthesizedPath);
+
+        // Otherwise return as path expression
+        return new PathExpression(synthesizedPath);
+    }
+
+
     public static IExpression ParseBracketOrTuple(Parser parser)
     {
         var leftParenthesis = Parenthesis.ParseLeft(parser);
@@ -101,6 +140,9 @@ public interface IExpression : IStatement
             // Literals and identifiers
             case OperatorToken {OperatorType: Operator.ExclamationMark}:
                 expression = UnaryOperationExpression.Parse(parser);
+                break;
+            case OperatorToken {OperatorType: Operator.LessThan}:
+                expression = ParseQualifiedTraitExpression(parser);
                 break;
             case IfToken:
                 expression = IfExpression.Parse(parser);

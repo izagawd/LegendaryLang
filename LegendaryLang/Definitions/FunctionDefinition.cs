@@ -101,8 +101,8 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         foreach (var i in Arguments)
             i.TypePath = i.TypePath?.Resolve(resolver);
         foreach (var gp in GenericParameters)
-            if (gp.TraitBound != null)
-                gp.TraitBound = gp.TraitBound.Resolve(resolver);
+            for (int i = 0; i < gp.TraitBounds.Count; i++)
+                gp.TraitBounds[i] = gp.TraitBounds[i].Resolve(resolver);
     }
 
 
@@ -116,8 +116,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
     {
         analyzer.AddScope();
         var bounds = GenericParameters
-            .Where(gp => gp.TraitBound != null)
-            .Select(gp => (gp.TraitBound!, gp.Name))
+            .SelectMany(gp => gp.TraitBounds.Select(tb => (tb, gp.Name)))
             .ToList();
         analyzer.PushTraitBounds(bounds);
 
@@ -143,8 +142,8 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
                     .Where(i => i.TypePath != ReturnTypePath).ToArray();
                 if (statementsThatDontFollow.Length != 0)
                     foreach (var i in statementsThatDontFollow)
-                        analyzer.AddException(new SemanticException(
-                            $"Return type of function does not match it's definition\nExpected Type: '{ReturnTypePath}'\nFound: '{i.TypePath}\n{i.Token.GetLocationStringRepresentation()}'"));
+                        analyzer.AddException(new ReturnTypeMismatchException(
+                            ReturnTypePath, i.TypePath, i.Token.GetLocationStringRepresentation()));
             }
             else if (ReturnTypePath != LangPath.VoidBaseLangPath)
             {
@@ -194,14 +193,25 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
                 while (nextToken is not OperatorToken {OperatorType: Operator.GreaterThan})
                 {
                     var paramIdentifier = Identifier.Parse(parser);
-                    LangPath? traitBound = null;
+                    var traitBounds = new List<LangPath>();
                     if (parser.Peek() is ColonToken)
                     {
                         parser.Pop(); // consume ':'
-                        traitBound = LangPath.Parse(parser);
+                        // Allow empty bound: <T:> or <T:,U>
+                        if (parser.Peek() is not OperatorToken {OperatorType: Operator.GreaterThan}
+                            && parser.Peek() is not CommaToken)
+                        {
+                            traitBounds.Add(LangPath.Parse(parser));
+                            // Parse additional bounds separated by +
+                            while (parser.Peek() is OperatorToken {OperatorType: Operator.Add})
+                            {
+                                parser.Pop(); // consume '+'
+                                traitBounds.Add(LangPath.Parse(parser));
+                            }
+                        }
                     }
                     nextToken = parser.Peek();
-                    genericParameters.Add(new GenericParameter(paramIdentifier, traitBound));
+                    genericParameters.Add(new GenericParameter(paramIdentifier, traitBounds));
                     if (nextToken is CommaToken)
                     {
                         parser.Pop();

@@ -48,8 +48,8 @@ public class PathExpression : IExpression
     {
         TypePath = analyzer.GetVariableTypePath(Path);
         if (TypePath is null)
-            analyzer.AddException(new SemanticException(
-                $"Path to variable '{Path}' not found, or the path is not a variable\n{Token.GetLocationStringRepresentation()}"));
+            analyzer.AddException(new UndefinedVariableException(
+                Path, Token.GetLocationStringRepresentation()));
     }
 
     public Token Token => Path.FirstIdentifierToken;
