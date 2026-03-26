@@ -161,14 +161,17 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
 
         // Check implicit return for dangling references
         // (the block's last expression is the implicit return value)
-        var lastNode = BlockExpression.BlockSyntaxNodeContainers.LastOrDefault();
-        if (lastNode.Node is IExpression lastExpr
-            && BlockExpression.TypePath is NormalLangPath nlpRet
-            && nlpRet.Contains(PointerTypeDefinition.GetPointerModule())
-            && analyzer.IsExpressionLocalBorrow(lastExpr))
+        if (BlockExpression.BlockSyntaxNodeContainers.Length > 0)
         {
-            analyzer.AddException(new SemanticException(
-                $"Cannot return reference to local variable — it does not live long enough\n{Token.GetLocationStringRepresentation()}"));
+            var lastNode = BlockExpression.BlockSyntaxNodeContainers.Last();
+            if (lastNode.Node is IExpression lastExpr
+                && BlockExpression.TypePath is NormalLangPath nlpRet
+                && nlpRet.Contains(PointerTypeDefinition.GetPointerModule())
+                && analyzer.IsExpressionLocalBorrow(lastExpr))
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Cannot return reference to local variable — it does not live long enough\n{Token.GetLocationStringRepresentation()}"));
+            }
         }
 
         if (BlockExpression.TypePath != ReturnTypePath)
