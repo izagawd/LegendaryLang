@@ -187,13 +187,9 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         if (! ((NormalLangPath) (this as IDefinition).TypePath).Contains(functionLangPath.PopGenerics())) return null;
         var genericArgs = functionLangPath.GetFrontGenerics();
         if (genericArgs.Length != GenericParameters.Length) return null;
-        for (var i = 0; i < GenericParameters.Length; i++)
-        {
-            var genericParam = GenericParameters[i];
-            if (new NormalLangPath(null, [genericParam.Name]) == ReturnTypePath) return genericArgs[i];
-        }
 
-        return ReturnTypePath;
+        // Substitute all generic params in the return type
+        return FieldAccessExpression.SubstituteGenerics(ReturnTypePath, GenericParameters, genericArgs);
     }
 
     public static FunctionDefinition Parse(Parser parser, NormalLangPath module)
