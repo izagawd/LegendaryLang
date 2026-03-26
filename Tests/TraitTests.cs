@@ -101,4 +101,44 @@ public class TraitTests
         Assert.That(result.Success);
         Assert.That(99 == result.Function?.Invoke());
     }
+
+    [Test]
+    public void TraitImplMethodExtraBoundsFailTest()
+    {
+        // impl adds bounds not in trait definition — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_impl_method_extra_bounds_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.Errors.Any(e => e.Message.Contains("not present in the trait")));
+    }
+
+    [Test]
+    public void TraitImplMethodMissingBoundsFailTest()
+    {
+        // impl is missing bounds required by trait — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_impl_method_missing_bounds_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.Errors.Any(e => e.Message.Contains("missing bound")));
+    }
+
+    [Test]
+    public void TraitImplMethodGenericCountFailTest()
+    {
+        // impl has different generic param count than trait — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_impl_method_generic_count_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.Errors.Any(e => e.Message.Contains("generic parameter")));
+    }
+
+    [Test]
+    public void TraitImplMethodMatchingBoundsTest()
+    {
+        // impl bounds match trait definition — should pass
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_impl_method_matching_bounds_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
 }

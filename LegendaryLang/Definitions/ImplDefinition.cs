@@ -231,6 +231,45 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                     $"Method '{traitMethod.Name}' has {implMethod.Arguments.Length} parameters, " +
                     $"but the trait requires {traitMethod.Parameters.Length}\n{implMethod.Token.GetLocationStringRepresentation()}"));
             }
+
+            // Validate generic parameter count matches
+            if (implMethod.GenericParameters.Length != traitMethod.GenericParameters.Length)
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Method '{traitMethod.Name}' has {implMethod.GenericParameters.Length} generic parameter(s), " +
+                    $"but the trait requires {traitMethod.GenericParameters.Length}\n{implMethod.Token.GetLocationStringRepresentation()}"));
+            }
+            else
+            {
+                // Validate that generic bounds match
+                for (int i = 0; i < traitMethod.GenericParameters.Length; i++)
+                {
+                    var traitGp = traitMethod.GenericParameters[i];
+                    var implGp = implMethod.GenericParameters[i];
+
+                    // Impl must not add bounds that the trait didn't require
+                    foreach (var implBound in implGp.TraitBounds)
+                    {
+                        if (!traitGp.TraitBounds.Any(tb => tb.TraitPath == implBound.TraitPath))
+                        {
+                            analyzer.AddException(new SemanticException(
+                                $"Method '{traitMethod.Name}': impl adds bound '{implBound.TraitPath}' on generic parameter '{implGp.Name}' " +
+                                $"which is not present in the trait definition\n{implMethod.Token.GetLocationStringRepresentation()}"));
+                        }
+                    }
+
+                    // Trait bounds must be present in the impl
+                    foreach (var traitBound in traitGp.TraitBounds)
+                    {
+                        if (!implGp.TraitBounds.Any(tb => tb.TraitPath == traitBound.TraitPath))
+                        {
+                            analyzer.AddException(new SemanticException(
+                                $"Method '{traitMethod.Name}': impl is missing bound '{traitBound.TraitPath}' on generic parameter '{implGp.Name}' " +
+                                $"required by the trait definition\n{implMethod.Token.GetLocationStringRepresentation()}"));
+                        }
+                    }
+                }
+            }
         }
 
         // Check for extra methods not in the trait

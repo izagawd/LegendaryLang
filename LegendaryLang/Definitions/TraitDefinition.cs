@@ -25,6 +25,7 @@ public class TraitMethodSignature
     public required Token Token { get; init; }
     public required ImmutableArray<VariableDefinition> Parameters { get; init; }
     public LangPath ReturnTypePath { get; set; }
+    public ImmutableArray<GenericParameter> GenericParameters { get; init; } = [];
 
     public static TraitMethodSignature Parse(Parser parser)
     {
@@ -33,6 +34,37 @@ public class TraitMethodSignature
             throw new ExpectedParserException(parser, ParseType.Fn, fnTok);
 
         var nameToken = Identifier.Parse(parser);
+
+        // Parse optional generic parameters
+        var genericParameters = new List<GenericParameter>();
+        if (parser.Peek() is OperatorToken { OperatorType: Operator.LessThan })
+        {
+            parser.Pop();
+            while (parser.Peek() is not OperatorToken { OperatorType: Operator.GreaterThan })
+            {
+                var paramIdentifier = Identifier.Parse(parser);
+                var traitBounds = new List<TraitBound>();
+                if (parser.Peek() is ColonToken)
+                {
+                    parser.Pop();
+                    if (parser.Peek() is not OperatorToken { OperatorType: Operator.GreaterThan }
+                        && parser.Peek() is not CommaToken)
+                    {
+                        traitBounds.Add(TraitBound.Parse(parser));
+                        while (parser.Peek() is OperatorToken { OperatorType: Operator.Add })
+                        {
+                            parser.Pop();
+                            traitBounds.Add(TraitBound.Parse(parser));
+                        }
+                    }
+                }
+                genericParameters.Add(new GenericParameter(paramIdentifier, traitBounds));
+                if (parser.Peek() is CommaToken) { parser.Pop(); }
+                else break;
+            }
+            Comparator.ParseGreater(parser);
+        }
+
         Parenthesis.ParseLeft(parser);
 
         var parameters = new List<VariableDefinition>();
@@ -61,7 +93,8 @@ public class TraitMethodSignature
             Name = nameToken.Identity,
             Token = nameToken,
             Parameters = parameters.ToImmutableArray(),
-            ReturnTypePath = returnType
+            ReturnTypePath = returnType,
+            GenericParameters = genericParameters.ToImmutableArray()
         };
     }
 
@@ -70,6 +103,9 @@ public class TraitMethodSignature
         ReturnTypePath = ReturnTypePath.Resolve(resolver);
         for (int i = 0; i < Parameters.Length; i++)
             Parameters[i].TypePath = Parameters[i].TypePath?.Resolve(resolver);
+        foreach (var gp in GenericParameters)
+            for (int i = 0; i < gp.TraitBounds.Count; i++)
+                gp.TraitBounds[i] = gp.TraitBounds[i].Resolve(resolver);
     }
 }
 

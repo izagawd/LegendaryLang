@@ -342,7 +342,10 @@ public class MatchExpression : IExpression
         if (matchTok is not MatchToken)
             throw new ExpectedParserException(parser, ParseType.Match, matchTok);
 
+        // Suppress struct literal so `match x { ... }` doesn't parse x { as struct creation
+        IExpression.SuppressStructLiteral = true;
         var scrutinee = IExpression.Parse(parser);
+        IExpression.SuppressStructLiteral = false;
         CurlyBrace.ParseLeft(parser);
 
         var arms = new List<MatchArm>();

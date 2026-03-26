@@ -31,6 +31,12 @@ public interface IExpression : IStatement
     /// </summary>
     /// <param name="parser"></param>
     /// <returns></returns>
+    /// <summary>
+    /// When true, ParsePossibleIdentPossibilities won't interpret { as struct creation.
+    /// Used by match scrutinee parsing to prevent `match x { ... }` from being parsed as struct literal.
+    /// </summary>
+    public static bool SuppressStructLiteral { get; set; } = false;
+
     public static IExpression ParsePossibleIdentPossibilities(Parser parser)
     {
         var parsed = NormalLangPath.Parse(parser);
@@ -38,7 +44,7 @@ public interface IExpression : IStatement
         var next = parser.Peek();
         if (next is EqualityToken) return AssignVariableExpression.Parse(parser, parsedPath);
 
-        if (next is LeftCurlyBraceToken)
+        if (next is LeftCurlyBraceToken && !SuppressStructLiteral)
         {
             if (parsed is NormalLangPath normalLangPath)
                 return StructCreationExpression.Parse(parser, normalLangPath);

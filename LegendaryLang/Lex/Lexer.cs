@@ -172,7 +172,7 @@ public static class Lexer
                     // Adjust the constructor parameters as needed for your implementation.
                     file.AddToken(new NumberToken(file, startColumn, line, numberBuilder.ToString()));
                     break;
-                case var c when (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'):
+                case var c when (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_':
                     startColumn = column;
                     var identifierBuilder = new StringBuilder();
                     identifierBuilder.Append(current);
