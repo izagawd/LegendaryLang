@@ -130,6 +130,28 @@ public class UseAfterMoveException : SemanticException
     }
 }
 
+public class CannotInferGenericArgsException : SemanticException
+{
+    public string TypeOrFunctionName { get; }
+    public CannotInferGenericArgsException(string name, string location)
+        : base($"Cannot infer generic type arguments for '{name}'. Consider adding explicit type annotations.\n{location}")
+    {
+        TypeOrFunctionName = name;
+    }
+}
+
+public class InferredTypeMismatchException : SemanticException
+{
+    public LangPath ExpectedType { get; }
+    public LangPath InferredType { get; }
+    public InferredTypeMismatchException(LangPath expected, LangPath inferred, string location)
+        : base($"Inferred type '{inferred}' conflicts with declared type '{expected}'\n{location}")
+    {
+        ExpectedType = expected;
+        InferredType = inferred;
+    }
+}
+
 
 public class SemanticAnalyzer
 {

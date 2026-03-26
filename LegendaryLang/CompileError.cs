@@ -142,3 +142,16 @@ public class UseAfterMoveError : CompileError
     public required LangPath VariablePath { get; init; }
     public override string Message => $"Use of moved value '{VariablePath}'";
 }
+
+public class CannotInferGenericArgsError : CompileError
+{
+    public required string TypeOrFunctionName { get; init; }
+    public override string Message => $"Cannot infer generic type arguments for '{TypeOrFunctionName}'";
+}
+
+public class InferredTypeMismatchError : CompileError
+{
+    public required LangPath ExpectedType { get; init; }
+    public required LangPath InferredType { get; init; }
+    public override string Message => $"Inferred type '{InferredType}' conflicts with declared type '{ExpectedType}'";
+}

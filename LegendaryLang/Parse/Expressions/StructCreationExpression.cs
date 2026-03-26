@@ -21,6 +21,12 @@ public class StructCreationExpression : IExpression
     public IEnumerable<ISyntaxNode> Children => AssignFields.Select(i => i.EqualsTo);
     public Token Token { get; }
 
+    /// <summary>
+    /// When set by LetStatement, the declared type on the LHS (e.g., Wrapper&lt;bool&gt;).
+    /// Used to infer generic args for struct construction.
+    /// </summary>
+    public LangPath? DeclaredType { get; set; }
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
         foreach (var i in AssignFields) i.EqualsTo.Analyze(analyzer);
@@ -46,8 +52,58 @@ public class StructCreationExpression : IExpression
             return;
         }
 
-        // Check generic param count
         var genericArgs = (TypePath is NormalLangPath nlp) ? nlp.GetFrontGenerics() : [];
+
+        // === TYPE INFERENCE ===
+        // If struct has generic params but none were provided, try to infer them
+        if (asStruct.GenericParameters.Length > 0 && genericArgs.Length == 0)
+        {
+            ImmutableArray<LangPath>? inferred = null;
+
+            // Priority 1: Infer from DeclaredType (let a: Wrapper<i32> = Wrapper { ... })
+            if (DeclaredType is NormalLangPath nlpDeclared)
+            {
+                var declaredBase = nlpDeclared.PopGenerics();
+                var structBase = (TypePath is NormalLangPath nlpTp) ? nlpTp.PopGenerics() : TypePath;
+                // Check the declared type is the same struct
+                if (declaredBase == structBase || declaredBase == asStruct.TypePath
+                    || (structBase != null && declaredBase == structBase))
+                {
+                    var declaredGenerics = nlpDeclared.GetFrontGenerics();
+                    if (declaredGenerics.Length == asStruct.GenericParameters.Length)
+                        inferred = declaredGenerics;
+                }
+            }
+
+            // Priority 2: Infer from field expression types
+            if (inferred == null)
+            {
+                var constraints = new List<(LangPath, LangPath)>();
+                foreach (var field in asStruct.Fields)
+                {
+                    var assigned = AssignFields.FirstOrDefault(af => af.FieldToken.Identity == field.Name);
+                    if (assigned?.EqualsTo?.TypePath != null && field.TypePath != null)
+                        constraints.Add((field.TypePath, assigned.EqualsTo.TypePath));
+                }
+                inferred = TypeInference.InferFromConstraints(asStruct.GenericParameters, constraints);
+            }
+
+            if (inferred != null)
+            {
+                // Update TypePath with inferred generics
+                var basePath = TypePath as NormalLangPath ?? new NormalLangPath(null, []);
+                TypePath = basePath.Append(new NormalLangPath.GenericTypesPathSegment(inferred.Value));
+                genericArgs = inferred.Value;
+            }
+            else
+            {
+                analyzer.AddException(new CannotInferGenericArgsException(
+                    asStruct.Name, Token.GetLocationStringRepresentation()));
+                return;
+            }
+        }
+
+        // Check generic param count (for explicit turbofish that's wrong)
         if (asStruct.GenericParameters.Length != genericArgs.Length)
         {
             if (asStruct.GenericParameters.Length > 0)
@@ -89,7 +145,7 @@ public class StructCreationExpression : IExpression
                 fieldType = FieldAccessExpression.SubstituteGenerics(fieldType, asStruct.GenericParameters, genericArgs);
             if (field.EqualsTo.TypePath != fieldType)
                 analyzer.AddException(new SemanticException(
-                    $"Field {field.FieldToken.Identity} expects type '{fieldType}', found '{field.EqualsTo.TypePath}'\n" +
+                    $"Field '{field.FieldToken.Identity}' expects type '{fieldType}', found '{field.EqualsTo.TypePath}'\n" +
                     $"{field.FieldToken.GetLocationStringRepresentation()}"));
         }
     }

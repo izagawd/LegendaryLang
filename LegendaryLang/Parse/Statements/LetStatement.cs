@@ -88,6 +88,15 @@ public class LetStatement : IStatement
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        // Propagate declared type to RHS for inference before analyzing
+        if (VariableDefinition.TypePath != null && EqualsTo != null)
+        {
+            if (EqualsTo is StructCreationExpression sce)
+                sce.DeclaredType = VariableDefinition.TypePath;
+            if (EqualsTo is FunctionCallExpression fce)
+                fce.ExpectedReturnType = VariableDefinition.TypePath;
+        }
+
         EqualsTo?.Analyze(analyzer);
 
         if (TypePath is null)

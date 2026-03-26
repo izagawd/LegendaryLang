@@ -31,17 +31,63 @@ public class FunctionCallExpression : IExpression
 
     public Token Token => FunctionPath.FirstIdentifierToken!;
 
+    /// <summary>
+    /// When set by LetStatement, the declared type on the LHS.
+    /// Used to infer generic return type (e.g., let a: i32 = make()).
+    /// </summary>
+    public LangPath? ExpectedReturnType { get; set; }
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        // Analyze args first — we need their types for inference
+        foreach (var arg in Arguments)
+        {
+            arg.Analyze(analyzer);
+            analyzer.TryMarkExpressionAsMoved(arg);
+        }
+
         var def = analyzer.GetDefinition(FunctionPath);
         var popped = FunctionPath.Pop();
         if (def is null) def = analyzer.GetDefinition(FunctionPath.Pop());
         if (def is FunctionDefinition fd)
         {
-            if (fd.GenericParameters.Length != FunctionPath.GetFrontGenerics().Length)
+            var providedGenerics = FunctionPath.GetFrontGenerics();
+
+            // === TYPE INFERENCE ===
+            if (fd.GenericParameters.Length > 0 && providedGenerics.Length == 0)
+            {
+                var constraints = new List<(LangPath, LangPath)>();
+
+                // Infer from argument types
+                for (int i = 0; i < fd.Arguments.Length && i < Arguments.Length; i++)
+                {
+                    if (fd.Arguments[i].TypePath != null && Arguments[i].TypePath != null)
+                        constraints.Add((fd.Arguments[i].TypePath, Arguments[i].TypePath));
+                }
+
+                // Infer from expected return type (let a: i32 = foo())
+                if (ExpectedReturnType != null && fd.ReturnTypePath != null)
+                    constraints.Add((fd.ReturnTypePath, ExpectedReturnType));
+
+                var inferred = TypeInference.InferFromConstraints(fd.GenericParameters, constraints);
+                if (inferred != null)
+                {
+                    FunctionPath = FunctionPath.Append(new NormalLangPath.GenericTypesPathSegment(inferred.Value));
+                    providedGenerics = inferred.Value;
+                }
+                else
+                {
+                    analyzer.AddException(new CannotInferGenericArgsException(
+                        fd.Name, Token.GetLocationStringRepresentation()));
+                    TypePath = fd.ReturnTypePath;
+                    return;
+                }
+            }
+
+            if (fd.GenericParameters.Length != providedGenerics.Length)
             {
                 analyzer.AddException(new GenericParamCountException(
-                    fd.GenericParameters.Length, FunctionPath.GetFrontGenerics().Length,
+                    fd.GenericParameters.Length, providedGenerics.Length,
                     Token.GetLocationStringRepresentation()));
                 TypePath = fd.ReturnTypePath;
             }
@@ -49,7 +95,6 @@ public class FunctionCallExpression : IExpression
             {
                 TypePath = fd.GetMonomorphizedReturnTypePath(FunctionPath);
 
-                // Check trait bounds: each generic arg must satisfy its param's trait bounds
                 var genericArgs = FunctionPath.GetFrontGenerics();
                 for (int i = 0; i < fd.GenericParameters.Length; i++)
                 {
@@ -67,12 +112,9 @@ public class FunctionCallExpression : IExpression
         }
         else
         {
-            // Try trait method call: TraitName::method(...)
             var traitMethodReturnType = analyzer.ResolveTraitMethodReturnType(FunctionPath);
             if (traitMethodReturnType != null)
             {
-                // For <ConcreteType as Trait>::method() — verify the type implements the trait
-                // Skip if QualifiedAsType is a generic parameter (bounds validated at call site)
                 if (QualifiedAsType != null)
                 {
                     bool isGenericParam = QualifiedAsType is NormalLangPath nlpQual
@@ -89,7 +131,6 @@ public class FunctionCallExpression : IExpression
                     }
                 }
 
-                // If return type is Self, substitute with the qualified concrete type if available
                 if (traitMethodReturnType is NormalLangPath nlpRet && nlpRet.PathSegments.Length == 1
                     && nlpRet.PathSegments[0].ToString() == "Self" && QualifiedAsType != null)
                 {
@@ -106,14 +147,6 @@ public class FunctionCallExpression : IExpression
                 analyzer.AddException(
                     new FunctionNotFoundException(FunctionPath, Token.GetLocationStringRepresentation()));
             }
-        }
-
-        // Analyze each argument and immediately mark as moved if not Copy.
-        // This ensures f(w, w) catches use-after-move on the second w.
-        foreach (var arg in Arguments)
-        {
-            arg.Analyze(analyzer);
-            analyzer.TryMarkExpressionAsMoved(arg);
         }
     }
 

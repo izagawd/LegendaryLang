@@ -64,6 +64,10 @@ public class Compiler
                 { ExpectedType = e.ExpectedType, FoundType = e.FoundType, Context = e.Context },
             UseAfterMoveException e => new UseAfterMoveError
                 { VariablePath = e.VariablePath },
+            CannotInferGenericArgsException e => new CannotInferGenericArgsError
+                { TypeOrFunctionName = e.TypeOrFunctionName },
+            InferredTypeMismatchException e => new InferredTypeMismatchError
+                { ExpectedType = e.ExpectedType, InferredType = e.InferredType },
             _ => new GenericSemanticError { Details = ex.Message }
         };
     }

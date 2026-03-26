@@ -60,77 +60,13 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
         }
 
         var bindings = new Dictionary<string, LangPath>();
-        if (TryMatch(ForTypePath, concreteType, freeVars, bindings))
+        if (TypeInference.TryUnify(ForTypePath, concreteType, freeVars, bindings))
         {
             // Verify all free vars are bound
             if (freeVars.All(v => bindings.ContainsKey(v)))
                 return bindings;
         }
         return null;
-    }
-
-    private static bool TryMatch(LangPath pattern, LangPath concrete, HashSet<string> freeVars,
-        Dictionary<string, LangPath> bindings)
-    {
-        // Pattern is a single-segment name matching a free variable → bind it
-        if (pattern is NormalLangPath nlpPat && nlpPat.PathSegments.Length == 1
-            && nlpPat.PathSegments[0] is NormalLangPath.NormalPathSegment ns
-            && freeVars.Contains(ns.Text))
-        {
-            if (bindings.TryGetValue(ns.Text, out var existing))
-                return existing == concrete; // Same var bound to different types → mismatch
-            bindings[ns.Text] = concrete;
-            return true;
-        }
-
-        // Both must be same type of path
-        if (pattern is NormalLangPath nlpPattern && concrete is NormalLangPath nlpConcrete)
-        {
-            // Compare segment by segment, ignoring empty generic segments
-            var patSegs = nlpPattern.PathSegments.ToList();
-            var conSegs = nlpConcrete.PathSegments.ToList();
-
-            int pi = 0, ci = 0;
-            while (pi < patSegs.Count && ci < conSegs.Count)
-            {
-                var ps = patSegs[pi];
-                var cs = conSegs[ci];
-
-                if (ps is NormalLangPath.GenericTypesPathSegment patGen
-                    && cs is NormalLangPath.GenericTypesPathSegment conGen)
-                {
-                    if (patGen.TypePaths.Length != conGen.TypePaths.Length) return false;
-                    for (int i = 0; i < patGen.TypePaths.Length; i++)
-                        if (!TryMatch(patGen.TypePaths[i], conGen.TypePaths[i], freeVars, bindings))
-                            return false;
-                    pi++; ci++;
-                }
-                else if (ps is NormalLangPath.GenericTypesPathSegment pg && pg.TypePaths.Length == 0)
-                { pi++; }
-                else if (cs is NormalLangPath.GenericTypesPathSegment cg && cg.TypePaths.Length == 0)
-                { ci++; }
-                else
-                {
-                    if (ps != cs) return false;
-                    pi++; ci++;
-                }
-            }
-            // Skip trailing empty generic segments
-            while (pi < patSegs.Count && patSegs[pi] is NormalLangPath.GenericTypesPathSegment epg && epg.TypePaths.Length == 0) pi++;
-            while (ci < conSegs.Count && conSegs[ci] is NormalLangPath.GenericTypesPathSegment ecg && ecg.TypePaths.Length == 0) ci++;
-            return pi == patSegs.Count && ci == conSegs.Count;
-        }
-
-        if (pattern is TupleLangPath tlpPat && concrete is TupleLangPath tlpCon)
-        {
-            if (tlpPat.TypePaths.Length != tlpCon.TypePaths.Length) return false;
-            for (int i = 0; i < tlpPat.TypePaths.Length; i++)
-                if (!TryMatch(tlpPat.TypePaths[i], tlpCon.TypePaths[i], freeVars, bindings))
-                    return false;
-            return true;
-        }
-
-        return pattern == concrete;
     }
 
     /// <summary>
