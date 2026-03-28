@@ -677,13 +677,22 @@ public class SemanticAnalyzer
 
             if (retName == "Self")
             {
+                // For generic param case: T::method where T: Trait → return T
                 var traitTypePath = (traitDef as IDefinition).TypePath;
                 foreach (var bounds in TraitBoundsStack)
                     foreach (var (tp, paramName, _) in bounds)
                         if (tp == traitTypePath)
                             return new NormalLangPath(null, [paramName]);
-                // For concrete type case, return parentPath
-                return parentPath;
+
+                // For concrete type case (i32::default): parentPath is the concrete type
+                // Check if parentPath is NOT a trait definition — if so, it's the concrete type
+                var parentDef = GetDefinition(parentPath);
+                if (parentDef != null && parentDef is not TraitDefinition)
+                    return parentPath;
+
+                // For qualified call (<i32 as Trait>::method): return raw "Self"
+                // FunctionCallExpression.Analyze handles substitution via QualifiedAsType
+                return foundReturnType;
             }
 
             // Check if it's an associated type of this trait

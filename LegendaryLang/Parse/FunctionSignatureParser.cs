@@ -37,7 +37,7 @@ public static class FunctionSignatureParser
     /// </summary>
     public static GenericParamsResult? ParseGenericParams(Parser parser)
     {
-        if (parser.Peek() is not OperatorToken { OperatorType: Operator.LessThan})
+        if (parser.Peek() is not OperatorToken { OperatorType: Operator.LessThan })
             return null;
 
         parser.Pop(); // consume <
