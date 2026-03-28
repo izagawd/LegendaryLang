@@ -151,6 +151,29 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
                 i.TypePath = analyzer.ResolveQualifiedTypePath(i.TypePath);
         }
 
+        // Lifetime elision check: if the function returns a reference and has multiple
+        // reference parameters, the compiler can't determine which input the output
+        // borrows from — require explicit lifetime annotations.
+        // Exception: if there's a 'self' reference parameter, output borrows from self (Rust rule 2).
+        if (ReturnTypePath is NormalLangPath nlpRetCheck
+            && nlpRetCheck.Contains(RefTypeDefinition.GetRefModule()))
+        {
+            var refParamCount = Arguments.Count(a =>
+                a.TypePath is NormalLangPath nlpA && nlpA.Contains(RefTypeDefinition.GetRefModule()));
+            var hasSelfRefParam = Arguments.Any(a =>
+                a.Name == "self"
+                && a.TypePath is NormalLangPath nlpS
+                && nlpS.Contains(RefTypeDefinition.GetRefModule()));
+
+            if (refParamCount > 1 && !hasSelfRefParam)
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Function '{Name}' returns a reference but has {refParamCount} reference parameters. " +
+                    $"Cannot determine which input the output borrows from — explicit lifetime annotations are required\n" +
+                    Token.GetLocationStringRepresentation()));
+            }
+        }
+
         foreach (var i in Arguments)
             analyzer.RegisterVariableType(new NormalLangPath(i.IdentifierToken, [i.Name]), i.TypePath);
 

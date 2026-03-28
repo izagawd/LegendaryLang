@@ -798,3 +798,66 @@ public class RefLifetimeElisionTests
         Assert.That(result.HasError<BorrowInvalidatedError>());
     }
 }
+
+public class RefElisionAmbiguityTests
+{
+    [Test]
+    public void RefElisionAmbiguousFailTest()
+    {
+        // 2 ref params, returns ref, no self — ambiguous, should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_elision_ambiguous_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<GenericSemanticError>());
+    }
+
+    [Test]
+    public void RefElisionThreeRefsFailTest()
+    {
+        // 3 ref params, returns ref — ambiguous, should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_elision_three_refs_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<GenericSemanticError>());
+    }
+
+    [Test]
+    public void RefElisionNoRefReturnTest()
+    {
+        // 2 ref params but returns non-ref — no ambiguity
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_elision_no_ref_return_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefElisionOneRefParamTest()
+    {
+        // 1 ref + 1 non-ref param, returns ref — unambiguous
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_elision_one_ref_param_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefElisionSelfWinsTest()
+    {
+        // self ref + other ref, returns ref — self wins (Rust rule 2)
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_elision_self_wins_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(42 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefElisionGenericAmbiguousFailTest()
+    {
+        // 2 generic ref params, returns ref — ambiguous, should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_elision_generic_ambiguous_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<GenericSemanticError>());
+    }
+}
