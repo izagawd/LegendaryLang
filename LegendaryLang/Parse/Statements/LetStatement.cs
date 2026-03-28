@@ -151,17 +151,11 @@ public class LetStatement : IStatement
         analyzer.TrackScopeVariable(VariableDefinition.Name);
 
         // Extract borrow source from the RHS expression and register borrow relationship.
-        // This handles:
-        //   1. Direct borrows: let r = &x;
-        //   2. Lifetime elision through function calls: let r = foo(&x);
-        //      If foo returns a reference, apply Rust-style elision rules:
-        //      - If exactly one input is a reference, output borrows from that source
-        //      - If there's a self parameter, output borrows from self's source
-        var borrowInfo = ExtractBorrowSource(EqualsTo, analyzer);
-        if (borrowInfo != null)
+        // Handles: direct borrows, lifetime elision through function calls,
+        // explicit lifetime annotations linking return to specific params.
+        var borrowSources = ExtractBorrowSources(EqualsTo, analyzer);
+        foreach (var (sourceName, refKind) in borrowSources)
         {
-            var (sourceName, refKind) = borrowInfo.Value;
-
             // NLL-style: invalidate conflicting borrows
             analyzer.InvalidateConflictingBorrows(sourceName, refKind);
             analyzer.RegisterBorrow(sourceName, VariableDefinition.Name, refKind);
@@ -224,6 +218,28 @@ public class LetStatement : IStatement
 
     public bool HasGuaranteedExplicitReturn => EqualsTo?.HasGuaranteedExplicitReturn ?? false;
 
+    /// <summary>
+    /// Trace an argument expression back to the variable it borrows from.
+    /// Handles direct borrows (&amp;x), variable references, and chains.
+    /// </summary>
+    private static string? TraceArgToSource(IExpression arg, SemanticAnalyzer analyzer)
+    {
+        string? origin = null;
+        if (arg is PointerGetterExpression argPge)
+            origin = GetVariableOrigin(argPge.PointingTo);
+        else
+            origin = GetVariableOrigin(arg);
+
+        // If the argument is a variable holding a reference, trace to ultimate source
+        if (origin != null && IsReferenceType(arg.TypePath))
+        {
+            var ultimate = analyzer.GetBorrowSource(origin);
+            if (ultimate != null) origin = ultimate;
+        }
+
+        return origin;
+    }
+
     /// <summary>Check if a type path is a reference type (&amp;T).</summary>
     private static bool IsReferenceType(LangPath? typePath)
     {
@@ -264,26 +280,22 @@ public class LetStatement : IStatement
     }
 
     /// <summary>
-    /// Extract borrow source from an expression using Rust-style lifetime elision.
-    /// Handles direct borrows (&amp;x), function calls returning references,
-    /// and method calls returning references.
-    ///
-    /// Elision rules (from Rust):
-    /// 1. If there is exactly one reference input parameter, its lifetime is assigned to all output references.
-    /// 2. If there is a self parameter that is a reference, its lifetime is assigned to all output references.
+    /// Extract borrow sources from an expression using Rust-style lifetime elision.
+    /// Returns all variables that the result borrows from.
     /// </summary>
-    private static (string sourceName, RefKind refKind)? ExtractBorrowSource(
+    private static List<(string sourceName, RefKind refKind)> ExtractBorrowSources(
         IExpression? expr, SemanticAnalyzer analyzer)
     {
-        if (expr == null) return null;
+        var results = new List<(string, RefKind)>();
+        if (expr == null) return results;
 
         // Case 1: Direct borrow — &x, &mut x, &const x, &uniq x
         if (expr is PointerGetterExpression pge)
         {
             var origin = GetVariableOrigin(pge.PointingTo);
             if (origin != null)
-                return (origin, pge.RefKind);
-            return null;
+                results.Add((origin, pge.RefKind));
+            return results;
         }
 
         // Case 2: Function call returning a reference type
@@ -291,11 +303,8 @@ public class LetStatement : IStatement
         {
             var refKind = GetRefKindFromTypePath(fce.TypePath!);
 
-            // Look up the function definition to check declared parameter types
-            // This is signature-based, not argument-based — future-proof for Deref coercion
             FunctionDefinition? funcDef = null;
             var lookupPath = fce.FunctionPath;
-            // Try direct lookup, then strip generics, then pop
             funcDef = analyzer.GetDefinition(lookupPath) as FunctionDefinition;
             if (funcDef == null && lookupPath.GetFrontGenerics().Length > 0)
                 funcDef = analyzer.GetDefinition(lookupPath.PopGenerics()) as FunctionDefinition;
@@ -304,90 +313,88 @@ public class LetStatement : IStatement
 
             if (funcDef != null)
             {
-                var refArgSources = new List<string>();
-                for (int i = 0; i < funcDef.Arguments.Length && i < fce.Arguments.Length; i++)
+                if (funcDef.ReturnLifetime != null)
                 {
-                    var declaredParamType = funcDef.Arguments[i].TypePath;
-                    if (!IsReferenceType(declaredParamType)) continue;
-
-                    // This parameter is declared as a reference type — trace the actual argument
-                    var arg = fce.Arguments[i];
-                    string? origin = null;
-                    if (arg is PointerGetterExpression argPge)
-                        origin = GetVariableOrigin(argPge.PointingTo);
-                    else
-                        origin = GetVariableOrigin(arg);
-
-                    // If the argument is a variable holding a reference, trace to ultimate source
-                    if (origin != null && IsReferenceType(arg.TypePath))
+                    // Explicit lifetimes: only params whose lifetime matches the return
+                    for (int i = 0; i < funcDef.Arguments.Length && i < fce.Arguments.Length; i++)
                     {
-                        var ultimate = analyzer.GetBorrowSource(origin);
-                        if (ultimate != null) origin = ultimate;
+                        if (!funcDef.ArgumentLifetimes.TryGetValue(i, out var paramLt))
+                            continue;
+                        if (paramLt != funcDef.ReturnLifetime) continue;
+
+                        var origin = TraceArgToSource(fce.Arguments[i], analyzer);
+                        if (origin != null)
+                            results.Add((origin, refKind));
                     }
-
-                    if (origin != null)
-                        refArgSources.Add(origin);
                 }
-
-                // Elision rule: if exactly one reference parameter, output borrows from it
-                if (refArgSources.Count == 1)
-                    return (refArgSources[0], refKind);
-            }
-            else
-            {
-                // Fallback for trait method calls where FunctionDefinition isn't directly found:
-                // use ResolveTraitMethodReturnType path to find the trait method signature
-                var traitReturnType = analyzer.ResolveTraitMethodReturnType(fce.FunctionPath);
-                if (traitReturnType != null)
+                else
                 {
-                    // Can't inspect trait method params easily, fall back to argument inspection
+                    // Elision: only if exactly one reference parameter
                     var refArgSources = new List<string>();
-                    for (int i = 0; i < fce.Arguments.Length; i++)
+                    for (int i = 0; i < funcDef.Arguments.Length && i < fce.Arguments.Length; i++)
                     {
-                        var arg = fce.Arguments[i];
-                        string? origin = null;
-                        if (arg is PointerGetterExpression argPge)
-                            origin = GetVariableOrigin(argPge.PointingTo);
-                        else if (IsReferenceType(arg.TypePath))
-                        {
-                            origin = GetVariableOrigin(arg);
-                            if (origin != null)
-                            {
-                                var ultimate = analyzer.GetBorrowSource(origin);
-                                if (ultimate != null) origin = ultimate;
-                            }
-                        }
+                        if (!IsReferenceType(funcDef.Arguments[i].TypePath)) continue;
+                        var origin = TraceArgToSource(fce.Arguments[i], analyzer);
                         if (origin != null)
                             refArgSources.Add(origin);
                     }
                     if (refArgSources.Count == 1)
-                        return (refArgSources[0], refKind);
+                        results.Add((refArgSources[0], refKind));
+                }
+            }
+            else
+            {
+                // Fallback for trait method calls — use signature lifetime info
+                var traitSig = analyzer.ResolveTraitMethodSignature(fce.FunctionPath);
+                if (traitSig != null && IsReferenceType(traitSig.ReturnTypePath))
+                {
+                    if (traitSig.ReturnLifetime != null)
+                    {
+                        // Explicit lifetimes on trait method
+                        for (int i = 0; i < traitSig.Parameters.Length && i < fce.Arguments.Length; i++)
+                        {
+                            if (!traitSig.ArgumentLifetimes.TryGetValue(i, out var paramLt)) continue;
+                            if (paramLt != traitSig.ReturnLifetime) continue;
+                            var origin = TraceArgToSource(fce.Arguments[i], analyzer);
+                            if (origin != null)
+                                results.Add((origin, refKind));
+                        }
+                    }
+                    else
+                    {
+                        // Elision: count ref params from signature
+                        var refArgSources = new List<string>();
+                        for (int i = 0; i < traitSig.Parameters.Length && i < fce.Arguments.Length; i++)
+                        {
+                            if (!IsReferenceType(traitSig.Parameters[i].TypePath)) continue;
+                            var origin = TraceArgToSource(fce.Arguments[i], analyzer);
+                            if (origin != null)
+                                refArgSources.Add(origin);
+                        }
+                        if (refArgSources.Count == 1)
+                            results.Add((refArgSources[0], refKind));
+                    }
                 }
             }
 
-            return null;
+            return results;
         }
 
         // Case 3: Method call returning a reference type
-        // Elision rule: if self param is a reference, output borrows from self's source
         if (expr is MethodCallExpression mce && IsReferenceType(mce.TypePath))
         {
             var refKind = GetRefKindFromTypePath(mce.TypePath!);
-
-            // The receiver is always the "self" borrow source (Rust elision rule 2)
             var receiverOrigin = GetVariableOrigin(mce.Receiver);
             if (receiverOrigin != null)
             {
-                // If receiver itself holds a reference, trace to ultimate source
                 if (IsReferenceType(mce.Receiver.TypePath))
                 {
                     var ultimate = analyzer.GetBorrowSource(receiverOrigin);
                     if (ultimate != null) receiverOrigin = ultimate;
                 }
-                return (receiverOrigin, refKind);
+                results.Add((receiverOrigin, refKind));
             }
-
-            return null;
+            return results;
         }
 
         // Case 4: Variable that already holds a reference — propagate its borrow source
@@ -396,16 +403,15 @@ public class LetStatement : IStatement
             var varName = GetVariableOrigin(pathExpr);
             if (varName != null)
             {
-                // Find what this variable borrows from
                 var ultimateSource = analyzer.GetBorrowSource(varName);
                 if (ultimateSource != null)
                 {
                     var refKind = GetRefKindFromTypePath(pathExpr.TypePath!);
-                    return (ultimateSource, refKind);
+                    results.Add((ultimateSource, refKind));
                 }
             }
         }
 
-        return null;
+        return results;
     }
 }

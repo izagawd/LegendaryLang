@@ -255,6 +255,25 @@ public static class Lexer
                     break;
 
                 default:
+                    // Lifetime: 'a, 'b, 'static, etc.
+                    if (current == '\'')
+                    {
+                        if (index + 1 < code.Length && char.IsLetter(code[index + 1]))
+                        {
+                            startColumn = column;
+                            var lifetimeBuilder = new StringBuilder();
+                            index++;
+                            column++;
+                            while (index < code.Length && (char.IsLetterOrDigit(code[index]) || code[index] == '_'))
+                            {
+                                lifetimeBuilder.Append(code[index]);
+                                index++;
+                                column++;
+                            }
+                            file.AddToken(new LifetimeToken(file, startColumn, line, lifetimeBuilder.ToString()));
+                            continue;
+                        }
+                    }
                     throw new UnrecognizedCharacterException(current);
                     break;
             }

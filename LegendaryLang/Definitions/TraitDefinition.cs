@@ -1,7 +1,9 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
+using LegendaryLang.Parse.Expressions;
 using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Definitions;
@@ -26,6 +28,9 @@ public class TraitMethodSignature
     public required ImmutableArray<VariableDefinition> Parameters { get; init; }
     public LangPath ReturnTypePath { get; set; }
     public ImmutableArray<GenericParameter> GenericParameters { get; init; } = [];
+    public ImmutableArray<string> LifetimeParameters { get; init; } = [];
+    public Dictionary<int, string> ArgumentLifetimes { get; init; } = new();
+    public string? ReturnLifetime { get; init; }
 
     public static TraitMethodSignature Parse(Parser parser)
     {
@@ -35,66 +40,37 @@ public class TraitMethodSignature
 
         var nameToken = Identifier.Parse(parser);
 
-        // Parse optional generic parameters
-        var genericParameters = new List<GenericParameter>();
-        if (parser.Peek() is OperatorToken { OperatorType: Operator.LessThan })
+        // Parse generic parameters (lifetimes + type params) — shared with FunctionDefinition
+        var generics = FunctionSignatureParser.ParseGenericParams(parser);
+        var genericParameters = generics?.GenericParameters ?? [];
+        var lifetimeParameters = generics?.LifetimeParameters ?? [];
+
+        // Parse function parameters — shared with FunctionDefinition
+        var paramsResult = FunctionSignatureParser.ParseFunctionParams(parser);
+
+        // Parse return type — shared with FunctionDefinition
+        var returnResult = FunctionSignatureParser.ParseReturnType(parser);
+
+        // Parse optional body (for default method implementations)
+        if (parser.Peek() is LeftCurlyBraceToken)
         {
-            parser.Pop();
-            while (parser.Peek() is not OperatorToken { OperatorType: Operator.GreaterThan })
-            {
-                var paramIdentifier = Identifier.Parse(parser);
-                var traitBounds = new List<TraitBound>();
-                if (parser.Peek() is ColonToken)
-                {
-                    parser.Pop();
-                    if (parser.Peek() is not OperatorToken { OperatorType: Operator.GreaterThan }
-                        && parser.Peek() is not CommaToken)
-                    {
-                        traitBounds.Add(TraitBound.Parse(parser));
-                        while (parser.Peek() is OperatorToken { OperatorType: Operator.Add })
-                        {
-                            parser.Pop();
-                            traitBounds.Add(TraitBound.Parse(parser));
-                        }
-                    }
-                }
-                genericParameters.Add(new GenericParameter(paramIdentifier, traitBounds));
-                if (parser.Peek() is CommaToken) { parser.Pop(); }
-                else break;
-            }
-            Comparator.ParseGreater(parser);
+            BlockExpression.Parse(parser, returnResult.ReturnTypePath);
         }
-
-        Parenthesis.ParseLeft(parser);
-
-        var parameters = new List<VariableDefinition>();
-        while (parser.Peek() is not RightParenthesisToken)
+        else
         {
-            var param = VariableDefinition.Parse(parser);
-            if (param.TypePath is null)
-                throw new ExpectedParserException(parser, ParseType.BaseLangPath, param.IdentifierToken);
-            parameters.Add(param);
-            if (parser.Peek() is CommaToken) parser.Pop();
+            SemiColon.Parse(parser);
         }
-
-        Parenthesis.ParseRight(parser);
-
-        LangPath returnType = LangPath.VoidBaseLangPath;
-        if (parser.Peek() is RightPointToken)
-        {
-            parser.Pop();
-            returnType = LangPath.Parse(parser, true);
-        }
-
-        SemiColon.Parse(parser);
 
         return new TraitMethodSignature
         {
             Name = nameToken.Identity,
             Token = nameToken,
-            Parameters = parameters.ToImmutableArray(),
-            ReturnTypePath = returnType,
-            GenericParameters = genericParameters.ToImmutableArray()
+            Parameters = paramsResult.Parameters,
+            ReturnTypePath = returnResult.ReturnTypePath,
+            GenericParameters = genericParameters,
+            LifetimeParameters = lifetimeParameters,
+            ArgumentLifetimes = paramsResult.ArgumentLifetimes,
+            ReturnLifetime = returnResult.ReturnLifetime
         };
     }
 
@@ -145,7 +121,64 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
     public IEnumerable<ISyntaxNode> Children => [];
     public Token Token { get; }
 
-    public void Analyze(SemanticAnalyzer analyzer) { }
+    public void Analyze(SemanticAnalyzer analyzer)
+    {
+        // Validate lifetime annotations on trait method signatures
+        foreach (var method in MethodSignatures)
+        {
+            // Check all argument lifetimes are declared
+            foreach (var (_, lt) in method.ArgumentLifetimes)
+            {
+                if (!method.LifetimeParameters.Contains(lt))
+                {
+                    analyzer.AddException(new SemanticException(
+                        $"Undeclared lifetime '{lt}' in parameter of trait method '{method.Name}'\n" +
+                        method.Token.GetLocationStringRepresentation()));
+                }
+            }
+
+            // Check return lifetime is declared
+            if (method.ReturnLifetime != null && !method.LifetimeParameters.Contains(method.ReturnLifetime))
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Undeclared lifetime '{method.ReturnLifetime}' in return type of trait method '{method.Name}'\n" +
+                    method.Token.GetLocationStringRepresentation()));
+            }
+
+            // Elision ambiguity check — same rules as FunctionDefinition
+            if (method.ReturnTypePath is NormalLangPath nlpRet
+                && nlpRet.Contains(RefTypeDefinition.GetRefModule()))
+            {
+                var refParamCount = method.Parameters.Count(p =>
+                    p.TypePath is NormalLangPath nlpP && nlpP.Contains(RefTypeDefinition.GetRefModule()));
+                var hasSelfRefParam = method.Parameters.Any(p =>
+                    p.Name == "self"
+                    && p.TypePath is NormalLangPath nlpS
+                    && nlpS.Contains(RefTypeDefinition.GetRefModule()));
+                bool hasExplicitLifetimes = method.ReturnLifetime != null;
+
+                if (!hasExplicitLifetimes && refParamCount > 1 && !hasSelfRefParam)
+                {
+                    analyzer.AddException(new SemanticException(
+                        $"Trait method '{method.Name}' returns a reference but has {refParamCount} reference parameters. " +
+                        $"Cannot determine which input the output borrows from — explicit lifetime annotations are required\n" +
+                        method.Token.GetLocationStringRepresentation()));
+                }
+
+                // If explicit return lifetime, check it appears on at least one param
+                if (hasExplicitLifetimes)
+                {
+                    bool returnLifetimeOnParam = method.ArgumentLifetimes.Values.Any(lt => lt == method.ReturnLifetime);
+                    if (!returnLifetimeOnParam)
+                    {
+                        analyzer.AddException(new SemanticException(
+                            $"Return lifetime '{method.ReturnLifetime}' does not appear on any parameter in trait method '{method.Name}'\n" +
+                            method.Token.GetLocationStringRepresentation()));
+                    }
+                }
+            }
+        }
+    }
 
     public void ResolvePaths(PathResolver resolver)
     {
@@ -181,44 +214,9 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
 
         var nameToken = Identifier.Parse(parser);
 
-        // Parse optional generic parameters: trait Add<Rhs> { ... }
-        var genericParameters = new List<GenericParameter>();
-        if (parser.Peek() is OperatorToken { OperatorType: Operator.LessThan })
-        {
-            parser.Pop();
-            var nextToken = parser.Peek();
-            while (nextToken is not OperatorToken { OperatorType: Operator.GreaterThan })
-            {
-                var paramIdentifier = Identifier.Parse(parser);
-                var traitBounds = new List<TraitBound>();
-                if (parser.Peek() is ColonToken)
-                {
-                    parser.Pop();
-                    if (parser.Peek() is not OperatorToken { OperatorType: Operator.GreaterThan }
-                        && parser.Peek() is not CommaToken)
-                    {
-                        traitBounds.Add(TraitBound.Parse(parser));
-                        while (parser.Peek() is OperatorToken { OperatorType: Operator.Add })
-                        {
-                            parser.Pop();
-                            traitBounds.Add(TraitBound.Parse(parser));
-                        }
-                    }
-                }
-                nextToken = parser.Peek();
-                genericParameters.Add(new GenericParameter(paramIdentifier, traitBounds));
-                if (nextToken is CommaToken)
-                {
-                    parser.Pop();
-                    nextToken = parser.Peek();
-                }
-                else
-                {
-                    break;
-                }
-            }
-            Comparator.ParseGreater(parser);
-        }
+        // Parse optional generic parameters — shared with FunctionDefinition
+        var generics = FunctionSignatureParser.ParseGenericParams(parser);
+        var genericParameters = generics?.GenericParameters.ToList() ?? new List<GenericParameter>();
 
         // Parse optional supertraits: trait Foo: Bar + Baz { ... }
         var supertraits = new List<LangPath>();

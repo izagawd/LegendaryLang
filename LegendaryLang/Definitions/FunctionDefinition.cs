@@ -17,7 +17,8 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
 
     public FunctionDefinition(string name, IEnumerable<VariableDefinition> variables, LangPath returnTypePath,
         BlockExpression blockExpression, NormalLangPath module, IEnumerable<GenericParameter> genericParameters,
-        Token lookUpToken)
+        Token lookUpToken, IEnumerable<string>? lifetimeParameters = null,
+        Dictionary<int, string>? argumentLifetimes = null, string? returnLifetime = null)
     {
         Arguments = variables.ToImmutableArray();
         Name = name;
@@ -26,9 +27,19 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         Token = lookUpToken;
         Module = module;
         GenericParameters = genericParameters.ToImmutableArray();
+        LifetimeParameters = lifetimeParameters?.ToImmutableArray() ?? [];
+        ArgumentLifetimes = argumentLifetimes ?? new();
+        ReturnLifetime = returnLifetime;
     }
 
     public ImmutableArray<GenericParameter> GenericParameters { get; }
+    
+    /// <summary>Lifetime parameters declared in the function signature (e.g., 'a, 'b).</summary>
+    public ImmutableArray<string> LifetimeParameters { get; }
+    /// <summary>Maps argument index to its lifetime annotation name.</summary>
+    public Dictionary<int, string> ArgumentLifetimes { get; }
+    /// <summary>Lifetime annotation on the return type, if any.</summary>
+    public string? ReturnLifetime { get; }
 
 
     public int Priority => 3;
@@ -154,7 +165,8 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         // Lifetime elision check: if the function returns a reference and has multiple
         // reference parameters, the compiler can't determine which input the output
         // borrows from — require explicit lifetime annotations.
-        // Exception: if there's a 'self' reference parameter, output borrows from self (Rust rule 2).
+        // Exception 1: if there's a 'self' reference parameter, output borrows from self (Rust rule 2).
+        // Exception 2: if explicit lifetime annotations are provided, use those instead.
         if (ReturnTypePath is NormalLangPath nlpRetCheck
             && nlpRetCheck.Contains(RefTypeDefinition.GetRefModule()))
         {
@@ -165,7 +177,37 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
                 && a.TypePath is NormalLangPath nlpS
                 && nlpS.Contains(RefTypeDefinition.GetRefModule()));
 
-            if (refParamCount > 1 && !hasSelfRefParam)
+            bool hasExplicitLifetimes = ReturnLifetime != null;
+
+            if (hasExplicitLifetimes)
+            {
+                // Validate: return lifetime must be declared
+                if (!LifetimeParameters.Contains(ReturnLifetime!))
+                {
+                    analyzer.AddException(new SemanticException(
+                        $"Undeclared lifetime '{ReturnLifetime}' in return type of function '{Name}'\n" +
+                        Token.GetLocationStringRepresentation()));
+                }
+                // Validate: return lifetime must appear on at least one parameter
+                bool returnLifetimeOnParam = ArgumentLifetimes.Values.Any(lt => lt == ReturnLifetime);
+                if (!returnLifetimeOnParam)
+                {
+                    analyzer.AddException(new SemanticException(
+                        $"Return lifetime '{ReturnLifetime}' does not appear on any parameter in function '{Name}'\n" +
+                        Token.GetLocationStringRepresentation()));
+                }
+                // Validate: all argument lifetimes are declared
+                foreach (var (_, lt) in ArgumentLifetimes)
+                {
+                    if (!LifetimeParameters.Contains(lt))
+                    {
+                        analyzer.AddException(new SemanticException(
+                            $"Undeclared lifetime '{lt}' in parameter of function '{Name}'\n" +
+                            Token.GetLocationStringRepresentation()));
+                    }
+                }
+            }
+            else if (refParamCount > 1 && !hasSelfRefParam)
             {
                 analyzer.AddException(new SemanticException(
                     $"Function '{Name}' returns a reference but has {refParamCount} reference parameters. " +
@@ -180,10 +222,38 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         // Register parameter names for lifetime analysis
         analyzer.SetFunctionParameters(Arguments.Select(a => a.Name));
 
+        // Register argument lifetimes so the analyzer can look them up by name
+        if (LifetimeParameters.Length > 0)
+        {
+            var paramLifetimeMap = new Dictionary<string, string>();
+            for (int i = 0; i < Arguments.Length; i++)
+            {
+                if (ArgumentLifetimes.TryGetValue(i, out var lt))
+                    paramLifetimeMap[Arguments[i].Name] = lt;
+            }
+            analyzer.SetParameterLifetimes(paramLifetimeMap);
+        }
+
         BlockExpression.Analyze(analyzer);
 
+        // Validate return lifetime: if the function has explicit lifetime annotations,
+        // check that the return expression borrows from a parameter with the matching lifetime.
+        if (ReturnLifetime != null && BlockExpression.BlockSyntaxNodeContainers.Length > 0)
+        {
+            // Check implicit return (last expression in block)
+            var lastNode = BlockExpression.BlockSyntaxNodeContainers.Last();
+            if (lastNode.Node is IExpression lastExpr && !lastNode.HasSemiColonAfter)
+                ValidateReturnLifetime(lastExpr, analyzer);
+
+            // Check explicit return statements
+            foreach (var node in BlockExpression.SyntaxNodes)
+            {
+                if (node is ReturnStatement rs && rs.ToReturn != null)
+                    ValidateReturnLifetime(rs.ToReturn, analyzer);
+            }
+        }
+
         // Check implicit return for dangling references
-        // (the block's last expression is the implicit return value)
         if (BlockExpression.BlockSyntaxNodeContainers.Length > 0)
         {
             var lastNode = BlockExpression.BlockSyntaxNodeContainers.Last();
@@ -194,6 +264,12 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
             {
                 analyzer.AddException(new DanglingReferenceException(
                     Token.GetLocationStringRepresentation()));
+            }
+
+            // Validate return value lifetime matches declared return lifetime
+            if (ReturnLifetime != null && lastNode.Node is IExpression returnExpr)
+            {
+                ValidateReturnLifetime(returnExpr, analyzer);
             }
         }
 
@@ -248,80 +324,69 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
 
     public static FunctionDefinition Parse(Parser parser, NormalLangPath module)
     {
-        var genericParameters = new List<GenericParameter>();
         var token = parser.Pop();
-        var variables = new List<VariableDefinition>();
-        if (token is FnToken)
+        if (token is not FnToken)
+            throw new ExpectedParserException(parser, ParseType.Fn, token);
+
+        var nameToken = Identifier.Parse(parser);
+
+        // Parse generic parameters (lifetimes + type params)
+        var generics = FunctionSignatureParser.ParseGenericParams(parser);
+        var genericParameters = generics?.GenericParameters ?? [];
+        var lifetimeParameters = generics?.LifetimeParameters ?? [];
+
+        // Parse function parameters
+        var paramsResult = FunctionSignatureParser.ParseFunctionParams(parser);
+
+        // Parse return type
+        var returnResult = FunctionSignatureParser.ParseReturnType(parser);
+
+        return new FunctionDefinition(nameToken.Identity, paramsResult.Parameters,
+            returnResult.ReturnTypePath, BlockExpression.Parse(parser, returnResult.ReturnTypePath),
+            module, genericParameters, nameToken, lifetimeParameters,
+            paramsResult.ArgumentLifetimes, returnResult.ReturnLifetime);
+    }
+
+    /// <summary>
+    /// Validate that an implicit return value's borrow origin has a lifetime matching the declared return lifetime.
+    /// E.g., fn bro&lt;'a, 'b&gt;(dd: &amp;'a i32, kk: &amp;'b i32) -&gt; &amp;'b i32 { dd } — error because dd has 'a not 'b.
+    /// </summary>
+    private void ValidateReturnLifetime(IExpression returnExpr, SemanticAnalyzer analyzer)
+    {
+        // Find the origin parameter name of the returned value
+        string? originParam = null;
+
+        if (returnExpr is PathExpression pe && pe.Path is NormalLangPath nlp && nlp.PathSegments.Length == 1)
         {
-            var nameToken = Identifier.Parse(parser);
-            var name = nameToken.Identity;
-            var nextToken = parser.Peek();
-            if (nextToken is OperatorToken {OperatorType: Operator.LessThan})
+            var varName = nlp.PathSegments[0].ToString();
+            // Is it directly a parameter?
+            if (Arguments.Any(a => a.Name == varName))
+                originParam = varName;
+            else
             {
-                parser.Pop();
-                nextToken = parser.Peek();
-                while (nextToken is not OperatorToken {OperatorType: Operator.GreaterThan})
-                {
-                    var paramIdentifier = Identifier.Parse(parser);
-                    var traitBounds = new List<TraitBound>();
-                    if (parser.Peek() is ColonToken)
-                    {
-                        parser.Pop(); // consume ':'
-                        // Allow empty bound: <T:> or <T:,U>
-                        if (parser.Peek() is not OperatorToken {OperatorType: Operator.GreaterThan}
-                            && parser.Peek() is not CommaToken)
-                        {
-                            traitBounds.Add(TraitBound.Parse(parser));
-                            // Parse additional bounds separated by +
-                            while (parser.Peek() is OperatorToken {OperatorType: Operator.Add})
-                            {
-                                parser.Pop(); // consume '+'
-                                traitBounds.Add(TraitBound.Parse(parser));
-                            }
-                        }
-                    }
-                    nextToken = parser.Peek();
-                    genericParameters.Add(new GenericParameter(paramIdentifier, traitBounds));
-                    if (nextToken is CommaToken)
-                    {
-                        parser.Pop();
-                        nextToken = parser.Peek();
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-
-                Comparator.ParseGreater(parser);
+                // Trace through borrows to find the ultimate source parameter
+                var source = analyzer.GetBorrowSource(varName);
+                if (source != null && Arguments.Any(a => a.Name == source))
+                    originParam = source;
             }
-
-            Parenthesis.ParseLeft(parser);
-            nextToken = parser.Peek();
-            while (nextToken is not RightParenthesisToken)
-            {
-                var parameter = VariableDefinition.Parse(parser);
-                nextToken = parser.Peek();
-                if (parameter.TypePath is null)
-                    throw new ExpectedParserException(parser, ParseType.BaseLangPath, parameter.IdentifierToken);
-                variables.Add(parameter);
-                if (nextToken is CommaToken) parser.Pop();
-                nextToken = parser.Peek();
-            }
-
-            parser.Pop();
-            nextToken = parser.Peek();
-            LangPath returnTyp = LangPath.VoidBaseLangPath;
-            if (nextToken is RightPointToken)
-            {
-                parser.Pop();
-                returnTyp = LangPath.Parse(parser, true);
-            }
-
-            return new FunctionDefinition(name, variables, returnTyp, BlockExpression.Parse(parser, returnTyp),
-                module, genericParameters, nameToken);
         }
 
-        throw new ExpectedParserException(parser, ParseType.Fn, token);
+        if (originParam == null) return;
+
+        // Find the parameter's index and its declared lifetime
+        for (int i = 0; i < Arguments.Length; i++)
+        {
+            if (Arguments[i].Name != originParam) continue;
+            if (!ArgumentLifetimes.TryGetValue(i, out var paramLifetime)) break;
+
+            if (paramLifetime != ReturnLifetime)
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Function '{Name}' returns a value with lifetime '{paramLifetime}', " +
+                    $"but the return type requires lifetime '{ReturnLifetime}'\n" +
+                    Token.GetLocationStringRepresentation()));
+            }
+            break;
+        }
     }
 }

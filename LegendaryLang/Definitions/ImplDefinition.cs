@@ -595,44 +595,9 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
         if (implToken is not ImplToken)
             throw new ExpectedParserException(parser, ParseType.Impl, implToken);
 
-        // Parse optional generic parameters: impl<T: Copy + Foo, U>
-        var genericParameters = new List<GenericParameter>();
-        if (parser.Peek() is OperatorToken { OperatorType: Operator.LessThan })
-        {
-            parser.Pop();
-            var nextToken = parser.Peek();
-            while (nextToken is not OperatorToken { OperatorType: Operator.GreaterThan })
-            {
-                var paramIdentifier = Identifier.Parse(parser);
-                var traitBounds = new List<TraitBound>();
-                if (parser.Peek() is ColonToken)
-                {
-                    parser.Pop();
-                    if (parser.Peek() is not OperatorToken { OperatorType: Operator.GreaterThan }
-                        && parser.Peek() is not CommaToken)
-                    {
-                        traitBounds.Add(TraitBound.Parse(parser));
-                        while (parser.Peek() is OperatorToken { OperatorType: Operator.Add })
-                        {
-                            parser.Pop();
-                            traitBounds.Add(TraitBound.Parse(parser));
-                        }
-                    }
-                }
-                nextToken = parser.Peek();
-                genericParameters.Add(new GenericParameter(paramIdentifier, traitBounds));
-                if (nextToken is CommaToken)
-                {
-                    parser.Pop();
-                    nextToken = parser.Peek();
-                }
-                else
-                {
-                    break;
-                }
-            }
-            Comparator.ParseGreater(parser);
-        }
+        // Parse optional generic parameters — shared with FunctionDefinition/TraitDefinition
+        var generics = FunctionSignatureParser.ParseGenericParams(parser);
+        var genericParameters = generics?.GenericParameters.ToList() ?? new List<GenericParameter>();
 
         var traitPath = LangPath.Parse(parser, true);
 

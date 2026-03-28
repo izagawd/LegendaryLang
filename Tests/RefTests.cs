@@ -861,3 +861,300 @@ public class RefElisionAmbiguityTests
         Assert.That(result.HasError<GenericSemanticError>());
     }
 }
+
+public class RefExplicitLifetimeTests
+{
+    [Test]
+    public void RefExplicitLifetimeTest()
+    {
+        // fn bruh<'a>(dd: &'a i32, kk: &i32) -> &'a i32 — resolves ambiguity
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_explicit_lifetime_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefExplicitLifetimeSameTest()
+    {
+        // fn bruh<'a>(dd: &'a i32, kk: &'a i32) -> &'a i32 — both share 'a
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_explicit_lifetime_same_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefExplicitLifetimeInvalidateFailTest()
+    {
+        // return borrows from dd ('a), &uniq x invalidates dd's source — *r fails
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_explicit_lifetime_invalidate_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefExplicitLifetimeOtherInvalidatePassTest()
+    {
+        // return borrows from dd ('a), &uniq y invalidates kk (no lifetime) — *r still ok
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_explicit_lifetime_other_invalidate_pass_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefExplicitLifetimeBothBoundFailTest()
+    {
+        // Both params share 'a, &uniq y invalidates y which is bound to 'a — *r fails
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_explicit_lifetime_both_bound_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefExplicitLifetimeDifferentTest()
+    {
+        // Different lifetimes 'a, 'b. Return borrows from 'a. &uniq y ('b) is fine.
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_explicit_lifetime_different_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefUndeclaredLifetimeFailTest()
+    {
+        // Using 'a without declaring it in <'a> — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_undeclared_lifetime_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<GenericSemanticError>());
+    }
+}
+
+public class RefTwoLifetimeTests
+{
+    [Test]
+    public void RefTwoLifetimesUniqSecondPassTest()
+    {
+        // fn pick<'a, 'b>(x: &'a i32, y: &'b i32) -> &'a i32
+        // r borrows from a ('a), &uniq b ('b) doesn't conflict — *r + *u works
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_two_lifetimes_uniq_second_pass_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(30 == result.Function?.Invoke());
+    }
+}
+
+public class RefLifetimeValidationTests
+{
+    [Test]
+    public void RefReturnWrongLifetimeFailTest()
+    {
+        // fn bro<'a, 'b>(dd: &'a i32, kk: &'b i32) -> &'b i32 { dd } — returns 'a but declares 'b
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_return_wrong_lifetime_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<GenericSemanticError>());
+    }
+
+    [Test]
+    public void RefReturnCorrectLifetimeTest()
+    {
+        // fn bro<'a, 'b>(dd: &'a i32, kk: &'b i32) -> &'b i32 { kk } — correct
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_return_correct_lifetime_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(20 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefTraitMethodLifetimeTest()
+    {
+        // trait Foo { fn bro<'a>(dd: &'a i32, kk: &i32) -> &'a i32; } — parses
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_trait_method_lifetime_test", true, true);
+        Assert.That(result.Success);
+    }
+
+    [Test]
+    public void RefTraitMethodTwoLifetimesTest()
+    {
+        // trait Foo { fn bro<'a, 'b>(dd: &'a i32, kk: &'b i32) -> &'b i32; } — parses
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_trait_method_two_lifetimes_test", true, true);
+        Assert.That(result.Success);
+    }
+}
+
+public class RefLifetimeReturnValidationTests
+{
+    [Test]
+    public void RefLifetimeReturnMismatchFailTest()
+    {
+        // fn returns dd ('a) but declared return is 'b — mismatch
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_lifetime_return_mismatch_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<GenericSemanticError>());
+    }
+
+    [Test]
+    public void RefLifetimeReturnCorrectTest()
+    {
+        // fn returns kk ('b) matching declared return 'b — ok
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_lifetime_return_correct_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(20 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefTraitLifetimeParseTest()
+    {
+        // trait method with lifetime annotations — should parse
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_trait_lifetime_parse_test", true, true);
+        Assert.That(result.Success);
+    }
+
+    [Test]
+    public void RefTraitLifetimeImplTest()
+    {
+        // trait with lifetime method + impl + call — full pipeline
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_trait_lifetime_impl_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+}
+
+public class RefReturnLifetimeTests
+{
+    [Test]
+    public void RefReturnLifetimeMismatchFailTest()
+    {
+        // fn returns dd ('a) but declared return is 'b — mismatch
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_return_lifetime_mismatch_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<GenericSemanticError>());
+    }
+
+    [Test]
+    public void RefReturnLifetimeMatchTest()
+    {
+        // fn returns kk ('b) and declared return is 'b — match
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_return_lifetime_match_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(20 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefTraitMethodLifetimeTest()
+    {
+        // trait method with lifetime annotation parses correctly
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_trait_method_lifetime_test", true, true);
+        Assert.That(result.Success);
+    }
+
+    [Test]
+    public void RefTraitMethodMultiLifetimeTest()
+    {
+        // trait method with multiple lifetime annotations parses correctly
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_trait_method_multi_lifetime_test", true, true);
+        Assert.That(result.Success);
+    }
+}
+
+public class RefTraitLifetimeTests
+{
+    [Test]
+    public void RefTraitUndeclaredLifetimeFailTest()
+    {
+        // 'b used but not declared in <'a> — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_trait_undeclared_lifetime_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<GenericSemanticError>());
+    }
+
+    [Test]
+    public void RefTraitAmbiguousFailTest()
+    {
+        // 2 ref params, returns ref, no lifetimes or self — ambiguous
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_trait_ambiguous_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<GenericSemanticError>());
+    }
+
+    [Test]
+    public void RefTraitSelfElisionTest()
+    {
+        // self: &Self + other: &i32, returns &i32 — self wins, no ambiguity
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_trait_self_elision_test", true, true);
+        Assert.That(result.Success);
+    }
+
+    [Test]
+    public void RefTraitExplicitLifetimeTest()
+    {
+        // Explicit <'a, 'b> resolves ambiguity — passes
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_trait_explicit_lifetime_test", true, true);
+        Assert.That(result.Success);
+    }
+
+    [Test]
+    public void RefTraitReturnLifetimeOrphanFailTest()
+    {
+        // Return lifetime 'b not on any param — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_trait_return_lifetime_orphan_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<GenericSemanticError>());
+    }
+}
+
+public class RefLifetimeE2eTests
+{
+    [Test]
+    public void RefTraitLifetimeE2eFailTest()
+    {
+        // Trait method pick<'a>(&'a i32, &i32) -> &'a i32
+        // Call pick(&x, &y), then &uniq x invalidates r — *r fails
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_trait_lifetime_e2e_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefTraitLifetimeE2ePassTest()
+    {
+        // Trait method pick<'a>(&'a i32, &i32) -> &'a i32
+        // Call pick(&x, &y), then &uniq y — y has no lifetime link to return, so *r is fine
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_trait_lifetime_e2e_pass_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefMethodCallLifetimeE2eTest()
+    {
+        // Method call h.get() returns &i32 borrowing from h — basic e2e
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_method_call_lifetime_e2e_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(7 == result.Function?.Invoke());
+    }
+}

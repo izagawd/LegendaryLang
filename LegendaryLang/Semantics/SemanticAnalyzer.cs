@@ -449,6 +449,24 @@ public class SemanticAnalyzer
     {
         _functionParameterNames = new HashSet<string>(names);
         _referencesToLocals.Clear();
+        _parameterLifetimes.Clear();
+    }
+
+    /// <summary>
+    /// Register lifetime annotations for function parameters.
+    /// </summary>
+    public void SetParameterLifetimes(Dictionary<string, string> lifetimes)
+    {
+        _parameterLifetimes = new Dictionary<string, string>(lifetimes);
+    }
+    private Dictionary<string, string> _parameterLifetimes = new();
+
+    /// <summary>
+    /// Get the declared lifetime of a parameter, or null if none.
+    /// </summary>
+    public string? GetParameterLifetime(string paramName)
+    {
+        return _parameterLifetimes.TryGetValue(paramName, out var lt) ? lt : null;
     }
 
     /// <summary>
@@ -576,16 +594,18 @@ public class SemanticAnalyzer
     /// Checks if a path resolves to a trait method call (TraitName::method)
     /// and returns the method's return type path
     /// </summary>
-    public LangPath? ResolveTraitMethodReturnType(NormalLangPath path)
+    /// <summary>
+    /// Shared helper: resolves a call path to its TraitDefinition, method name, and parent path.
+    /// Used by ResolveTraitMethodSignature, ResolveTraitMethodReturnType, etc.
+    /// </summary>
+    private (TraitDefinition traitDef, string methodName, LangPath parentPath)?
+        ResolveTraitMethodLookup(NormalLangPath path)
     {
         if (path.PathSegments.Length < 2) return null;
 
-        // Strip trailing method-level generics (turbofish) if present
-        // e.g., T::kk::<U> → strip <U> to get T::kk
         var workingPath = path;
         if (workingPath.GetFrontGenerics().Length > 0)
             workingPath = workingPath.PopGenerics()!;
-
         if (workingPath.PathSegments.Length < 2) return null;
 
         var lastSeg = workingPath.GetLastPathSegment();
@@ -594,59 +614,59 @@ public class SemanticAnalyzer
         var parentPath = workingPath.Pop();
         if (parentPath == null || parentPath.PathSegments.Length == 0) return null;
 
-        // Case 1: TraitName::method — parent is a trait directly (strip generics for lookup)
+        // Case 1: TraitName::method
         var traitLookupPath = parentPath;
-        if (parentPath is NormalLangPath nlpParentTrait && nlpParentTrait.GetFrontGenerics().Length > 0)
-            traitLookupPath = nlpParentTrait.PopGenerics();
+        if (parentPath is NormalLangPath nlpPT && nlpPT.GetFrontGenerics().Length > 0)
+            traitLookupPath = nlpPT.PopGenerics();
         var traitDef = GetDefinition(traitLookupPath) as TraitDefinition;
 
-        // Case 2: T::method — parent is a generic param with trait bound(s)
-        if (traitDef == null && parentPath is NormalLangPath nlpParent && nlpParent.PathSegments.Length == 1)
-        {
-            var paramName = nlpParent.PathSegments[0].ToString();
-            // Search all bounds for this param to find one that has the method
-            traitDef = GetTraitBoundsFor(paramName)
+        // Case 2: T::method — generic param with trait bounds
+        if (traitDef == null && parentPath is NormalLangPath nlpP && nlpP.PathSegments.Length == 1)
+            traitDef = GetTraitBoundsFor(nlpP.PathSegments[0].ToString())
                 .FirstOrDefault(td => td.GetMethod(methodName) != null);
-        }
 
-        // Case 3: ConcreteType::method — parent is a concrete type, search impls for a trait with the method
+        // Case 3: ConcreteType::method — search impls
         if (traitDef == null)
         {
             var typeDef = GetDefinition(parentPath);
             if (typeDef != null && typeDef is not TraitDefinition)
             {
-                // Search all impls where ForTypePath pattern-matches this type
                 foreach (var impl in ImplDefinitions)
                 {
                     var bindings = impl.TryMatchConcreteType(parentPath);
                     if (bindings != null && impl.CheckBounds(bindings, this))
                     {
                         var implTraitLookup = impl.TraitPath;
-                        if (implTraitLookup is NormalLangPath nlpImplT && nlpImplT.GetFrontGenerics().Length > 0)
-                            implTraitLookup = nlpImplT.PopGenerics();
-                        var implTraitDef = GetDefinition(implTraitLookup) as TraitDefinition;
-                        if (implTraitDef?.GetMethod(methodName) != null)
-                        {
-                            traitDef = implTraitDef;
-                            var method = traitDef.GetMethod(methodName);
-                            var returnType = method!.ReturnTypePath;
-                            if (returnType is NormalLangPath nlpSelf && nlpSelf.PathSegments.Length == 1
-                                && nlpSelf.PathSegments[0].ToString() == "Self")
-                            {
-                                return parentPath;
-                            }
-                            return returnType;
-                        }
+                        if (implTraitLookup is NormalLangPath nlpIT && nlpIT.GetFrontGenerics().Length > 0)
+                            implTraitLookup = nlpIT.PopGenerics();
+                        var candidateDef = GetDefinition(implTraitLookup) as TraitDefinition;
+                        if (candidateDef?.GetMethod(methodName) != null)
+                        { traitDef = candidateDef; break; }
                     }
                 }
             }
         }
 
-        if (traitDef == null) return null;
+        if (traitDef == null || traitDef.GetMethod(methodName) == null) return null;
+        return (traitDef, methodName, parentPath);
+    }
 
-        var foundMethod = traitDef.GetMethod(methodName);
-        if (foundMethod == null) return null;
+    /// <summary>
+    /// Resolves the TraitMethodSignature for a given call path.
+    /// </summary>
+    public TraitMethodSignature? ResolveTraitMethodSignature(NormalLangPath path)
+    {
+        var lookup = ResolveTraitMethodLookup(path);
+        return lookup?.traitDef.GetMethod(lookup.Value.methodName);
+    }
 
+    public LangPath? ResolveTraitMethodReturnType(NormalLangPath path)
+    {
+        var lookup = ResolveTraitMethodLookup(path);
+        if (lookup == null) return null;
+
+        var (traitDef, methodName, parentPath) = lookup.Value;
+        var foundMethod = traitDef.GetMethod(methodName)!;
         var foundReturnType = foundMethod.ReturnTypePath;
 
         // If the return type is "Self", substitute it with the generic parameter
@@ -662,17 +682,14 @@ public class SemanticAnalyzer
                     foreach (var (tp, paramName, _) in bounds)
                         if (tp == traitTypePath)
                             return new NormalLangPath(null, [paramName]);
+                // For concrete type case, return parentPath
+                return parentPath;
             }
 
             // Check if it's an associated type of this trait
             var assocType = traitDef.GetAssociatedType(retName);
             if (assocType != null)
-            {
-                // Try to resolve via the concrete type from qualified call or trait bounds
-                // This will be finalized in FunctionCallExpression.Analyze
-                // Return a marker that includes trait info for later resolution
                 return foundReturnType;
-            }
         }
 
         return foundReturnType;

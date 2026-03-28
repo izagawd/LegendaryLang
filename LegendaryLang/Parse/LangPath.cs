@@ -159,6 +159,12 @@ public abstract class LangPath
 
     public IdentifierToken? FirstIdentifierToken { get; init; }
 
+    /// <summary>
+    /// Set by Parse when a reference type with a lifetime annotation is parsed (&amp;'a T).
+    /// Read and cleared by FunctionDefinition.Parse to capture lifetime annotations.
+    /// </summary>
+    public static string? LastParsedLifetime { get; set; }
+
     public static implicit operator LangPath(ImmutableArray<NormalLangPath.PathSegment> segments)
     {
         return new NormalLangPath(null, segments);
@@ -193,10 +199,20 @@ public abstract class LangPath
     {
         var next = parser.Peek();
 
-        // Reference type: &T, &const T, &mut T, &uniq T in type position
+        // Reference type: &T, &'a T, &'a const T, &mut T, &'a uniq T in type position
         if (next is AmpersandToken && typePosition)
         {
             parser.Pop(); // consume &
+
+            // Check for optional lifetime annotation: &'a
+            string? lifetime = null;
+            if (parser.Peek() is LifetimeToken lt)
+            {
+                lifetime = lt.Name;
+                parser.Pop();
+            }
+            LastParsedLifetime = lifetime;
+
             var refKind = RefKind.Shared;
             if (parser.Peek() is MutToken)
             {
