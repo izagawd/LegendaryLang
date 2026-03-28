@@ -199,19 +199,43 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
     /// </summary>
     private static LangPath SubstituteSelf(LangPath path, LangPath forType)
     {
+        return SubstituteAll(path, new Dictionary<string, LangPath> { ["Self"] = forType });
+    }
+
+    /// <summary>
+    /// Substitutes named identifiers (Self, trait generic params, associated types) with concrete types.
+    /// </summary>
+    private static LangPath SubstituteAll(LangPath path, Dictionary<string, LangPath> substitutions)
+    {
+        if (path is QualifiedAssocTypePath qp)
+        {
+            var newFor = SubstituteAll(qp.ForType, substitutions);
+            var newTrait = SubstituteAll(qp.TraitPath, substitutions);
+            if (newFor != qp.ForType || newTrait != qp.TraitPath)
+                return new QualifiedAssocTypePath(newFor, newTrait, qp.AssociatedTypeName, qp.FirstIdentifierToken);
+            return path;
+        }
+
         if (path is NormalLangPath nlp)
         {
-            // If the path is just "Self", replace entirely
-            if (nlp.PathSegments.Length == 1 && nlp.PathSegments[0].ToString() == "Self")
-                return forType;
+            // If the path is a single identifier that matches a substitution, replace entirely
+            if (nlp.PathSegments.Length == 1 && nlp.PathSegments[0] is NormalLangPath.NormalPathSegment ns
+                && substitutions.TryGetValue(ns.Text, out var replacement))
+                return replacement;
 
-            // Recurse into path segments, substituting Self in generic args
+            // Recurse into path segments, substituting in generic args
+            bool changed = false;
             var newSegs = new List<NormalLangPath.PathSegment>();
             foreach (var seg in nlp.PathSegments)
             {
                 if (seg is NormalLangPath.GenericTypesPathSegment gts)
                 {
-                    var newTypes = gts.TypePaths.Select(tp => SubstituteSelf(tp, forType)).ToList();
+                    var newTypes = gts.TypePaths.Select(tp =>
+                    {
+                        var sub = SubstituteAll(tp, substitutions);
+                        if (sub != tp) changed = true;
+                        return sub;
+                    }).ToList();
                     newSegs.Add(new NormalLangPath.GenericTypesPathSegment(newTypes));
                 }
                 else
@@ -219,7 +243,8 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                     newSegs.Add(seg);
                 }
             }
-            return new NormalLangPath(nlp.FirstIdentifierToken, newSegs);
+            if (changed)
+                return new NormalLangPath(nlp.FirstIdentifierToken, newSegs);
         }
         return path;
     }
@@ -246,6 +271,20 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
         }
 
         // Validate that each trait method is implemented
+        // Build substitution map: Self → ForTypePath, trait generics → concrete args, assoc types → concrete types
+        var traitSubstitutions = new Dictionary<string, LangPath>();
+        traitSubstitutions["Self"] = ForTypePath;
+        // Trait generic params: trait Add<Rhs> with impl Add<i32> → Rhs=i32
+        if (TraitPath is NormalLangPath nlpTraitWithGenerics && nlpTraitWithGenerics.GetFrontGenerics().Length > 0)
+        {
+            var traitGenericArgs = nlpTraitWithGenerics.GetFrontGenerics();
+            for (int i = 0; i < traitDef.GenericParameters.Length && i < traitGenericArgs.Length; i++)
+                traitSubstitutions[traitDef.GenericParameters[i].Name] = traitGenericArgs[i];
+        }
+        // Associated type assignments: type Output = i32 → Output=i32
+        foreach (var at in AssociatedTypeAssignments)
+            traitSubstitutions[at.Name] = at.ConcreteType;
+
         foreach (var traitMethod in traitDef.MethodSignatures)
         {
             var implMethod = Methods.FirstOrDefault(m => m.Name == traitMethod.Name);
@@ -261,6 +300,37 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                 analyzer.AddException(new SemanticException(
                     $"Method '{traitMethod.Name}' has {implMethod.Arguments.Length} parameters, " +
                     $"but the trait requires {traitMethod.Parameters.Length}\n{implMethod.Token.GetLocationStringRepresentation()}"));
+            }
+            else
+            {
+                // Validate parameter types match (substituting Self, trait generics, assoc types)
+                for (int i = 0; i < traitMethod.Parameters.Length; i++)
+                {
+                    var traitParamType = traitMethod.Parameters[i].TypePath;
+                    var implParamType = implMethod.Arguments[i].TypePath;
+                    if (traitParamType == null || implParamType == null) continue;
+
+                    var resolvedTraitParamType = SubstituteAll(traitParamType, traitSubstitutions);
+                    var resolvedImplParamType = SubstituteAll(implParamType, traitSubstitutions);
+                    if (resolvedTraitParamType != resolvedImplParamType)
+                    {
+                        analyzer.AddException(new SemanticException(
+                            $"Method '{traitMethod.Name}': parameter '{traitMethod.Parameters[i].Name}' has type '{resolvedImplParamType}' " +
+                            $"but trait requires '{resolvedTraitParamType}'\n{implMethod.Token.GetLocationStringRepresentation()}"));
+                    }
+                }
+            }
+
+            // Validate return type matches
+            {
+                var resolvedTraitReturn = SubstituteAll(traitMethod.ReturnTypePath, traitSubstitutions);
+                var resolvedImplReturn = SubstituteAll(implMethod.ReturnTypePath, traitSubstitutions);
+                if (resolvedTraitReturn != resolvedImplReturn)
+                {
+                    analyzer.AddException(new SemanticException(
+                        $"Method '{traitMethod.Name}': return type '{resolvedImplReturn}' " +
+                        $"does not match trait's return type '{resolvedTraitReturn}'\n{implMethod.Token.GetLocationStringRepresentation()}"));
+                }
             }
 
             // Validate generic parameter count matches
@@ -280,12 +350,12 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                     var traitGp = traitMethod.GenericParameters[i];
                     var implGp = implMethod.GenericParameters[i];
 
-                    // Resolve trait bounds by substituting Self with the implementing type
+                    // Resolve trait bounds by substituting Self, trait generics, and assoc types
                     var resolvedTraitBounds = traitGp.TraitBounds
-                        .Select(tb => SubstituteSelf(tb.TraitPath, ForTypePath))
+                        .Select(tb => SubstituteAll(tb.TraitPath, traitSubstitutions))
                         .ToList();
                     var resolvedImplBounds = implGp.TraitBounds
-                        .Select(tb => SubstituteSelf(tb.TraitPath, ForTypePath))
+                        .Select(tb => SubstituteAll(tb.TraitPath, traitSubstitutions))
                         .ToList();
 
                     // Impl must not add bounds that the trait didn't require
