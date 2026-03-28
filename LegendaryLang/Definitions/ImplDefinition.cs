@@ -193,6 +193,37 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
         return false;
     }
 
+    /// <summary>
+    /// Substitutes 'Self' with the concrete implementing type in a LangPath.
+    /// E.g., Add&lt;Self&gt; with forType=i32 becomes Add&lt;i32&gt;.
+    /// </summary>
+    private static LangPath SubstituteSelf(LangPath path, LangPath forType)
+    {
+        if (path is NormalLangPath nlp)
+        {
+            // If the path is just "Self", replace entirely
+            if (nlp.PathSegments.Length == 1 && nlp.PathSegments[0].ToString() == "Self")
+                return forType;
+
+            // Recurse into path segments, substituting Self in generic args
+            var newSegs = new List<NormalLangPath.PathSegment>();
+            foreach (var seg in nlp.PathSegments)
+            {
+                if (seg is NormalLangPath.GenericTypesPathSegment gts)
+                {
+                    var newTypes = gts.TypePaths.Select(tp => SubstituteSelf(tp, forType)).ToList();
+                    newSegs.Add(new NormalLangPath.GenericTypesPathSegment(newTypes));
+                }
+                else
+                {
+                    newSegs.Add(seg);
+                }
+            }
+            return new NormalLangPath(nlp.FirstIdentifierToken, newSegs);
+        }
+        return path;
+    }
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
         // Validate that the trait exists — strip generics for lookup
@@ -243,30 +274,39 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             else
             {
                 // Validate that generic bounds match
+                // Substitute Self → ForTypePath in trait bounds for comparison
                 for (int i = 0; i < traitMethod.GenericParameters.Length; i++)
                 {
                     var traitGp = traitMethod.GenericParameters[i];
                     var implGp = implMethod.GenericParameters[i];
 
+                    // Resolve trait bounds by substituting Self with the implementing type
+                    var resolvedTraitBounds = traitGp.TraitBounds
+                        .Select(tb => SubstituteSelf(tb.TraitPath, ForTypePath))
+                        .ToList();
+                    var resolvedImplBounds = implGp.TraitBounds
+                        .Select(tb => SubstituteSelf(tb.TraitPath, ForTypePath))
+                        .ToList();
+
                     // Impl must not add bounds that the trait didn't require
-                    foreach (var implBound in implGp.TraitBounds)
+                    foreach (var implBoundPath in resolvedImplBounds)
                     {
-                        if (!traitGp.TraitBounds.Any(tb => tb.TraitPath == implBound.TraitPath))
+                        if (!resolvedTraitBounds.Any(tb => tb == implBoundPath))
                         {
                             analyzer.AddException(new TraitImplBoundsMismatchException(
-                                $"Method '{traitMethod.Name}': impl adds bound '{implBound.TraitPath}' on generic parameter '{implGp.Name}' " +
+                                $"Method '{traitMethod.Name}': impl adds bound '{implBoundPath}' on generic parameter '{implGp.Name}' " +
                                 $"which is not present in the trait definition",
                                 implMethod.Token.GetLocationStringRepresentation()));
                         }
                     }
 
                     // Trait bounds must be present in the impl
-                    foreach (var traitBound in traitGp.TraitBounds)
+                    foreach (var traitBoundPath in resolvedTraitBounds)
                     {
-                        if (!implGp.TraitBounds.Any(tb => tb.TraitPath == traitBound.TraitPath))
+                        if (!resolvedImplBounds.Any(tb => tb == traitBoundPath))
                         {
                             analyzer.AddException(new TraitImplBoundsMismatchException(
-                                $"Method '{traitMethod.Name}': impl is missing bound '{traitBound.TraitPath}' on generic parameter '{implGp.Name}' " +
+                                $"Method '{traitMethod.Name}': impl is missing bound '{traitBoundPath}' on generic parameter '{implGp.Name}' " +
                                 $"required by the trait definition",
                                 implMethod.Token.GetLocationStringRepresentation()));
                         }

@@ -126,6 +126,26 @@ public class CodeGenContext
     /// <summary>
     /// Resolves a trait method call path (e.g., TraitName::method or T::method) to a FunctionRefItem
     /// </summary>
+    private TraitDefinition? FindMethodInSupertraits(TraitDefinition td, string methodName)
+    {
+        foreach (var supertrait in td.Supertraits)
+        {
+            var lookupPath = supertrait;
+            if (supertrait is NormalLangPath nlpS && nlpS.GetFrontGenerics().Length > 0)
+                lookupPath = nlpS.PopGenerics();
+            var superDef = DefinitionsCollection.OfType<TraitDefinition>()
+                .FirstOrDefault(t => (t as IDefinition).TypePath == lookupPath);
+            if (superDef != null)
+            {
+                if (superDef.GetMethod(methodName) != null)
+                    return superDef;
+                var deeper = FindMethodInSupertraits(superDef, methodName);
+                if (deeper != null) return deeper;
+            }
+        }
+        return null;
+    }
+
     public IRefItem? ResolveTraitMethodCall(NormalLangPath path)
     {
         if (path.PathSegments.Length < 2) return null;
@@ -177,12 +197,26 @@ public class CodeGenContext
                     {
                         if (ct == concreteType)
                         {
+                            // Strip generics for definition lookup
+                            var lookupTp = tp;
+                            if (tp is NormalLangPath nlpTp && nlpTp.GetFrontGenerics().Length > 0)
+                                lookupTp = nlpTp.PopGenerics();
                             var candidateTrait = DefinitionsCollection.OfType<TraitDefinition>()
-                                .FirstOrDefault(t => (t as IDefinition).TypePath == tp);
+                                .FirstOrDefault(t => (t as IDefinition).TypePath == lookupTp);
                             if (candidateTrait?.GetMethod(methodName) != null)
                             {
-                                resolvedTraitPath = tp;
+                                resolvedTraitPath = lookupTp;
                                 break;
+                            }
+                            // Check supertraits for the method
+                            if (candidateTrait != null)
+                            {
+                                var superTd = FindMethodInSupertraits(candidateTrait, methodName);
+                                if (superTd != null)
+                                {
+                                    resolvedTraitPath = superTd.TypePath;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -289,14 +323,24 @@ public class CodeGenContext
 
         // For generic impls, push the bindings so T resolves to the concrete type
         bool pushedImplScope = false;
-        if (implBindings != null && implBindings.Count > 0)
+        if ((implBindings != null && implBindings.Count > 0) || concreteType != null)
         {
             AddScope();
-            foreach (var (paramName, boundType) in implBindings)
+            if (implBindings != null)
             {
-                var boundRefItem = GetRefItemFor(boundType);
-                if (boundRefItem != null)
-                    AddToDeepestScope(new NormalLangPath(null, [paramName]), boundRefItem);
+                foreach (var (paramName, boundType) in implBindings)
+                {
+                    var boundRefItem = GetRefItemFor(boundType);
+                    if (boundRefItem != null)
+                        AddToDeepestScope(new NormalLangPath(null, [paramName]), boundRefItem);
+                }
+            }
+            // Bind Self to the concrete type so &Self resolves correctly
+            if (concreteType != null)
+            {
+                var selfRefItem = GetRefItemFor(concreteType);
+                if (selfRefItem != null)
+                    AddToDeepestScope(new NormalLangPath(null, ["Self"]), selfRefItem);
             }
             pushedImplScope = true;
         }

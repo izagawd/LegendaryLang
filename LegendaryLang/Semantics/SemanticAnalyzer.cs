@@ -489,11 +489,39 @@ public class SemanticAnalyzer
     /// </summary>
     public IEnumerable<TraitDefinition> GetTraitBoundsFor(string genericParamName)
     {
+        var seen = new HashSet<LangPath>();
         foreach (var bounds in TraitBoundsStack)
             foreach (var (traitPath, paramName, _) in bounds)
                 if (paramName == genericParamName)
-                    if (GetDefinition(traitPath) is TraitDefinition td)
+                {
+                    // Strip generics for definition lookup
+                    var lookupPath = traitPath;
+                    if (traitPath is NormalLangPath nlp && nlp.GetFrontGenerics().Length > 0)
+                        lookupPath = nlp.PopGenerics();
+                    if (GetDefinition(lookupPath) is TraitDefinition td && seen.Add(td.TypePath))
+                    {
                         yield return td;
+                        // Also yield supertraits transitively
+                        foreach (var superTd in GetSupertraitsTransitive(td, seen))
+                            yield return superTd;
+                    }
+                }
+    }
+
+    private IEnumerable<TraitDefinition> GetSupertraitsTransitive(TraitDefinition td, HashSet<LangPath> seen)
+    {
+        foreach (var supertrait in td.Supertraits)
+        {
+            var lookupPath = supertrait;
+            if (supertrait is NormalLangPath nlpS && nlpS.GetFrontGenerics().Length > 0)
+                lookupPath = nlpS.PopGenerics();
+            if (GetDefinition(lookupPath) is TraitDefinition superTd && seen.Add(superTd.TypePath))
+            {
+                yield return superTd;
+                foreach (var deeper in GetSupertraitsTransitive(superTd, seen))
+                    yield return deeper;
+            }
+        }
     }
 
     /// <summary>
@@ -630,16 +658,21 @@ public class SemanticAnalyzer
                     if (pName == paramName && tp == traitPath)
                         return true;
 
-            // Check via supertraits: if T: Foo and Foo: Bar, then T satisfies Bar
+            // Check via supertraits: if T: Foo<U> and Foo<X>: Bar<X>, then T satisfies Bar<U>
             foreach (var bounds in TraitBoundsStack)
                 foreach (var (tp, pName, _) in bounds)
                     if (pName == paramName)
                     {
                         var boundTraitBase = tp;
+                        ImmutableArray<LangPath> boundGenericArgs = [];
                         if (tp is NormalLangPath nlpBound && nlpBound.GetFrontGenerics().Length > 0)
+                        {
+                            boundGenericArgs = nlpBound.GetFrontGenerics();
                             boundTraitBase = nlpBound.PopGenerics();
+                        }
                         var boundTraitDef = GetDefinition(boundTraitBase) as TraitDefinition;
-                        if (boundTraitDef != null && HasSupertraitTransitive(boundTraitDef, traitPath))
+                        if (boundTraitDef != null && HasSupertraitTransitive(
+                                boundTraitDef, traitPath, boundTraitDef.GenericParameters, boundGenericArgs))
                             return true;
                     }
         }
@@ -689,18 +722,33 @@ public class SemanticAnalyzer
 
     /// <summary>
     /// Checks if <paramref name="traitDef"/> has <paramref name="targetTrait"/> as a supertrait (transitively).
+    /// Substitutes the trait's generic params with the provided args in supertrait paths.
     /// </summary>
-    private bool HasSupertraitTransitive(TraitDefinition traitDef, LangPath targetTrait)
+    private bool HasSupertraitTransitive(TraitDefinition traitDef, LangPath targetTrait,
+        ImmutableArray<GenericParameter> genericParams = default, ImmutableArray<LangPath> genericArgs = default)
     {
         foreach (var supertrait in traitDef.Supertraits)
         {
-            if (supertrait == targetTrait) return true;
+            // Substitute generic params in the supertrait path
+            var resolvedSupertrait = supertrait;
+            if (!genericParams.IsDefault && !genericArgs.IsDefault
+                && genericParams.Length > 0 && genericArgs.Length > 0)
+                resolvedSupertrait = FieldAccessExpression.SubstituteGenerics(
+                    supertrait, genericParams, genericArgs);
+
+            if (resolvedSupertrait == targetTrait) return true;
+
             // Recurse: check supertraits of supertraits
-            var superBase = supertrait;
-            if (supertrait is NormalLangPath nlpS && nlpS.GetFrontGenerics().Length > 0)
+            var superBase = resolvedSupertrait;
+            ImmutableArray<LangPath> superGenericArgs = [];
+            if (resolvedSupertrait is NormalLangPath nlpS && nlpS.GetFrontGenerics().Length > 0)
+            {
+                superGenericArgs = nlpS.GetFrontGenerics();
                 superBase = nlpS.PopGenerics();
+            }
             var superDef = GetDefinition(superBase) as TraitDefinition;
-            if (superDef != null && HasSupertraitTransitive(superDef, targetTrait))
+            if (superDef != null && HasSupertraitTransitive(
+                    superDef, targetTrait, superDef.GenericParameters, superGenericArgs))
                 return true;
         }
         return false;

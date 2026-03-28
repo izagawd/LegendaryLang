@@ -377,3 +377,45 @@ public class MethodChainTests
         Assert.That(6 == result.Function?.Invoke());
     }
 }
+
+public class SelfInBoundsTests
+{
+    [Test]
+    public void TraitMethodSelfBoundTest()
+    {
+        // fn add<T: Add<Self, Output=Self>>(self: &Self, input: T) -> Self — method call with Self in bounds
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_method_self_bound_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(15 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitSelfBoundQualifiedTest()
+    {
+        // <i32 as Idk>::add(5, 10) — qualified call with Self in bounds
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_self_bound_qualified_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(15 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void TraitSelfBoundMismatchFailTest()
+    {
+        // Trait has Self arg type but impl has bool — parameter type mismatch
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_self_bound_mismatch_fail_test", true, true);
+        Assert.That(!result.Success);
+    }
+
+    [Test]
+    public void TraitSelfReturnAndBoundTest()
+    {
+        // Self in both return type and generic bound
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/trait_tests/trait_self_return_and_bound_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(10 == result.Function?.Invoke());
+    }
+}
