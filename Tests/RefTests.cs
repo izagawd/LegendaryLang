@@ -735,3 +735,66 @@ public class RefStandaloneBorrowTests
         Assert.That(5 == result.Function?.Invoke());
     }
 }
+
+public class RefLifetimeElisionTests
+{
+    [Test]
+    public void RefElisionFnReturnInvalidatedFailTest()
+    {
+        // fn returns &uniq from input, then &uniq num invalidates derived — *derived fails
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_elision_fn_return_invalidated_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefElisionFnReturnPassTest()
+    {
+        // fn returns &uniq from input, no conflict — passes
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_elision_fn_return_pass_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefElisionSharedInvalidatedFailTest()
+    {
+        // fn returns &shared from input, then &uniq invalidates — *derived fails
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_elision_shared_invalidated_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefElisionSharedPassTest()
+    {
+        // fn returns &shared from input, compatible &shared after — passes
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_elision_shared_pass_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefElisionMethodInvalidatedFailTest()
+    {
+        // method returns &i32 borrowing from self, then &uniq h invalidates — *r fails
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_elision_method_invalidated_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefElisionChainedFailTest()
+    {
+        // pass_through(r1) propagates borrow from x, then &uniq x invalidates r2
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_elision_chained_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+}

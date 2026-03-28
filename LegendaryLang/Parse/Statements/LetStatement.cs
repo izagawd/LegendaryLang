@@ -1,4 +1,5 @@
-﻿using LegendaryLang.Definitions.Types;
+﻿using LegendaryLang.Definitions;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Expressions;
 using LegendaryLang.Semantics;
@@ -149,39 +150,24 @@ public class LetStatement : IStatement
         // Track this variable in the current scope for lifetime invalidation
         analyzer.TrackScopeVariable(VariableDefinition.Name);
 
-        // If RHS is a borrow (&expr), register the borrow relationship
-        if (EqualsTo is PointerGetterExpression pge)
+        // Extract borrow source from the RHS expression and register borrow relationship.
+        // This handles:
+        //   1. Direct borrows: let r = &x;
+        //   2. Lifetime elision through function calls: let r = foo(&x);
+        //      If foo returns a reference, apply Rust-style elision rules:
+        //      - If exactly one input is a reference, output borrows from that source
+        //      - If there's a self parameter, output borrows from self's source
+        var borrowInfo = ExtractBorrowSource(EqualsTo, analyzer);
+        if (borrowInfo != null)
         {
-            // Extract the source variable name from the borrowed expression
-            string? sourceName = null;
-            if (pge.PointingTo is PathExpression srcPe && srcPe.Path is NormalLangPath srcNlp
-                && srcNlp.PathSegments.Length == 1)
-            {
-                sourceName = srcNlp.PathSegments[0].ToString();
-            }
-            else if (pge.PointingTo is FieldAccessExpression fae)
-            {
-                // &foo.bar — source is "foo"
-                var root = fae.Caller;
-                while (root is FieldAccessExpression innerFae) root = innerFae.Caller;
-                if (root is PathExpression rootPe && rootPe.Path is NormalLangPath rootNlp
-                    && rootNlp.PathSegments.Length == 1)
-                    sourceName = rootNlp.PathSegments[0].ToString();
-            }
+            var (sourceName, refKind) = borrowInfo.Value;
 
-            if (sourceName != null)
-            {
-                // NLL-style: instead of erroring on conflict, invalidate conflicting borrows.
-                // If the invalidated borrow is used later, THAT's when the error fires.
-                analyzer.InvalidateConflictingBorrows(sourceName, pge.RefKind);
+            // NLL-style: invalidate conflicting borrows
+            analyzer.InvalidateConflictingBorrows(sourceName, refKind);
+            analyzer.RegisterBorrow(sourceName, VariableDefinition.Name, refKind);
 
-                analyzer.RegisterBorrow(sourceName, VariableDefinition.Name, pge.RefKind);
-
-                // If borrowing from a local (not a function parameter), mark this variable
-                // as holding a local borrow — it cannot be returned from the function
-                if (!analyzer.IsFunctionParameter(sourceName))
-                    analyzer.MarkAsLocalBorrow(VariableDefinition.Name);
-            }
+            if (!analyzer.IsFunctionParameter(sourceName))
+                analyzer.MarkAsLocalBorrow(VariableDefinition.Name);
         }
 
         // If RHS is a variable and the type is not Copy, mark the source as moved
@@ -243,5 +229,183 @@ public class LetStatement : IStatement
     {
         return typePath is NormalLangPath nlp
                && nlp.Contains(RefTypeDefinition.GetRefModule());
+    }
+
+    /// <summary>Extract the RefKind from a reference type path.</summary>
+    private static RefKind GetRefKindFromTypePath(LangPath typePath)
+    {
+        if (typePath is NormalLangPath nlp)
+        {
+            foreach (RefKind rk in Enum.GetValues(typeof(RefKind)))
+            {
+                var refName = RefTypeDefinition.GetRefName(rk);
+                if (nlp.PathSegments.Any(s => s.ToString() == refName))
+                    return rk;
+            }
+        }
+        return RefKind.Shared;
+    }
+
+    /// <summary>
+    /// Extract the variable name from an expression (for borrow tracking).
+    /// Returns the root variable name if the expression is a simple variable or field access.
+    /// </summary>
+    private static string? GetVariableOrigin(IExpression? expr)
+    {
+        if (expr is PathExpression pe && pe.Path is NormalLangPath nlp && nlp.PathSegments.Length == 1)
+            return nlp.PathSegments[0].ToString();
+        if (expr is FieldAccessExpression fae)
+        {
+            IExpression root = fae;
+            while (root is FieldAccessExpression f) root = f.Caller;
+            return GetVariableOrigin(root);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Extract borrow source from an expression using Rust-style lifetime elision.
+    /// Handles direct borrows (&amp;x), function calls returning references,
+    /// and method calls returning references.
+    ///
+    /// Elision rules (from Rust):
+    /// 1. If there is exactly one reference input parameter, its lifetime is assigned to all output references.
+    /// 2. If there is a self parameter that is a reference, its lifetime is assigned to all output references.
+    /// </summary>
+    private static (string sourceName, RefKind refKind)? ExtractBorrowSource(
+        IExpression? expr, SemanticAnalyzer analyzer)
+    {
+        if (expr == null) return null;
+
+        // Case 1: Direct borrow — &x, &mut x, &const x, &uniq x
+        if (expr is PointerGetterExpression pge)
+        {
+            var origin = GetVariableOrigin(pge.PointingTo);
+            if (origin != null)
+                return (origin, pge.RefKind);
+            return null;
+        }
+
+        // Case 2: Function call returning a reference type
+        if (expr is FunctionCallExpression fce && IsReferenceType(fce.TypePath))
+        {
+            var refKind = GetRefKindFromTypePath(fce.TypePath!);
+
+            // Look up the function definition to check declared parameter types
+            // This is signature-based, not argument-based — future-proof for Deref coercion
+            FunctionDefinition? funcDef = null;
+            var lookupPath = fce.FunctionPath;
+            // Try direct lookup, then strip generics, then pop
+            funcDef = analyzer.GetDefinition(lookupPath) as FunctionDefinition;
+            if (funcDef == null && lookupPath.GetFrontGenerics().Length > 0)
+                funcDef = analyzer.GetDefinition(lookupPath.PopGenerics()) as FunctionDefinition;
+            if (funcDef == null)
+                funcDef = analyzer.GetDefinition(lookupPath.Pop()) as FunctionDefinition;
+
+            if (funcDef != null)
+            {
+                var refArgSources = new List<string>();
+                for (int i = 0; i < funcDef.Arguments.Length && i < fce.Arguments.Length; i++)
+                {
+                    var declaredParamType = funcDef.Arguments[i].TypePath;
+                    if (!IsReferenceType(declaredParamType)) continue;
+
+                    // This parameter is declared as a reference type — trace the actual argument
+                    var arg = fce.Arguments[i];
+                    string? origin = null;
+                    if (arg is PointerGetterExpression argPge)
+                        origin = GetVariableOrigin(argPge.PointingTo);
+                    else
+                        origin = GetVariableOrigin(arg);
+
+                    // If the argument is a variable holding a reference, trace to ultimate source
+                    if (origin != null && IsReferenceType(arg.TypePath))
+                    {
+                        var ultimate = analyzer.GetBorrowSource(origin);
+                        if (ultimate != null) origin = ultimate;
+                    }
+
+                    if (origin != null)
+                        refArgSources.Add(origin);
+                }
+
+                // Elision rule: if exactly one reference parameter, output borrows from it
+                if (refArgSources.Count == 1)
+                    return (refArgSources[0], refKind);
+            }
+            else
+            {
+                // Fallback for trait method calls where FunctionDefinition isn't directly found:
+                // use ResolveTraitMethodReturnType path to find the trait method signature
+                var traitReturnType = analyzer.ResolveTraitMethodReturnType(fce.FunctionPath);
+                if (traitReturnType != null)
+                {
+                    // Can't inspect trait method params easily, fall back to argument inspection
+                    var refArgSources = new List<string>();
+                    for (int i = 0; i < fce.Arguments.Length; i++)
+                    {
+                        var arg = fce.Arguments[i];
+                        string? origin = null;
+                        if (arg is PointerGetterExpression argPge)
+                            origin = GetVariableOrigin(argPge.PointingTo);
+                        else if (IsReferenceType(arg.TypePath))
+                        {
+                            origin = GetVariableOrigin(arg);
+                            if (origin != null)
+                            {
+                                var ultimate = analyzer.GetBorrowSource(origin);
+                                if (ultimate != null) origin = ultimate;
+                            }
+                        }
+                        if (origin != null)
+                            refArgSources.Add(origin);
+                    }
+                    if (refArgSources.Count == 1)
+                        return (refArgSources[0], refKind);
+                }
+            }
+
+            return null;
+        }
+
+        // Case 3: Method call returning a reference type
+        // Elision rule: if self param is a reference, output borrows from self's source
+        if (expr is MethodCallExpression mce && IsReferenceType(mce.TypePath))
+        {
+            var refKind = GetRefKindFromTypePath(mce.TypePath!);
+
+            // The receiver is always the "self" borrow source (Rust elision rule 2)
+            var receiverOrigin = GetVariableOrigin(mce.Receiver);
+            if (receiverOrigin != null)
+            {
+                // If receiver itself holds a reference, trace to ultimate source
+                if (IsReferenceType(mce.Receiver.TypePath))
+                {
+                    var ultimate = analyzer.GetBorrowSource(receiverOrigin);
+                    if (ultimate != null) receiverOrigin = ultimate;
+                }
+                return (receiverOrigin, refKind);
+            }
+
+            return null;
+        }
+
+        // Case 4: Variable that already holds a reference — propagate its borrow source
+        if (expr is PathExpression pathExpr && IsReferenceType(pathExpr.TypePath))
+        {
+            var varName = GetVariableOrigin(pathExpr);
+            if (varName != null)
+            {
+                // Find what this variable borrows from
+                var ultimateSource = analyzer.GetBorrowSource(varName);
+                if (ultimateSource != null)
+                {
+                    var refKind = GetRefKindFromTypePath(pathExpr.TypePath!);
+                    return (ultimateSource, refKind);
+                }
+            }
+        }
+
+        return null;
     }
 }

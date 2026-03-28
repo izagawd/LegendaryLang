@@ -394,6 +394,20 @@ public class SemanticAnalyzer
     public bool IsBorrowInvalidated(string variableName) => _invalidatedBorrows.Contains(variableName);
 
     /// <summary>
+    /// Get the source variable that a given variable borrows from.
+    /// Returns null if the variable doesn't borrow from anything.
+    /// </summary>
+    public string? GetBorrowSource(string borrower)
+    {
+        foreach (var (source, borrowers) in _borrowSources)
+        {
+            if (borrowers.Contains(borrower))
+                return source;
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Track a variable declared in the current scope for lifetime tracking.
     /// </summary>
     public void TrackScopeVariable(string name)
