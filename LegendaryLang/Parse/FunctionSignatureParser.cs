@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
+using Operator = LegendaryLang.Lex.Operator;
 
 namespace LegendaryLang.Parse;
 
