@@ -171,14 +171,9 @@ public class LetStatement : IStatement
 
             if (sourceName != null)
             {
-                // Check borrow compatibility before registering
-                var conflict = analyzer.CheckBorrowCompatibility(sourceName, pge.RefKind);
-                if (conflict != null)
-                {
-                    analyzer.AddException(new BorrowConflictException(
-                        sourceName, conflict.Value.borrower, conflict.Value.existingKind,
-                        pge.RefKind, Token.GetLocationStringRepresentation()));
-                }
+                // NLL-style: instead of erroring on conflict, invalidate conflicting borrows.
+                // If the invalidated borrow is used later, THAT's when the error fires.
+                analyzer.InvalidateConflictingBorrows(sourceName, pge.RefKind);
 
                 analyzer.RegisterBorrow(sourceName, VariableDefinition.Name, pge.RefKind);
 

@@ -77,6 +77,10 @@ public class PointerGetterExpression : IExpression
                 BorrowOriginName = rnlp.PathSegments[0].ToString();
             }
         }
+
+        // Invalidate conflicting borrows even for standalone expressions like `&mut a;`
+        if (BorrowOriginName != null)
+            analyzer.InvalidateConflictingBorrows(BorrowOriginName, _refKind);
     }
 
     public bool HasGuaranteedExplicitReturn => PointingTo.HasGuaranteedExplicitReturn;

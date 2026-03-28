@@ -353,6 +353,28 @@ public class SemanticAnalyzer
     }
 
     /// <summary>
+    /// NLL-style: invalidate any existing borrows from <paramref name="source"/>
+    /// that conflict with <paramref name="newKind"/>. The invalidated borrows will
+    /// error only if they are used after this point.
+    /// </summary>
+    public void InvalidateConflictingBorrows(string source, RefKind newKind)
+    {
+        if (!_activeBorrows.TryGetValue(source, out var activeList))
+            return;
+
+        var toInvalidate = activeList
+            .Where(b => !AreRefKindsCompatible(b.kind, newKind))
+            .Select(b => b.borrower)
+            .ToList();
+
+        foreach (var borrower in toInvalidate)
+        {
+            _invalidatedBorrows.Add(borrower);
+            activeList.RemoveAll(b => b.borrower == borrower);
+        }
+    }
+
+    /// <summary>
     /// Invalidate all borrows from <paramref name="source"/> (called on shadowing or scope exit).
     /// </summary>
     public void InvalidateBorrowsFrom(string source)
@@ -917,16 +939,6 @@ public class SemanticAnalyzer
 
         // Check concrete impl
         if (TypeImplementsTrait(typePath, copyPath)) return true;
-
-        // References are Copy except &uniq T (which is unique/exclusive)
-        if (typePath is NormalLangPath nlpPtr
-            && nlpPtr.Contains(RefTypeDefinition.GetRefModule()))
-        {
-            // Check it's not &uniq — the path segment before the generic is the ref kind name
-            var refKindName = RefTypeDefinition.GetRefName(RefKind.Uniq);
-            bool isUniq = nlpPtr.PathSegments.Any(s => s.ToString() == refKindName);
-            if (!isUniq) return true;
-        }
 
         // Check if this is a generic param with a Copy trait bound
         if (typePath is NormalLangPath nlp && nlp.PathSegments.Length == 1)

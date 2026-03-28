@@ -386,7 +386,7 @@ public class RefConstTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_const_with_mut_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.HasError<BorrowConflictError>());
+        Assert.That(result.HasError<BorrowInvalidatedError>());
     }
 }
 
@@ -428,7 +428,7 @@ public class RefMutTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_mut_with_const_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.HasError<BorrowConflictError>());
+        Assert.That(result.HasError<BorrowInvalidatedError>());
     }
 }
 
@@ -450,7 +450,7 @@ public class RefUniqTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_uniq_with_shared_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.HasError<BorrowConflictError>());
+        Assert.That(result.HasError<BorrowInvalidatedError>());
     }
 
     [Test]
@@ -460,7 +460,7 @@ public class RefUniqTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_uniq_with_const_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.HasError<BorrowConflictError>());
+        Assert.That(result.HasError<BorrowInvalidatedError>());
     }
 
     [Test]
@@ -470,7 +470,7 @@ public class RefUniqTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_uniq_with_mut_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.HasError<BorrowConflictError>());
+        Assert.That(result.HasError<BorrowInvalidatedError>());
     }
 
     [Test]
@@ -480,7 +480,7 @@ public class RefUniqTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_uniq_double_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.HasError<BorrowConflictError>());
+        Assert.That(result.HasError<BorrowInvalidatedError>());
     }
 
     [Test]
@@ -490,7 +490,7 @@ public class RefUniqTests
         var result = Compiler.CompileWithResult(
             "compiler_tests/ref_tests/ref_shared_after_uniq_fail_test", true, true);
         Assert.That(!result.Success);
-        Assert.That(result.HasError<BorrowConflictError>());
+        Assert.That(result.HasError<BorrowInvalidatedError>());
     }
 
     [Test]
@@ -554,5 +554,184 @@ public class RefCopyTests
             "compiler_tests/ref_tests/ref_mut_is_copy_test", true, true);
         Assert.That(result.Success);
         Assert.That(10 == result.Function?.Invoke());
+    }
+}
+
+public class RefNllTests
+{
+    [Test]
+    public void RefUniqThenMutNllPassTest()
+    {
+        // &uniq then &mut — old borrow not used after, NLL allows this
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_uniq_then_mut_nll_pass_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefConstThenMutNllPassTest()
+    {
+        // &const then &mut — old borrow not used after, NLL allows this
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_const_then_mut_nll_pass_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefUniqThenUniqNllPassTest()
+    {
+        // &uniq then &uniq — old borrow not used after, NLL allows this
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_uniq_then_uniq_nll_pass_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+}
+
+public class RefNllFailTests
+{
+    [Test]
+    public void RefUniqThenMutUseOldFailTest()
+    {
+        // &uniq then &mut, then USE the invalidated &uniq — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_uniq_then_mut_use_old_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefConstThenMutUseOldFailTest()
+    {
+        // &const then &mut, then USE the invalidated &const — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_const_then_mut_use_old_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefUniqThenUniqUseOldFailTest()
+    {
+        // &uniq then &uniq, then USE the first &uniq — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_uniq_then_uniq_use_old_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefUniqThenSharedUseOldFailTest()
+    {
+        // &uniq then &shared, then USE the invalidated &uniq — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_uniq_then_shared_use_old_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefMutThenConstUseOldFailTest()
+    {
+        // &mut then &const, then USE the invalidated &mut — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_mut_then_const_use_old_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefUniqThenConstUseOldFailTest()
+    {
+        // &uniq then &const, then USE the invalidated &uniq — should fail
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_uniq_then_const_use_old_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+}
+
+public class RefStandaloneBorrowTests
+{
+    [Test]
+    public void RefStandaloneUniqInvalidatesUniqFailTest()
+    {
+        // &uniq a; invalidates existing &uniq borrow dd — *dd fails
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_standalone_uniq_invalidates_uniq_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefStandaloneUniqInvalidatesMutFailTest()
+    {
+        // &uniq a; invalidates existing &mut borrow dd — *dd fails
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_standalone_uniq_invalidates_mut_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefStandaloneUniqInvalidatesSharedFailTest()
+    {
+        // &uniq a; invalidates existing &shared borrow dd — *dd fails
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_standalone_uniq_invalidates_shared_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefStandaloneConstInvalidatesMutFailTest()
+    {
+        // &const a; invalidates existing &mut borrow dd — *dd fails
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_standalone_const_invalidates_mut_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefStandaloneMutInvalidatesConstFailTest()
+    {
+        // &mut a; invalidates existing &const borrow dd — *dd fails
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_standalone_mut_invalidates_const_fail_test", true, true);
+        Assert.That(!result.Success);
+        Assert.That(result.HasError<BorrowInvalidatedError>());
+    }
+
+    [Test]
+    public void RefStandaloneUniqNotUsedPassTest()
+    {
+        // &uniq a; invalidates dd but dd is never used again — pass
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_standalone_uniq_not_used_pass_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefStandaloneSharedCompatiblePassTest()
+    {
+        // &a; does NOT invalidate existing &a borrow — *dd still works
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_standalone_shared_compatible_pass_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
+    }
+
+    [Test]
+    public void RefStandaloneMutCompatiblePassTest()
+    {
+        // &mut a; does NOT invalidate existing &mut borrow — *dd still works
+        var result = Compiler.CompileWithResult(
+            "compiler_tests/ref_tests/ref_standalone_mut_compatible_pass_test", true, true);
+        Assert.That(result.Success);
+        Assert.That(5 == result.Function?.Invoke());
     }
 }
