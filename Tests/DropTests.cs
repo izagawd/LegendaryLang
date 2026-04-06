@@ -82,6 +82,48 @@ public class DropTests
     [Test] public void DropEnumVariantPayloadTest() => AssertSuccess("drop_tests/drop_enum_variant_payload_test", 1);
     [Test] public void DropEnumInactiveVariantTest() => AssertSuccess("drop_tests/drop_enum_inactive_variant_test", 0);
 
+    [Test]
+    public void DropEnumTwoDroppableVariantsTest()
+    {
+        // Two variants with Drop fields — only variant A stored, only A's Drop runs (+10)
+        AssertSuccess("drop_tests/drop_enum_two_droppable_variants_test", 10);
+    }
+
+    [Test]
+    public void DropEnumInactiveDroppableNotCalledTest()
+    {
+        // Variant Empty stored, Has(Tracker) not — counter stays 0
+        AssertSuccess("drop_tests/drop_enum_inactive_droppable_not_called_test", 0);
+    }
+
+    [Test]
+    public void DropEnumMatchThenDropTest()
+    {
+        // Match enum, then scope exit drops it — Tracker increments counter
+        AssertSuccess("drop_tests/drop_enum_match_then_drop_test", 1);
+    }
+
+    [Test]
+    public void DropEnumGenericSomeDropsTest()
+    {
+        // Option.Some(Tracker) — Tracker drops (+1)
+        AssertSuccess("drop_tests/drop_enum_generic_some_drops_test", 1);
+    }
+
+    [Test]
+    public void DropEnumGenericNoneNoDropTest()
+    {
+        // Option(Tracker).None — no payload, counter stays 0
+        AssertSuccess("drop_tests/drop_enum_generic_none_no_drop_test", 0);
+    }
+
+    [Test]
+    public void DropEnumScopeExitTest()
+    {
+        // Enum with droppable payload drops at scope exit — after=1
+        AssertSuccess("drop_tests/drop_enum_scope_exit_test", 1);
+    }
+
     // ═══════════════════════════════════════════════════════════════
     //  BOX DESTRUCT TESTS — DestructPtr intrinsic
     // ═══════════════════════════════════════════════════════════════

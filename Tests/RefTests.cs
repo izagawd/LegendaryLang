@@ -513,6 +513,72 @@ public class RefEnumPatternMatchTests
         // match &enum with unit variants — just dispatch, no bindings
         CompilerTestHelper.AssertSuccess("ref_tests/ref_match_unit_variant_test", 3);
     }
+
+    // ── Multi-field reference matching ──
+
+    [Test]
+    public void RefMatchSharedMultiFieldTest()
+    {
+        // match &Pair.Two(a, b) — both a,b are &i32, deref and sum
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_match_shared_multi_field_test", 42);
+    }
+
+    [Test]
+    public void RefMatchMutMultiFieldTest()
+    {
+        // match &mut Pair — modify both fields, verify changes
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_match_mut_multi_field_test", 24);
+    }
+
+    // ── Wildcard and dispatch ──
+
+    [Test]
+    public void RefMatchSharedWildcardTest()
+    {
+        // match &Color with wildcard — Red=1, Blue via wildcard=0
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_match_shared_wildcard_test", 1);
+    }
+
+    [Test]
+    public void RefMatchRefDispatchAllVariantsTest()
+    {
+        // match &Dir for dx and dy — Dir.E → dx=1, dy=0
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_match_ref_dispatch_all_variants_test", 1);
+    }
+
+    // ── Generic and nested ──
+
+    [Test]
+    public void RefMatchSharedNestedGenericTest()
+    {
+        // Two &Option(i32) matched — Some(30)+Some(12)=42, Some(30)+None=30, total=72
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_match_shared_nested_generic_test", 72);
+    }
+
+    // ── Value then ref, ref then value ──
+
+    [Test]
+    public void RefMatchValueThenRefTest()
+    {
+        // Read by ref (50), then match by value (50) — total 100
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_match_value_then_ref_test", 100);
+    }
+
+    // ── Write through ref then read by value ──
+
+    [Test]
+    public void RefMatchUniqWriteThenReadTest()
+    {
+        // Set via &uniq twice (42, then 77), read by value — 77
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_match_uniq_write_then_read_test", 77);
+    }
+
+    [Test]
+    public void RefMatchMutCallerSeesChangeTest()
+    {
+        // Increment Counter 3 times via &mut match — caller reads 3
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_match_mut_caller_sees_change_test", 3);
+    }
 }
 
 public class RefBorrowThroughGenericTests

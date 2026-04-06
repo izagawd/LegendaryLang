@@ -1,8 +1,3 @@
-enum Option(T:! type) {
-    Some(T),
-    None
-}
-
 fn unwrap_or(opt: &Option(i32), default: i32) -> i32 {
     match opt {
         Option.Some(x) => *x,

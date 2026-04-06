@@ -1535,7 +1535,7 @@ public class SemanticAnalyzer
                 var name = def.TypePath is NormalLangPath nlpDef
                     ? nlpDef.GetLastPathSegment()?.ToString()
                     : null;
-                if (name is "Box" or "Copy" or "MutReassign")
+                if (name is "Box" or "Copy" or "MutReassign" or "Option")
                 {
                     var usings = new UseDefinition((NormalLangPath)def.TypePath, null);
                     usings.RegisterUsings(pathShortcutContext);

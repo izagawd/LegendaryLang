@@ -20,6 +20,7 @@ A compiled programming language that targets native machine code via LLVM. It dr
 - [Type Inference](#type-inference)
 - [Move Semantics and Copy](#move-semantics-and-copy)
 - [Drop and RAII](#drop-and-raii)
+- [References and Borrowing](#references-and-borrowing)
 - [Box and Heap Allocation](#box-and-heap-allocation)
 - [Qualified Trait Calls](#qualified-trait-calls)
 - [Imports](#imports)
@@ -158,6 +159,32 @@ Wildcard `_` catches everything else:
 fn is_north(d: Direction) -> i32 {
     match d {
         Direction.North => 1,
+        _ => 0
+    }
+}
+```
+
+### Matching Through References
+
+When the scrutinee is a reference to an enum, pattern bindings become references to the payload fields instead of copies:
+
+```
+enum Holder {
+    Val(i32)
+}
+
+fn set_inner(h: &mut Holder, v: i32) {
+    match h {
+        Holder.Val(x) => *x = v,   // x is &mut i32, not i32
+        _ => {}
+    }
+}
+
+fn main() -> i32 {
+    let h = Holder.Val(0);
+    set_inner(&mut h, 77);
+    match h {
+        Holder.Val(v) => v,         // by value — v is i32
         _ => 0
     }
 }
@@ -315,12 +342,9 @@ fn area(s: Shape) -> i32 {
 
 ### Generic Enums
 
-```
-enum Option(T:! type) {
-    Some(T),
-    None
-}
+`Option(T)` is provided by the standard library and auto-imported:
 
+```
 fn main() -> i32 {
     let x = Option.Some(7);
     match x {
@@ -330,7 +354,7 @@ fn main() -> i32 {
 }
 ```
 
-Multiple type parameters:
+Custom generic enums with multiple type parameters:
 
 ```
 enum Either(A:! type, B:! type) {
@@ -751,6 +775,145 @@ use Std.Ops.Drop;
 let _no_drop = ManuallyDrop.New(some_value);
 ```
 
+## References and Borrowing
+
+LegendaryLang has four reference kinds with distinct aliasing and mutation guarantees. See [REFERENCES.md](REFERENCES.md) for the full compatibility table and deref hierarchy.
+
+| Kind | Syntax | Aliasing | Mutation | Coexists with |
+|------|--------|----------|----------|---------------|
+| Shared | `&T` | Multiple | Read-only (but can observe mutations from `&mut`) | `&`, `&mut`, `&const` |
+| Mutable | `&mut T` | Multiple | Read + Write | `&`, `&mut` |
+| Const | `&const T` | Multiple | Read-only (guaranteed no mutations observed) | `&`, `&const` |
+| Unique | `&uniq T` | Exclusive | Read + Write | Nothing |
+
+```
+fn increment(r: &mut i32) {
+    *r = *r + 1;
+}
+
+fn main() -> i32 {
+    let x = 0;
+    increment(&mut x);
+    increment(&mut x);
+    x                       // 2
+}
+```
+
+### Deref Assignment
+
+Write through a reference using `*ref = value`:
+
+```
+fn main() -> i32 {
+    let a = 0;
+    let r = &mut a;
+    *r = 42;
+    a                       // 42
+}
+```
+
+`&uniq` can always reassign any type. `&mut` can only reassign types that implement `MutReassign`:
+
+```
+use Std.Marker.MutReassign;
+
+struct Point { x: i32, y: i32 }
+impl Copy for Point {}
+impl MutReassign for Point {}
+
+fn main() -> i32 {
+    let p = make Point { x: 0, y: 0 };
+    let r = &mut p;
+    *r = make Point { x: 10, y: 20 };  // OK — Point implements MutReassign
+    p.x + p.y                          // 30
+}
+```
+
+All primitives, references, and raw pointers implement `MutReassign`. Structs can implement it if all fields do. Enums can only implement it if they're flat (no payload variants).
+
+### Auto-Deref
+
+References are automatically dereferenced for field access and method calls:
+
+```
+struct Point { x: i32, y: i32 }
+impl Copy for Point {}
+
+fn main() -> i32 {
+    let p = make Point { x: 3, y: 4 };
+    let r = &p;
+    r.x + r.y               // auto-deref — no need for (*r).x
+}
+```
+
+### Auto-Reborrow
+
+`&uniq` references are automatically reborrowed when passed to functions, allowing reuse:
+
+```
+fn set(r: &uniq i32, val: i32) {
+    *r = val;
+}
+
+fn main() -> i32 {
+    let x = 0;
+    let r = &uniq x;
+    set(r, 10);              // r is reborrowed, not moved
+    set(r, 20);              // can use r again
+    *r                       // 20
+}
+```
+
+### Lifetimes
+
+Lifetime parameters on structs declare that the type borrows from external data:
+
+```
+struct Holder['a] {
+    val: &'a uniq i32
+}
+```
+
+Functions can have explicit lifetime annotations to control borrow propagation:
+
+```
+fn first['a](a: &'a i32, b: &i32) -> &'a i32 {
+    a
+}
+
+fn main() -> i32 {
+    let x = 10;
+    let y = 20;
+    let r = first(&x, &y);   // r borrows from x, not y
+    *r
+}
+```
+
+Without explicit annotations, **lifetime elision** applies: if a function has exactly one reference parameter, the return value is assumed to borrow from it.
+
+### Non-Lexical Lifetimes (NLL)
+
+Borrows expire at the borrower's **last use**, not at scope exit:
+
+```
+fn main() -> i32 {
+    let x = 10;
+    let r = &uniq x;
+    let val = *r;             // last use of r
+    x + val                   // OK — r's borrow has expired
+}
+```
+
+### Raw Pointers
+
+Raw pointers (`*shared`, `*const`, `*mut`, `*uniq`) are the unsafe counterparts of references. They are used internally by `Box` and the allocator but bypass borrow checking:
+
+```
+// Raw pointers are primarily used through Box internals
+let b: Box(i32) = Box.New(42);
+*b                            // auto-derefs through Box's Deref impl
+```
+
 ## Box and Heap Allocation
 
 `Box(T)` allocates a value on the heap. It automatically frees memory when dropped:
@@ -831,9 +994,15 @@ impl Std.Ops.Add(i32) for MyType {
 }
 ```
 
-`Copy` and `Box` are auto-imported and always available without a `use` statement.
+`Copy`, `Box`, `MutReassign`, and `Option` are auto-imported and always available without a `use` statement.
 
 ## Standard Library
+
+### `Std.Core`
+
+| Item        | Description                                                  |
+|-------------|--------------------------------------------------------------|
+| `Option(T)` | Generic enum with `Some(T)` and `None` variants. Auto-imported. |
 
 ### `Std.Marker`
 
@@ -904,8 +1073,8 @@ let p = make Point { x: 1, y: 2 };
 struct Wrapper(T:! type) { val: T }
 let w = make Wrapper(i32) { val: 42 };
 
-// Enum
-enum Option(T:! type) { Some(T), None }
+// Enum (Option is in std, auto-imported)
+enum Either(A:! type, B:! type) { Left(A), Right(B) }
 let x = Option.Some(5);
 
 // Match
@@ -926,6 +1095,24 @@ impl Foo for i32 { fn bar() -> i32 { 0 } }
 
 // Inherent impl
 impl Point { fn origin() -> Self { make Point { x: 0, y: 0 } } }
+
+// References
+let r = &x;                   // shared
+let r = &mut x;               // mutable (shared)
+let r = &const x;             // const (no mutations observed)
+let r = &uniq x;              // unique (exclusive)
+*r = 42;                      // deref assignment
+r.field                       // auto-deref field access
+
+// Lifetimes
+struct Holder['a] { val: &'a uniq i32 }
+fn first['a](a: &'a i32, b: &i32) -> &'a i32 { a }
+
+// Reference pattern matching
+match &my_enum {
+    Variant(x) => *x,         // x is &T, not T
+    _ => 0
+}
 
 // Import
 use Std.Ops.Add;
