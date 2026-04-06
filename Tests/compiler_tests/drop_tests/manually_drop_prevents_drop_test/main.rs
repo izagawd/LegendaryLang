@@ -15,7 +15,7 @@ fn main() -> i32 {
     let result = 0;
     {
         let c = make Counter { r: &uniq result };
-        let _md = make ManuallyDrop(Counter) { val: c };
+        let _md = ManuallyDrop.New(c);
     };
     result
 }

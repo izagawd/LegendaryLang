@@ -514,3 +514,48 @@ public class RefEnumPatternMatchTests
         CompilerTestHelper.AssertSuccess("ref_tests/ref_match_unit_variant_test", 3);
     }
 }
+
+public class RefBorrowThroughGenericTests
+{
+    [Test]
+    public void RefBorrowThroughGenericFailTest()
+    {
+        // Struct with &uniq borrow passed through generic fn, then source reassigned — should fail
+        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_borrow_through_generic_fail_test");
+    }
+
+    [Test]
+    public void RefBorrowThroughGenericPassTest()
+    {
+        // Struct with &uniq borrow passed through generic fn, consumed before source used — should pass
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_borrow_through_generic_pass_test", 5);
+    }
+
+    [Test]
+    public void RefBorrowThroughChainedGenericFailTest()
+    {
+        // Borrow survives through Pass2(Pass1(h)) — two generic hops
+        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_borrow_through_chained_generic_fail_test");
+    }
+
+    [Test]
+    public void RefNoBorrowThroughGenericPassTest()
+    {
+        // Non-borrowing struct through generic — no borrows to propagate
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_no_borrow_through_generic_pass_test", 42);
+    }
+
+    [Test]
+    public void RefUniqBorrowThroughGenericFailTest()
+    {
+        // Struct with &uniq borrow passed through generic fn, then source reassigned — should fail
+        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_uniq_borrow_through_generic_fail_test");
+    }
+
+    [Test]
+    public void RefCopyThroughGenericPassTest()
+    {
+        // Copy type through generic — no borrow tracking needed
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_copy_through_generic_pass_test", 84);
+    }
+}

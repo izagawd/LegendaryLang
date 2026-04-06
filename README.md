@@ -748,7 +748,7 @@ use Std.Mem.ManuallyDrop;
 use Std.Ops.Drop;
 
 // ManuallyDrop(T) prevents T's Drop from running
-let _no_drop = make ManuallyDrop(MyType) { val: some_value };
+let _no_drop = ManuallyDrop.New(some_value);
 ```
 
 ## Box and Heap Allocation

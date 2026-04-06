@@ -270,6 +270,38 @@ public class FunctionCallKind : IChainKind
                 if (refArgSources.Count == 1) results.Add(refArgSources[0]);
             }
         }
+
+        // Propagate borrows through non-Copy arguments that themselves hold borrows.
+        // e.g., PassAround(yo) where yo: Yo{dd: &uniq counter} → result borrows counter.
+        // This handles generic functions like fn f[T](x: T) -> T where T is a struct
+        // with reference fields — the borrow must survive through the call.
+        // Also handles chained calls like Pass2(Pass1(h)) by recursing into argument expressions.
+        if (results.Count == 0)
+        {
+            for (int i = 0; i < Arguments.Length; i++)
+            {
+                if (Arguments[i].TypePath != null && analyzer.IsTypeCopy(Arguments[i].TypePath))
+                    continue;
+
+                // Check if the argument is a variable with existing borrows
+                var argVarName = IExpression.TryGetSimpleVariableName(Arguments[i]);
+                if (argVarName != null)
+                {
+                    var borrowInfo = analyzer.GetBorrowInfo(argVarName);
+                    if (borrowInfo != null)
+                    {
+                        results.Add(borrowInfo.Value);
+                        continue;
+                    }
+                }
+
+                // Check if the argument expression itself produces borrows
+                // (handles chained calls like Pass2(Pass1(h)))
+                var argBorrows = LetStatement.ExtractBorrowSources(Arguments[i], analyzer);
+                results.AddRange(argBorrows);
+            }
+        }
+
         return results;
     }
 

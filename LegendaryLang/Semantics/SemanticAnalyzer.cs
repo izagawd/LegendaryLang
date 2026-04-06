@@ -639,6 +639,25 @@ public class SemanticAnalyzer
     }
 
     /// <summary>
+    /// Get the full borrow info (source + kind) for a borrower variable.
+    /// Returns null if the variable has no registered borrows.
+    /// </summary>
+    public (string source, RefKind kind)? GetBorrowInfo(string borrower)
+    {
+        foreach (var scope in _borrowScopes)
+        {
+            if (!scope.BorrowerToSource.TryGetValue(borrower, out var source)) continue;
+            foreach (var s in _borrowScopes)
+                if (s.ActiveBorrows.TryGetValue(source, out var activeList))
+                    foreach (var (b, kind) in activeList)
+                        if (b == borrower)
+                            return (source, kind);
+            return (source, RefKind.Shared);
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Track a variable declared in the current scope for lifetime tracking.
     /// </summary>
     public void TrackScopeVariable(string name)

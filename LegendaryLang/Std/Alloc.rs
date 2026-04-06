@@ -30,7 +30,7 @@ impl[T:! type] Box(T) {
 
     fn Leak(b: Box(T)) -> &'static uniq T {
         let ptr: *uniq T = b.ptr;
-        let _prevent_drop = make ManuallyDrop(Box(T)) { val: b };
+        let _prevent_drop = ManuallyDrop.New(b);
         &uniq *ptr
     }
 }
