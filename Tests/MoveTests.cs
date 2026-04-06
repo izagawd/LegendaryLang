@@ -120,4 +120,11 @@ public class MoveTests
     [Test] public void EnumCopyNonCopyFieldFailTest() => AssertFail<GenericSemanticError>("move_tests/enum_copy_non_copy_field_fail_test");
 
     [Test] public void EnumCopyAllCopyTest() => AssertSuccess("move_tests/enum_copy_all_copy_test", 4);
+
+    [Test]
+    public void StructFieldMovesNonCopyFailTest()
+    {
+        // Box (non-Copy) used as struct field initializer → moved into struct → can't reuse
+        AssertFail<UseAfterMoveError>("move_tests/struct_field_moves_noncopy_fail_test");
+    }
 }
