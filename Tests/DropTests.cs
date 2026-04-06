@@ -88,4 +88,85 @@ public class DropTests
 
     [Test] public void DropBoxDestructsInnerTest() => AssertSuccess("drop_tests/drop_box_destructs_inner_test", 1);
     [Test] public void DropBoxDestructsNestedFieldTest() => AssertSuccess("drop_tests/drop_box_destructs_nested_field_test", 1);
+
+    // ═══════════════════════════════════════════════════════════════
+    //  RETURN VALUE OWNERSHIP — returned values must NOT be dropped
+    // ═══════════════════════════════════════════════════════════════
+
+    [Test]
+    public void DropReturnImplicitNoDropTest()
+    {
+        // fn passthrough(d) -> Dropper { d } — implicit return, param not dropped
+        AssertSuccess("drop_tests/drop_return_implicit_no_drop_test", 10);
+    }
+
+    [Test]
+    public void DropReturnExplicitNoDropTest()
+    {
+        // fn passthrough(d) -> Dropper { return d; } — explicit return keyword, param not dropped
+        AssertSuccess("drop_tests/drop_return_explicit_no_drop_test", 10);
+    }
+
+    [Test]
+    public void DropBlockLocalDropsValueSurvivesTest()
+    {
+        // let val = { let d = Dropper{...}; 5 } — d drops (+1), val=5, total=6
+        AssertSuccess("drop_tests/drop_block_local_drops_value_survives_test", 6);
+    }
+
+    [Test]
+    public void DropBlockReturnsDroppableTest()
+    {
+        // let d = { make Dropper{...} } — Dropper escapes block, not dropped in block, drops on consume
+        AssertSuccess("drop_tests/drop_block_returns_droppable_test", 1);
+    }
+
+    [Test]
+    public void DropNestedBlockReturnTest()
+    {
+        // let d = { { make Dropper{...} } } — passes through two nested blocks, single drop
+        AssertSuccess("drop_tests/drop_nested_block_return_test", 1);
+    }
+
+    [Test]
+    public void DropNonReturnedLocalDropsTest()
+    {
+        // fn returns 42 but has local Dropper — local drops (+1), val=42, total=43
+        AssertSuccess("drop_tests/drop_non_returned_local_drops_test", 43);
+    }
+
+    [Test]
+    public void DropParamNotReturnedDropsTest()
+    {
+        // fn takes Dropper, returns 77 — param drops at function exit
+        AssertSuccess("drop_tests/drop_param_not_returned_drops_test", 1);
+    }
+
+    [Test]
+    public void DropChainedPassthroughTest()
+    {
+        // pass3(pass2(pass1(d))) — three passthroughs, single drop at the end
+        AssertSuccess("drop_tests/drop_chained_passthrough_test", 1);
+    }
+
+    [Test]
+    public void DropStructWithDroppableFieldReturnedTest()
+    {
+        // fn returns Wrapper{inner: Dropper} — struct not dropped in fn, field drops when wrapper dies
+        AssertSuccess("drop_tests/drop_struct_with_droppable_field_returned_test", 1);
+    }
+
+    [Test]
+    public void DropMixedReturnAndLocalTest()
+    {
+        // keep_first(a, b) returns a, b drops in fn — each counter incremented once
+        AssertSuccess("drop_tests/drop_mixed_return_and_local_test", 2);
+    }
+
+    [Test]
+    public void DropEarlyReturnLocalsDropTest()
+    {
+        // fn has local Dropper, then return new Dropper — local drops, returned doesn't
+        AssertSuccess("drop_tests/drop_early_return_locals_drop_test", 2);
+    }
 }

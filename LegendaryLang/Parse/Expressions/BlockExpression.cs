@@ -34,6 +34,7 @@ public class BlockExpression : IExpression
     public ValueRefItem CodeGen(CodeGenContext context)
     {
         var lastValue = context.GetVoid();
+        IExpression? lastReturnedExpression = null;
         context.AddScope();
 
         foreach (var i in SyntaxNodes.OfType<IDefinition>())
@@ -52,18 +53,21 @@ public class BlockExpression : IExpression
             if (item.Node is IExpression expr)
             {
                 lastValue = expr.CodeGen(context);
+                lastReturnedExpression = expr;
             }
             // return statements are special, as when you encounter one theres no
             // point in code genning the rest of the nodes
             else if (item.Node is ReturnStatement ret)
             {
                 lastValue = ret.ToReturn?.CodeGen(context) ?? context.GetVoid();
+                lastReturnedExpression = ret.ToReturn;
                 break;
             }
             // If the node is a statement, simply generate code.
             else if (item.Node is IStatement stmt)
             {
                 lastValue = context.GetVoid();
+                lastReturnedExpression = null;
                 stmt.CodeGen(context);
             }
 
@@ -107,6 +111,12 @@ public class BlockExpression : IExpression
             context.Builder.BuildStore(returnVal, returnTemp);
             savedReturnValue = new ValueRefItem { Type = lastValue.Type, ValueRef = returnTemp };
         }
+
+        // Mark the returned expression as moved so it won't be dropped at scope exit.
+        // Returning a value transfers ownership to the caller — the callee must not destruct it.
+        // This searches ALL scope levels, so it handles function parameters being returned too.
+        if (lastReturnedExpression != null)
+            context.TryMarkExpressionDropMoved(lastReturnedExpression);
 
         // Emit drop calls for droppable variables before exiting scope
         context.EmitDropCalls();
