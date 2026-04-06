@@ -78,7 +78,7 @@ public class DerefExpression : IExpression
             if (isReference)
             {
                 // Reference deref — capability comes from the reference kind
-                SourceDerefKind = ExtractRefKindFromPath(Inner.TypePath);
+                SourceDerefKind = RefTypeDefinition.ExtractRefKindFromPath(Inner.TypePath);
 
                 // Flag non-Copy deref ONLY for value types.
                 // If the pointee is itself a reference or raw pointer, deref just accesses it
@@ -137,18 +137,6 @@ public class DerefExpression : IExpression
         analyzer.AddException(new DerefNonReferenceException(
             Inner.TypePath!, Token.GetLocationStringRepresentation()));
         TypePath = Inner.TypePath;
-    }
-
-    /// <summary>
-    /// Extracts the RefKind from a reference type path (std.reference.shared → Shared, etc.)
-    /// </summary>
-    private static RefKind ExtractRefKindFromPath(LangPath? typePath)
-    {
-        if (typePath is NormalLangPath nlp)
-            foreach (RefKind rk in Enum.GetValues<RefKind>())
-                if (nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == RefTypeDefinition.GetRefName(rk)))
-                    return rk;
-        return RefKind.Shared;
     }
 
     /// <summary>

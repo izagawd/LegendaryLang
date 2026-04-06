@@ -664,16 +664,9 @@ public class SemanticAnalyzer
         if (expr is PointerGetterExpression pge && pge.BorrowOriginName != null)
             return IsVariableInCurrentScope(pge.BorrowOriginName);
 
-        if (expr is ChainExpression { SimpleVariableName: string chainName })
-        {
-            return IsLocalBorrow(chainName) && IsVariableInCurrentScope(chainName);
-        }
-
-        if (expr is PathExpression pe && pe.Path is NormalLangPath nlp && nlp.PathSegments.Length == 1)
-        {
-            var name = nlp.PathSegments[0].ToString();
+        var name = IExpression.TryGetSimpleVariableName(expr);
+        if (name != null)
             return IsLocalBorrow(name) && IsVariableInCurrentScope(name);
-        }
 
         return false;
     }
@@ -744,20 +737,9 @@ public class SemanticAnalyzer
         }
 
         // Variable that holds a local borrow: let r = &local; return r;
-        if (expr is ChainExpression { SimpleVariableName: string chainVarName })
-        {
-            if (IsLocalBorrow(chainVarName))
-                return true;
-            return false;
-        }
-
-        if (expr is PathExpression pe && pe.Path is NormalLangPath nlp && nlp.PathSegments.Length == 1)
-        {
-            var name = nlp.PathSegments[0].ToString();
-            if (IsLocalBorrow(name))
-                return true;
-            return false;
-        }
+        var name = IExpression.TryGetSimpleVariableName(expr);
+        if (name != null)
+            return IsLocalBorrow(name);
 
         return false;
     }
@@ -1318,40 +1300,18 @@ public class SemanticAnalyzer
     }
 
     /// <summary>
-    /// Checks whether a type implements a given trait, either through a concrete impl
-    /// or through a generic parameter trait bound.
-    /// </summary>
-    private bool TypeHasTraitBound(LangPath typePath, LangPath traitPath)
-    {
-        if (TypeImplementsTrait(typePath, traitPath)) return true;
-
-        if (typePath is NormalLangPath nlp && nlp.PathSegments.Length == 1)
-        {
-            var paramName = nlp.PathSegments[0].ToString();
-            foreach (var bounds in TraitBoundsStack)
-                foreach (var (tp, pName, _) in bounds)
-                    if (pName == paramName && tp == traitPath)
-                        return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
     /// Checks whether a type implements the Copy trait.
     /// Copy types are bitwise-copied on assignment; non-Copy types are moved.
-    /// Also recognizes generic params that have Copy as a trait bound.
     /// </summary>
     public bool IsTypeCopy(LangPath? typePath)
-        => typePath == null || TypeHasTraitBound(typePath, CopyTraitPath);
+        => typePath == null || TypeImplementsTrait(typePath, CopyTraitPath);
 
     /// <summary>
     /// Checks whether a type implements the Drop trait.
     /// Drop types have their drop() method called when they go out of scope.
-    /// Also recognizes generic params that have Drop as a trait bound.
     /// </summary>
     public bool IsTypeDrop(LangPath? typePath)
-        => typePath != null && TypeHasTraitBound(typePath, DropTraitPath);
+        => typePath != null && TypeImplementsTrait(typePath, DropTraitPath);
 
     /// <summary>
     /// The canonical path of the Copy marker trait: std.core.marker.Copy
@@ -1442,14 +1402,9 @@ public class SemanticAnalyzer
     {
         if (expr.TypePath != null && !IsTypeCopy(expr.TypePath))
         {
-            if (expr is ChainExpression { SimpleVariableName: string varName })
-            {
+            var varName = IExpression.TryGetSimpleVariableName(expr);
+            if (varName != null)
                 MarkAsMoved(varName);
-            }
-            else if (expr is PathExpression pe && pe.Path is NormalLangPath nlp && nlp.PathSegments.Length == 1)
-            {
-                MarkAsMoved(nlp.PathSegments[0].ToString());
-            }
         }
     }
 

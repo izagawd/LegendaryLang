@@ -2,6 +2,8 @@ using System.Collections.Immutable;
 using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Definitions;
 using LegendaryLang.Definitions.Types;
+using LegendaryLang.Lex.Tokens;
+using LegendaryLang.Parse.Statements;
 using LegendaryLang.Semantics;
 using LLVMSharp.Interop;
 
@@ -14,14 +16,68 @@ namespace LegendaryLang.Parse.Expressions;
 public static class CallExpressionHelper
 {
     /// <summary>
+    /// Checks for conflicting borrows across a set of sub-expressions within a single compound
+    /// expression (struct literal fields, function call arguments, enum variant fields).
+    /// 
+    /// The problem this solves: PointerGetterExpression.Analyze only invalidates existing borrows
+    /// but doesn't register new ones — registration is deferred to LetStatement. So within a single
+    /// compound expression like `make Foo { a: &amp;uniq x, b: &amp;uniq x }`, the two borrows never
+    /// see each other. This method collects all borrow sources and checks for conflicts.
+    /// </summary>
+    public static void CheckBorrowConflicts(
+        IEnumerable<IExpression> expressions, SemanticAnalyzer analyzer, Token? errorToken)
+    {
+        var seenBorrows = new List<(string source, RefKind kind, IExpression expr)>();
+        
+        foreach (var expr in expressions)
+        {
+            var sources = LetStatement.ExtractBorrowSources(expr, analyzer);
+            foreach (var (sourceName, refKind) in sources)
+            {
+                // Check against all previously seen borrows from earlier sub-expressions
+                foreach (var (prevSource, prevKind, _) in seenBorrows)
+                {
+                    if (prevSource != sourceName) continue;
+                    
+                    // &uniq conflicts with everything (including another &uniq)
+                    if (refKind == RefKind.Uniq || prevKind == RefKind.Uniq)
+                    {
+                        var tokenLoc = errorToken?.GetLocationStringRepresentation() ?? "";
+                        analyzer.AddException(new BorrowConflictException(
+                            sourceName, "(earlier field/argument)", prevKind, refKind, tokenLoc));
+                    }
+                    // &const and &mut conflict with each other
+                    else if ((refKind == RefKind.Const && prevKind == RefKind.Mut) ||
+                             (refKind == RefKind.Mut && prevKind == RefKind.Const))
+                    {
+                        var tokenLoc = errorToken?.GetLocationStringRepresentation() ?? "";
+                        analyzer.AddException(new BorrowConflictException(
+                            sourceName, "(earlier field/argument)", prevKind, refKind, tokenLoc));
+                    }
+                }
+                
+                seenBorrows.Add((sourceName, refKind, expr));
+            }
+        }
+    }
+
+    /// <summary>
     /// Analyzes arguments and marks non-&amp;uniq ones as moved.
     /// &amp;uniq arguments get automatic reborrowing (like Rust's &amp;mut auto-reborrow).
+    /// Also checks for conflicting borrows across arguments (e.g., foo(&amp;uniq x, &amp;uniq x)).
     /// </summary>
     public static void AnalyzeArgumentsWithReborrow(
         ImmutableArray<IExpression> arguments, SemanticAnalyzer analyzer)
     {
         foreach (var arg in arguments)
             AnalyzeExpressionWithReborrow(arg, analyzer);
+        
+        // Check for conflicting borrows across arguments
+        if (arguments.Length > 1)
+        {
+            var token = arguments.Length > 0 ? arguments[0].Token : null;
+            CheckBorrowConflicts(arguments, analyzer, token);
+        }
     }
 
     /// <summary>
@@ -83,7 +139,7 @@ public static class CallExpressionHelper
         LLVMValueRef callResult, ConcreteDefinition.Type returnType, CodeGenContext context)
     {
         LLVMValueRef stackPtr;
-        if (returnType is RefType || returnType is RawPtrType)
+        if (returnType is PointerLikeType)
         {
             // Pointer types: the call result IS the pointer value itself.
             // Store it directly — don't go through AssignToStack which would

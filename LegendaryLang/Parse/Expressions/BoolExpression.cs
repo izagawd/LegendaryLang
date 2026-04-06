@@ -15,7 +15,7 @@ public class BoolExpression : IExpression
 
     public IBoolToken Token { get; }
 
-    public static BoolType BoolType { get; } = new(new BoolTypeDefinition());
+    public static PrimitiveType BoolType { get; } = new(new BoolTypeDefinition(), LLVMTypeRef.Int1, "bool");
     public IEnumerable<ISyntaxNode> Children => [];
 
     Token ISyntaxNode.Token => (Token)Token;

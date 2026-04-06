@@ -105,7 +105,7 @@ public class BinaryOperationExpression : IExpression
             return new ValueRefItem()
             {
                 ValueRef = valueRef,
-                Type = new BoolType(new BoolTypeDefinition())
+                Type = new PrimitiveType(new BoolTypeDefinition(), LLVMTypeRef.Int1, "bool")
             };
         }
 

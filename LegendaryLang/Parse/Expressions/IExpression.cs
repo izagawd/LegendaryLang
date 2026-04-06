@@ -269,4 +269,17 @@ public interface IExpression : IStatement
         Parenthesis.ParseRight(parser);
         return args.ToImmutableArray();
     }
+
+    /// <summary>
+    /// Extracts the simple variable name from an expression, if it's a bare identifier.
+    /// Works for both ChainExpression (new) and PathExpression (legacy).
+    /// Returns null if the expression is not a simple variable reference.
+    /// </summary>
+    public static string? TryGetSimpleVariableName(IExpression? expr) => expr switch
+    {
+        ChainExpression { SimpleVariableName: string name } => name,
+        PathExpression pe when pe.Path is NormalLangPath nlp && nlp.PathSegments.Length == 1
+            => nlp.PathSegments[0].ToString(),
+        _ => null
+    };
 }

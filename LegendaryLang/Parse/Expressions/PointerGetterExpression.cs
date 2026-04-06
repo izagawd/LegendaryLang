@@ -69,50 +69,11 @@ public class PointerGetterExpression : IExpression
         }
 
         // Track borrow origin for lifetime checking
-        if (PointingTo is ChainExpression { SimpleVariableName: string chainVar })
-        {
-            BorrowOriginName = chainVar;
-        }
-        else if (PointingTo is ChainExpression chainWithSteps && chainWithSteps.Steps.Length > 0)
-        {
-            // For &f.val — root "f" is the borrow origin
-            BorrowOriginName = chainWithSteps.RootName;
-        }
-        else if (PointingTo is PathExpression pe && pe.Path is NormalLangPath nlp && nlp.PathSegments.Length == 1)
-        {
-            BorrowOriginName = nlp.PathSegments[0].ToString();
-        }
-        else if (PointingTo is DerefExpression derefExpr)
-        {
-            // For &*boxed_foo, the borrow origin is the variable holding the Box/ref.
-            // But NOT for raw pointer derefs — raw pointers point to heap memory,
-            // not local stack. &uniq *raw_ptr is not a local borrow.
-            IExpression inner = derefExpr.Inner;
+        BorrowOriginName = ExtractBorrowOrigin(PointingTo);
 
-            // Skip borrow tracking for raw pointer derefs
-            bool isRawPtrDeref = inner.TypePath is NormalLangPath innerNlp
-                && innerNlp.Contains(RawPtrTypeDefinition.GetRawPtrModule());
-
-            if (!isRawPtrDeref)
-            {
-                if (inner is ChainExpression { SimpleVariableName: string dcv })
-                    BorrowOriginName = dcv;
-                else if (inner is PathExpression dpe && dpe.Path is NormalLangPath dnlp && dnlp.PathSegments.Length == 1)
-                    BorrowOriginName = dnlp.PathSegments[0].ToString();
-                else if (inner is DerefExpression)
-                {
-                    IExpression root = inner;
-                    while (root is DerefExpression de) root = de.Inner;
-                    if (root is ChainExpression { SimpleVariableName: string rcv })
-                        BorrowOriginName = rcv;
-                    else if (root is PathExpression rpe && rpe.Path is NormalLangPath rnlp && rnlp.PathSegments.Length == 1)
-                        BorrowOriginName = rnlp.PathSegments[0].ToString();
-                }
-            }
-
+        if (PointingTo is DerefExpression derefExpr)
+        {
             // Check deref capability: can this deref source produce the requested ref kind?
-            // Unified for raw pointers, references, AND trait-based deref (Box etc.)
-            // Follows the trait hierarchy: Deref(&) / DerefConst(&const,&) / DerefMut(&mut,&) / DerefUniq(all)
             if (derefExpr.SourceDerefKind != null
                 && !DerefExpression.CanProduceRefKind(derefExpr.SourceDerefKind.Value, _refKind))
             {
@@ -123,24 +84,50 @@ public class PointerGetterExpression : IExpression
                     $"\n{Token.GetLocationStringRepresentation()}"));
             }
         }
-        else if (PointingTo is FieldAccessExpression fae)
-        {
-            // For &s.field, the origin is s
-            IExpression root = fae;
-            while (root is FieldAccessExpression f) root = f.Caller;
-            if (root is ChainExpression { SimpleVariableName: string fcv })
-            {
-                BorrowOriginName = fcv;
-            }
-            else if (root is PathExpression rpe && rpe.Path is NormalLangPath rnlp && rnlp.PathSegments.Length == 1)
-            {
-                BorrowOriginName = rnlp.PathSegments[0].ToString();
-            }
-        }
 
         // Invalidate conflicting borrows even for standalone expressions like `&mut a;`
         if (BorrowOriginName != null)
             analyzer.InvalidateConflictingBorrows(BorrowOriginName, _refKind);
+    }
+
+    /// <summary>
+    /// Walks through deref/field-access chains to find the root variable being borrowed.
+    /// Skips raw pointer derefs (heap memory, not local stack).
+    /// </summary>
+    private static string? ExtractBorrowOrigin(IExpression expr)
+    {
+        // Chain with steps: &f.val → root "f"
+        if (expr is ChainExpression chain)
+            return chain.SimpleVariableName ?? (chain.Steps.Length > 0 ? chain.RootName : null);
+
+        // Simple variable
+        var simple = IExpression.TryGetSimpleVariableName(expr);
+        if (simple != null) return simple;
+
+        // Deref: &*x → origin is x (but skip raw pointer derefs)
+        if (expr is DerefExpression deref)
+        {
+            // Walk through nested derefs to find root
+            IExpression inner = deref.Inner;
+            while (inner is DerefExpression de) inner = de.Inner;
+
+            // Skip raw pointer derefs — they point to heap, not local stack
+            if (inner.TypePath is NormalLangPath innerNlp
+                && innerNlp.Contains(RawPtrTypeDefinition.GetRawPtrModule()))
+                return null;
+
+            return IExpression.TryGetSimpleVariableName(inner);
+        }
+
+        // Field access: &s.field → origin is s
+        if (expr is FieldAccessExpression fae)
+        {
+            IExpression root = fae;
+            while (root is FieldAccessExpression f) root = f.Caller;
+            return IExpression.TryGetSimpleVariableName(root);
+        }
+
+        return null;
     }
 
     public bool HasGuaranteedExplicitReturn => PointingTo.HasGuaranteedExplicitReturn;

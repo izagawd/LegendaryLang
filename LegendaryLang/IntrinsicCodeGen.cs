@@ -1,3 +1,4 @@
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Definitions;
 using LegendaryLang.Parse;
@@ -70,7 +71,7 @@ public static class IntrinsicCodeGen
         if (function.Arguments.Length != 2) return false;
 
         var sizeAlloca = function.Arguments[0].Alloca;
-        var sizeVal = context.Builder.BuildLoad2(UsizeType.LLVMType, sizeAlloca, "size");
+        var sizeVal = context.Builder.BuildLoad2(UsizeTypeDefinition.UsizeLLVMType, sizeAlloca, "size");
 
         var mallocFunc = GetOrDeclareMalloc(context);
         var ptr = context.Builder.BuildCall2(MallocFuncType, mallocFunc,
@@ -105,10 +106,10 @@ public static class IntrinsicCodeGen
         if (function.Arguments.Length != 2) return false;
 
         var sizeAlloca = function.Arguments[0].Alloca;
-        var sizeVal = context.Builder.BuildLoad2(UsizeType.LLVMType, sizeAlloca, "size");
+        var sizeVal = context.Builder.BuildLoad2(UsizeTypeDefinition.UsizeLLVMType, sizeAlloca, "size");
 
         var callocFunc = GetOrDeclareCalloc(context);
-        var one = LLVMValueRef.CreateConstInt(UsizeType.LLVMType, 1, false);
+        var one = LLVMValueRef.CreateConstInt(UsizeTypeDefinition.UsizeLLVMType, 1, false);
         var ptr = context.Builder.BuildCall2(CallocFuncType, callocFunc,
             new LLVMValueRef[] { one, sizeVal }, "heap_ptr");
 
@@ -203,13 +204,13 @@ public static class IntrinsicCodeGen
     private static readonly LLVMTypeRef PtrType = LLVMTypeRef.CreatePointer(LLVMTypeRef.Int8, 0);
 
     private static readonly LLVMTypeRef MallocFuncType =
-        LLVMTypeRef.CreateFunction(PtrType, [UsizeType.LLVMType]);
+        LLVMTypeRef.CreateFunction(PtrType, [UsizeTypeDefinition.UsizeLLVMType]);
 
     private static readonly LLVMTypeRef FreeFuncType =
         LLVMTypeRef.CreateFunction(LLVMTypeRef.Void, [PtrType]);
 
     private static readonly LLVMTypeRef CallocFuncType =
-        LLVMTypeRef.CreateFunction(PtrType, [UsizeType.LLVMType, UsizeType.LLVMType]);
+        LLVMTypeRef.CreateFunction(PtrType, [UsizeTypeDefinition.UsizeLLVMType, UsizeTypeDefinition.UsizeLLVMType]);
 
     public static unsafe LLVMValueRef GetOrDeclareMalloc(CodeGenContext context)
     {

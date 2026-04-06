@@ -14,7 +14,35 @@ public enum RefKind
     Uniq      // &uniq T
 }
 
-public class RefTypeDefinition : TypeDefinition
+/// <summary>
+/// Shared base for RefTypeDefinition and RawPtrTypeDefinition.
+/// Both are single-generic-arg pointer types with identical CreateRefDefinition
+/// and GetGenericArguments logic.
+/// </summary>
+public abstract class PointerTypeDefinitionBase : TypeDefinition
+{
+    public override Token Token => null;
+
+    public override IRefItem CreateRefDefinition(CodeGenContext context, ImmutableArray<LangPath> genericArguments)
+    {
+        var pointingToType = (TypeRefItem)context.GetRefItemFor(genericArguments[0]);
+        var typeRef = LLVMTypeRef.CreatePointer(pointingToType.TypeRef, 0);
+        return new TypeRefItem { Type = CreateConcreteType(pointingToType.Type, typeRef) };
+    }
+
+    protected abstract ConcreteDefinition.Type CreateConcreteType(ConcreteDefinition.Type pointingToType, LLVMTypeRef typeRef);
+
+    public override ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
+    {
+        if (path is NormalLangPath nlp && nlp.GetFrontGenerics().Length > 0)
+            return nlp.GetFrontGenerics();
+        return null;
+    }
+
+    public override void Analyze(SemanticAnalyzer analyzer) { }
+}
+
+public class RefTypeDefinition : PointerTypeDefinitionBase
 {
     public RefTypeDefinition(RefKind kind)
     {
@@ -26,24 +54,20 @@ public class RefTypeDefinition : TypeDefinition
         return new NormalLangPath(null, ["Std", "Reference"]);
     }
 
-    public static string GetRefName(RefKind kind)
+    public static string GetRefName(RefKind kind) => kind switch
     {
-        return kind switch
-        {
-            RefKind.Shared => "shared",
-            RefKind.Const => "const_",
-            RefKind.Mut => "mut_",
-            RefKind.Uniq => "uniq",
-            _ => throw new ArgumentOutOfRangeException(nameof(kind))
-        };
-    }
+        RefKind.Shared => "shared",
+        RefKind.Const => "const_",
+        RefKind.Mut => "mut_",
+        RefKind.Uniq => "uniq",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind))
+    };
 
     public RefKind Kind { get; }
 
     /// <summary>
     /// Checks whether a type path represents a &amp;uniq reference.
-    /// Used to implement automatic reborrowing: passing a &amp;uniq T to a function
-    /// expecting &amp;uniq T creates a temporary reborrow instead of moving.
+    /// Used to implement automatic reborrowing.
     /// </summary>
     public static bool IsUniqRefType(LangPath? typePath)
     {
@@ -52,29 +76,34 @@ public class RefTypeDefinition : TypeDefinition
                && nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == GetRefName(RefKind.Uniq));
     }
 
-    public override string Name => GetRefName(Kind);
-    public override NormalLangPath Module => GetRefModule();
-
-    public override IRefItem CreateRefDefinition(CodeGenContext context, ImmutableArray<LangPath> genericArguments)
+    /// <summary>
+    /// Extracts the RefKind from a type path that contains a reference module segment.
+    /// Used across deref, method dispatch, and borrow checking.
+    /// Returns Shared as default if no specific kind is found.
+    /// </summary>
+    public static RefKind ExtractRefKindFromPath(LangPath? typePath)
     {
-        var pointingToType = ((TypeRefItem)context.GetRefItemFor(genericArguments[0]));
-        var typeRef = LLVMTypeRef.CreatePointer(pointingToType.TypeRef, 0);
-
-        return new TypeRefItem()
-        {
-            Type = new ConcreteDefinition.RefType(this, pointingToType.Type, typeRef),
-        };
+        if (typePath is NormalLangPath nlp)
+            foreach (RefKind rk in Enum.GetValues<RefKind>())
+                if (nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == GetRefName(rk)))
+                    return rk;
+        return RefKind.Shared;
     }
 
-    public override ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
+    /// <summary>
+    /// Like ExtractRefKindFromPath but returns null if the path doesn't contain a reference module.
+    /// Used for auto-ref detection on self parameters.
+    /// </summary>
+    public static RefKind? TryExtractRefKindFromPath(LangPath? typePath)
     {
-        if (path is NormalLangPath nlp && nlp.GetFrontGenerics().Length > 0)
-            return nlp.GetFrontGenerics();
+        if (typePath is NormalLangPath nlp && nlp.Contains(GetRefModule()))
+            return ExtractRefKindFromPath(typePath);
         return null;
     }
 
-    public override Token Token { get; }
-    public override void Analyze(SemanticAnalyzer analyzer)
-    {
-    }
+    public override string Name => GetRefName(Kind);
+    public override NormalLangPath Module => GetRefModule();
+
+    protected override ConcreteDefinition.Type CreateConcreteType(ConcreteDefinition.Type pointingToType, LLVMTypeRef typeRef)
+        => new ConcreteDefinition.RefType(this, pointingToType, typeRef);
 }

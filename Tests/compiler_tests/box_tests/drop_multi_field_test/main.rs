@@ -1,6 +1,6 @@
 use Std.Core.Marker.Drop;
 struct Dropper {
-    r: &uniq i32
+    r: &mut i32
 }
 
 impl Drop for Dropper {
@@ -19,9 +19,9 @@ fn main() -> i32 {
     let counter = 0;
     {
         let m = make Multi {
-            a: make Dropper { r: &uniq counter },
+            a: make Dropper { r: &mut counter },
             plain: 99,
-            b: make Dropper { r: &uniq counter }
+            b: make Dropper { r: &mut counter }
         };
     }
     counter

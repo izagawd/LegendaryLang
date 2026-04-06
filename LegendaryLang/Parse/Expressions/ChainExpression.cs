@@ -107,36 +107,7 @@ public class FieldAccessKind : IChainKind
     public ValueRefItem CodeGen(CodeGenContext ctx)
     {
         var receiverVal = Receiver.CodeGen(ctx);
-
-        if (AutoDeref && receiverVal.Type is RefType ptrType)
-        {
-            var derefPtr = ptrType.LoadValue(ctx, receiverVal);
-            receiverVal = new ValueRefItem
-            {
-                Type = ptrType.PointingToType,
-                ValueRef = derefPtr
-            };
-        }
-
-        for (int d = 0; d < AutoDerefDepth; d++)
-            receiverVal = DerefExpression.EmitDeref(ctx, receiverVal);
-
-        var structType = receiverVal.Type as StructType;
-        var fieldIndex = structType!.GetIndexOfField(FieldName);
-        var fieldPtr = ctx.Builder.BuildStructGEP2(
-            structType.TypeRef, receiverVal.ValueRef, fieldIndex);
-
-        ConcreteDefinition.Type fieldType;
-        if (structType.ResolvedFieldTypes != null
-            && fieldIndex < structType.ResolvedFieldTypes.Value.Length)
-            fieldType = structType.ResolvedFieldTypes.Value[(int)fieldIndex];
-        else
-        {
-            var field = structType.GetField(FieldName);
-            fieldType = ((TypeRefItem)ctx.GetRefItemFor(field.TypePath)).Type;
-        }
-
-        return new ValueRefItem { Type = fieldType, ValueRef = fieldPtr };
+        return FieldAccessExpression.EmitFieldAccess(ctx, receiverVal, FieldName, AutoDeref, AutoDerefDepth);
     }
 }
 
@@ -976,13 +947,7 @@ public class MethodCallKind : IChainKind
     }
 
     private static RefKind? DetectAutoRefKind(LangPath? selfParamType)
-    {
-        if (selfParamType is NormalLangPath nlp && nlp.Contains(RefTypeDefinition.GetRefModule()))
-            foreach (RefKind rk in Enum.GetValues(typeof(RefKind)))
-                if (nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == RefTypeDefinition.GetRefName(rk)))
-                    return rk;
-        return null;
-    }
+        => RefTypeDefinition.TryExtractRefKindFromPath(selfParamType);
 
     private static void CheckImplicitBorrow(RefKind? autoRefKind, string? receiverVarName, SemanticAnalyzer analyzer)
     {
@@ -997,10 +962,9 @@ public class MethodCallKind : IChainKind
         while (current is FieldAccessExpression fae)
         {
             var callerType = fae.Caller.TypePath;
-            if (callerType is NormalLangPath nlp && nlp.Contains(RefTypeDefinition.GetRefModule()))
-                foreach (RefKind rk in Enum.GetValues<RefKind>())
-                    if (nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == RefTypeDefinition.GetRefName(rk)))
-                    { cap = cap == null ? rk : MinRefKindCapability(cap.Value, rk); break; }
+            var rk = RefTypeDefinition.TryExtractRefKindFromPath(callerType);
+            if (rk != null)
+            { cap = cap == null ? rk : MinRefKindCapability(cap.Value, rk.Value); }
             current = fae.Caller;
         }
         return cap;
@@ -1023,11 +987,7 @@ public class MethodCallKind : IChainKind
         {
             if (isRef)
             {
-                if (typePath is NormalLangPath nlp)
-                    foreach (RefKind rk in Enum.GetValues<RefKind>())
-                        if (nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == RefTypeDefinition.GetRefName(rk)))
-                            return rk;
-                return RefKind.Shared;
+                return RefTypeDefinition.TryExtractRefKindFromPath(typePath) ?? RefKind.Shared;
             }
             return ptrKind;
         }
@@ -1558,7 +1518,6 @@ public class ChainExpression : IExpression
     {
         var workingType = currentTypePath;
         bool autoDeref = false;
-        int autoDerefDepth = 0;
         RefKind? outerRefKind = null;
 
         // Auto-deref: if type is a reference (&T), unwrap to T and track ref kind
@@ -1579,37 +1538,8 @@ public class ChainExpression : IExpression
         if (receiver is FieldAccessKind fak && fak.MaxCapability != null)
             maxCap = maxCap == null ? fak.MaxCapability : MethodCallKind.MinRefKindCapability(maxCap.Value, fak.MaxCapability.Value);
 
-        // Walk through Receiver/Deref chain to find the field
-        LangPath? fieldType = null;
-        var searchType = workingType;
-        const int maxDeref = 10;
-        while (searchType != null && autoDerefDepth < maxDeref)
-        {
-            var definition = analyzer.GetDefinition(searchType);
-            if (definition == null && searchType is NormalLangPath nlpCur && nlpCur.GetFrontGenerics().Length > 0)
-                definition = analyzer.GetDefinition(nlpCur.PopGenerics());
-
-            if (definition is StructTypeDefinition std && std.Fields.Any(f => f.Name == access.Name))
-            {
-                fieldType = std.Fields.First(f => f.Name == access.Name).TypePath;
-                if (searchType is NormalLangPath nlpType)
-                {
-                    var genericArgs = nlpType.GetFrontGenerics();
-                    if (genericArgs.Length > 0 && std.GenericParameters.Length > 0)
-                        fieldType = FieldAccessExpression.SubstituteGenerics(fieldType, std.GenericParameters, genericArgs);
-                }
-                if (fieldType != null)
-                    fieldType = analyzer.ResolveQualifiedTypePath(fieldType);
-                break;
-            }
-
-            // Try Receiver.Target to walk one level deeper
-            var target = analyzer.ResolveAssociatedType(searchType,
-                SemanticAnalyzer.ReceiverTraitPath, "Target");
-            if (target == null || target == searchType) break;
-            searchType = target;
-            autoDerefDepth++;
-        }
+        // Use shared field resolution (walks Receiver/Deref chain, substitutes generics)
+        var (fieldType, autoDerefDepth) = FieldAccessExpression.ResolveFieldType(access.Name, workingType, analyzer);
 
         if (fieldType == null)
         {

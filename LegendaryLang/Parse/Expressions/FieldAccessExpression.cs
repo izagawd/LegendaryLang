@@ -30,11 +30,49 @@ public class FieldAccessExpression : IExpression
     /// </summary>
     public int AutoDerefDepth { get; private set; }
 
+    /// <summary>
+    /// Resolves a field's type on a given type, walking through the Receiver/Deref chain.
+    /// Returns (fieldType, derefDepth) or (null, 0) if not found.
+    /// </summary>
+    public static (LangPath? fieldType, int derefDepth) ResolveFieldType(
+        string fieldName, LangPath startType, SemanticAnalyzer analyzer)
+    {
+        var currentType = startType;
+        int derefDepth = 0;
+        const int maxDeref = 10;
+        while (currentType != null && derefDepth < maxDeref)
+        {
+            var definition = analyzer.GetDefinition(currentType);
+            if (definition == null && currentType is NormalLangPath nlpCur && nlpCur.GetFrontGenerics().Length > 0)
+                definition = analyzer.GetDefinition(nlpCur.PopGenerics());
+
+            if (definition is StructTypeDefinition std && std.Fields.Any(f => f.Name == fieldName))
+            {
+                var fieldType = std.Fields.First(f => f.Name == fieldName).TypePath;
+                if (currentType is NormalLangPath nlpType)
+                {
+                    var genericArgs = nlpType.GetFrontGenerics();
+                    if (genericArgs.Length > 0 && std.GenericParameters.Length > 0)
+                        fieldType = SubstituteGenerics(fieldType, std.GenericParameters, genericArgs);
+                }
+                if (fieldType != null)
+                    fieldType = analyzer.ResolveQualifiedTypePath(fieldType);
+                return (fieldType, derefDepth);
+            }
+
+            var target = analyzer.ResolveAssociatedType(currentType,
+                SemanticAnalyzer.ReceiverTraitPath, "Target");
+            if (target == null || target == currentType) break;
+            currentType = target;
+            derefDepth++;
+        }
+        return (null, 0);
+    }
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
         Caller.Analyze(analyzer);
 
-        // Look up definition, stripping generics if needed
         var callerTypePath = Caller.TypePath;
 
         // Auto-deref: if caller is a reference type (&T), unwrap to T
@@ -49,47 +87,15 @@ public class FieldAccessExpression : IExpression
             }
         }
 
-        // Try to find the field, walking through Receiver/Deref chain if needed
-        var currentType = callerTypePath;
-        int derefDepth = 0;
-        const int maxDeref = 10;
-        while (currentType != null && derefDepth < maxDeref)
+        var (fieldType, derefDepth) = ResolveFieldType(Field.Identity, callerTypePath, analyzer);
+        if (fieldType != null)
         {
-            var definition = analyzer.GetDefinition(currentType);
-            if (definition == null && currentType is NormalLangPath nlpCur && nlpCur.GetFrontGenerics().Length > 0)
-                definition = analyzer.GetDefinition(nlpCur.PopGenerics());
-
-            if (definition is StructTypeDefinition std && std.Fields.Any(i => i.Name == Field.Identity))
-            {
-                // Found the field
-                callerTypePath = currentType;
-                AutoDerefDepth = derefDepth;
-
-                var fieldType = std.Fields.First(i => i.Name == Field.Identity).TypePath;
-
-                // Substitute generics in field type
-                if (currentType is NormalLangPath nlpType)
-                {
-                    var genericArgs = nlpType.GetFrontGenerics();
-                    if (genericArgs.Length > 0 && std.GenericParameters.Length > 0)
-                        fieldType = SubstituteGenerics(fieldType, std.GenericParameters, genericArgs);
-                }
-
-                TypePath = fieldType;
-                if (TypePath != null)
-                    TypePath = analyzer.ResolveQualifiedTypePath(TypePath);
-                return;
-            }
-
-            // Try Receiver.Target to walk one level deeper
-            var target = analyzer.ResolveAssociatedType(currentType,
-                SemanticAnalyzer.ReceiverTraitPath, "Target");
-            if (target == null || target == currentType) break;
-            currentType = target;
-            derefDepth++;
+            AutoDerefDepth = derefDepth;
+            TypePath = fieldType;
+            return;
         }
 
-        // Nothing found — report error on original type
+        // Nothing found — report error
         var origDef = analyzer.GetDefinition(callerTypePath);
         if (origDef == null && callerTypePath is NormalLangPath nlpOrig && nlpOrig.GetFrontGenerics().Length > 0)
             origDef = analyzer.GetDefinition(nlpOrig.PopGenerics());
@@ -151,52 +157,51 @@ public class FieldAccessExpression : IExpression
 
 
     /// <summary>
-    ///     Returns the pointer to the accessed field
+    /// Shared codegen for field access: auto-deref receiver, GEP into struct, return field pointer.
+    /// Used by both FieldAccessExpression.CodeGen and FieldAccessKind.CodeGen.
     /// </summary>
-    public ValueRefItem CodeGen(CodeGenContext codeGenContext)
+    public static ValueRefItem EmitFieldAccess(
+        CodeGenContext ctx, ValueRefItem receiverVal,
+        string fieldName, bool autoDeref, int autoDerefDepth)
     {
-        var variableRef = Caller.CodeGen(codeGenContext);
-
-        // Auto-deref: if the caller is a reference, load the pointer to get the struct address
-        if (AutoDeref && variableRef.Type is RefType ptrType)
+        if (autoDeref && receiverVal.Type is RefType ptrType)
         {
-            var derefPtr = ptrType.LoadValue(codeGenContext, variableRef);
-            variableRef = new ValueRefItem
+            var derefPtr = ptrType.LoadValue(ctx, receiverVal);
+            receiverVal = new ValueRefItem
             {
                 Type = ptrType.PointingToType,
                 ValueRef = derefPtr
             };
         }
 
-        // Trait-based auto-deref (e.g., Box(T) → T via Deref)
-        for (int d = 0; d < AutoDerefDepth; d++)
-        {
-            variableRef = DerefExpression.EmitDeref(codeGenContext, variableRef);
-        }
+        for (int d = 0; d < autoDerefDepth; d++)
+            receiverVal = DerefExpression.EmitDeref(ctx, receiverVal);
 
-        var structType = variableRef?.Type as StructType;
-        var fieldIndex = structType.GetIndexOfField(Field.Identity);
+        var structType = (StructType)receiverVal.Type;
+        var fieldIndex = structType.GetIndexOfField(fieldName);
+        var fieldPtr = ctx.Builder.BuildStructGEP2(
+            structType.TypeRef, receiverVal.ValueRef, fieldIndex);
 
-        var fieldPtr = codeGenContext.Builder.BuildStructGEP2(structType.TypeRef, variableRef.ValueRef,
-            fieldIndex);
-
-        // Use ResolvedFieldTypes if available (handles generic structs where T is no longer in scope)
         ConcreteDefinition.Type fieldType;
-        if (structType.ResolvedFieldTypes != null && fieldIndex < structType.ResolvedFieldTypes.Value.Length)
-        {
+        if (structType.ResolvedFieldTypes != null
+            && fieldIndex < structType.ResolvedFieldTypes.Value.Length)
             fieldType = structType.ResolvedFieldTypes.Value[(int)fieldIndex];
-        }
         else
         {
-            var field = structType.GetField(Field.Identity);
-            fieldType = ((TypeRefItem)codeGenContext.GetRefItemFor(field.TypePath)).Type;
+            var field = structType.GetField(fieldName);
+            fieldType = ((TypeRefItem)ctx.GetRefItemFor(field.TypePath)).Type;
         }
 
-        return new ValueRefItem
-        {
-            Type = fieldType,
-            ValueRef = fieldPtr
-        };
+        return new ValueRefItem { Type = fieldType, ValueRef = fieldPtr };
+    }
+
+    /// <summary>
+    ///     Returns the pointer to the accessed field
+    /// </summary>
+    public ValueRefItem CodeGen(CodeGenContext codeGenContext)
+    {
+        var variableRef = Caller.CodeGen(codeGenContext);
+        return EmitFieldAccess(codeGenContext, variableRef, Field.Identity, AutoDeref, AutoDerefDepth);
     }
 
     public LangPath? TypePath { get; set; }
