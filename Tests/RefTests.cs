@@ -406,3 +406,111 @@ public class RefCreationBorrowConflictTests
         CompilerTestHelper.AssertFail<BorrowConflictError>("ref_tests/ref_enum_nested_struct_double_uniq_fail_test");
     }
 }
+
+public class MutReassignTests
+{
+    // ── Should PASS ──
+
+    [Test]
+    public void MutReassignPrimitivePassTest()
+    {
+        // *(&mut i32) = val — i32 implements MutReassign
+        CompilerTestHelper.AssertSuccess("ref_tests/mut_reassign_primitive_pass_test", 42);
+    }
+
+    [Test]
+    public void MutReassignUniqAlwaysPassTest()
+    {
+        // *(&uniq Foo) = val — &uniq can always reassign regardless of MutReassign
+        CompilerTestHelper.AssertSuccess("ref_tests/mut_reassign_uniq_always_pass_test", 99);
+    }
+
+    [Test]
+    public void MutReassignStructImplPassTest()
+    {
+        // Struct implementing MutReassign with all MutReassign fields
+        CompilerTestHelper.AssertSuccess("ref_tests/mut_reassign_struct_impl_pass_test", 30);
+    }
+
+    [Test]
+    public void MutReassignFlatEnumPassTest()
+    {
+        // Flat enum (no payload) implementing MutReassign
+        CompilerTestHelper.AssertSuccess("ref_tests/mut_reassign_flat_enum_pass_test", 3);
+    }
+
+    [Test]
+    public void MutReassignFnParamPassTest()
+    {
+        // MutReassign through &mut function parameter
+        CompilerTestHelper.AssertSuccess("ref_tests/mut_reassign_fn_param_pass_test", 55);
+    }
+
+    // ── Should FAIL ──
+
+    [Test]
+    public void MutReassignStructNoImplFailTest()
+    {
+        // *(&mut Foo) = val where Foo doesn't implement MutReassign
+        CompilerTestHelper.AssertFail<GenericSemanticError>("ref_tests/mut_reassign_struct_no_impl_fail_test");
+    }
+
+    [Test]
+    public void MutReassignStructBadFieldFailTest()
+    {
+        // impl MutReassign for Outer where Inner field doesn't implement MutReassign
+        CompilerTestHelper.AssertFail<GenericSemanticError>("ref_tests/mut_reassign_struct_bad_field_fail_test");
+    }
+
+    [Test]
+    public void MutReassignPayloadEnumFailTest()
+    {
+        // impl MutReassign for enum with payload variants — enums must be flat
+        CompilerTestHelper.AssertFail<GenericSemanticError>("ref_tests/mut_reassign_payload_enum_fail_test");
+    }
+}
+
+public class RefEnumPatternMatchTests
+{
+    [Test]
+    public void RefMatchSharedEnumTest()
+    {
+        // match &enum — binding is &shared, deref to read value
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_match_shared_enum_test", 42);
+    }
+
+    [Test]
+    public void RefMatchMutEnumTest()
+    {
+        // match &mut enum — binding is &mut, can write through it
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_match_mut_enum_test", 77);
+    }
+
+    [Test]
+    public void RefMatchUniqEnumTest()
+    {
+        // match &uniq enum — binding is &uniq, can write through it
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_match_uniq_enum_test", 99);
+    }
+
+    [Test]
+    public void RefMatchGenericEnumTest()
+    {
+        // match &Option(i32) — generic enum through reference
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_match_generic_enum_test", 50);
+    }
+
+    [Test]
+    public void RefMatchValueStillCopiesTest()
+    {
+        // match by value (no reference) — existing behavior preserved
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_match_value_still_copies_test", 42);
+    }
+
+    [Test]
+    public void RefMatchUnitVariantTest()
+    {
+        // match &enum with unit variants — just dispatch, no bindings
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_match_unit_variant_test", 3);
+    }
+}

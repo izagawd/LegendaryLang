@@ -68,14 +68,38 @@ public class MatchExpression : IExpression
     public LangPath? TypePath { get; private set; }
     public bool HasGuaranteedExplicitReturn => Arms.All(a => a.Body.HasGuaranteedExplicitReturn);
 
+    /// <summary>
+    /// If the scrutinee is a reference to an enum, this holds the reference kind.
+    /// Bindings in match arms become references of this kind to the payload fields.
+    /// </summary>
+    public RefKind? ScrutineeRefKind { get; private set; }
+
+    /// <summary>
+    /// The actual enum type path (after unwrapping any reference).
+    /// </summary>
+    public LangPath? UnwrappedEnumTypePath { get; private set; }
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
         Scrutinee.Analyze(analyzer);
         var scrutineeType = Scrutinee.TypePath;
 
+        // Auto-unwrap reference scrutinee: match &enum_val { ... }
+        // When matching on &kind Enum, bindings become &kind FieldType
+        RefKind? refKind = null;
+        var enumLookupType = scrutineeType;
+        if (scrutineeType is NormalLangPath nlpRef
+            && nlpRef.Contains(RefTypeDefinition.GetRefModule()))
+        {
+            refKind = RefTypeDefinition.ExtractRefKindFromPath(scrutineeType);
+            var generics = nlpRef.GetFrontGenerics();
+            if (generics.Length == 1)
+                enumLookupType = generics[0];
+        }
+
         // Look up enum definition
-        var enumDef = scrutineeType != null ? analyzer.GetDefinition(scrutineeType) as EnumTypeDefinition : null;
-        if (enumDef == null && scrutineeType is NormalLangPath nlpScr && nlpScr.GetFrontGenerics().Length > 0)
+        var enumDef = enumLookupType != null ? analyzer.GetDefinition(enumLookupType) as EnumTypeDefinition : null;
+        if (enumDef == null && enumLookupType is NormalLangPath nlpScr && nlpScr.GetFrontGenerics().Length > 0)
             enumDef = analyzer.GetDefinition(nlpScr.PopGenerics()) as EnumTypeDefinition;
 
         if (enumDef == null && scrutineeType != null)
@@ -86,9 +110,12 @@ public class MatchExpression : IExpression
             return;
         }
 
-        // Get generic args for substitution
+        ScrutineeRefKind = refKind;
+        UnwrappedEnumTypePath = enumLookupType;
+
+        // Get generic args for substitution (from the unwrapped enum type, not the reference)
         ImmutableArray<LangPath> genericArgs = [];
-        if (scrutineeType is NormalLangPath nlpType)
+        if (enumLookupType is NormalLangPath nlpType)
             genericArgs = nlpType.GetFrontGenerics();
 
         LangPath? armType = null;
@@ -143,6 +170,16 @@ public class MatchExpression : IExpression
                             if (genericArgs.Length > 0 && enumDef.GenericParameters.Length > 0)
                                 fieldType = FieldAccessExpression.SubstituteGenerics(
                                     fieldType, enumDef.GenericParameters, genericArgs);
+
+                            // When matching on &kind Enum, bindings become &kind FieldType
+                            // (references to the payload, not copies)
+                            if (refKind != null)
+                            {
+                                fieldType = RefTypeDefinition.GetRefModule()
+                                    .Append(RefTypeDefinition.GetRefName(refKind.Value))
+                                    .AppendGenerics([fieldType]);
+                            }
+
                             if (tvp.Bindings[i] != "_")
                                 analyzer.RegisterVariableType(
                                     new NormalLangPath(null, [tvp.Bindings[i]]), fieldType);
@@ -186,10 +223,26 @@ public class MatchExpression : IExpression
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         var scrutineeVal = Scrutinee.CodeGen(codeGenContext);
-        var enumType = scrutineeVal.Type as EnumType;
+
+        // If scrutinee is a reference to an enum, deref to get the enum pointer
+        LLVMValueRef enumPtr;
+        EnumType enumType;
+        if (ScrutineeRefKind != null && scrutineeVal.Type is PointerLikeType ptrType)
+        {
+            // Load the pointer from the reference, giving us a pointer to the enum
+            enumPtr = ptrType.LoadValue(codeGenContext, scrutineeVal);
+            enumType = ptrType.PointingToType as EnumType
+                ?? throw new InvalidOperationException("Reference scrutinee does not point to an enum type");
+        }
+        else
+        {
+            enumPtr = scrutineeVal.ValueRef;
+            enumType = scrutineeVal.Type as EnumType
+                ?? throw new InvalidOperationException("Match scrutinee is not an enum type");
+        }
 
         // Load the tag (field 0)
-        var tagPtr = codeGenContext.Builder.BuildStructGEP2(enumType!.TypeRef, scrutineeVal.ValueRef, 0);
+        var tagPtr = codeGenContext.Builder.BuildStructGEP2(enumType.TypeRef, enumPtr, 0);
         var tagVal = codeGenContext.Builder.BuildLoad2(LLVMTypeRef.Int32, tagPtr);
 
         // Get the current function for creating basic blocks
@@ -244,7 +297,7 @@ public class MatchExpression : IExpression
                 if (resolved != null)
                 {
                     var payloadPtr = codeGenContext.Builder.BuildStructGEP2(
-                        enumType.TypeRef, scrutineeVal.ValueRef, 1);
+                        enumType.TypeRef, enumPtr, 1);
 
                     // Build a struct type for this variant's payload
                     var fieldLlvmTypes = resolved.Value.fieldTypes.Select(ft => ft.TypeRef).ToArray();
@@ -264,17 +317,42 @@ public class MatchExpression : IExpression
                                 [LLVMValueRef.CreateConstInt(LLVMTypeRef.Int64, offset, false)]);
                         }
 
-                        var fieldAlloca = codeGenContext.Builder.BuildAlloca(fieldType.TypeRef, bindingName);
-                        // Use pointer-to-pointer AssignTo — works for both primitives and structs
-                        fieldType.AssignTo(codeGenContext,
-                            new ValueRefItem { Type = fieldType, ValueRef = fieldPtr },
-                            new ValueRefItem { Type = fieldType, ValueRef = fieldAlloca });
-
-                        if (bindingName != "_")
+                        if (ScrutineeRefKind != null)
                         {
-                            codeGenContext.AddToDeepestScope(
-                                new NormalLangPath(null, [bindingName]),
+                            // Reference mode: binding is a reference TO the payload field.
+                            // fieldPtr already points to the field inside the enum — use it as the reference value.
+                            var refTypePath = RefTypeDefinition.GetRefModule()
+                                .Append(RefTypeDefinition.GetRefName(ScrutineeRefKind.Value))
+                                .AppendGenerics([fieldType.TypePath]);
+                            var refTypeRef = codeGenContext.GetRefItemFor(refTypePath) as TypeRefItem;
+                            if (refTypeRef?.Type is RefType refType)
+                            {
+                                // Allocate a stack slot for the reference pointer and store the field address
+                                var refAlloca = codeGenContext.Builder.BuildAlloca(refType.TypeRef, bindingName);
+                                codeGenContext.Builder.BuildStore(fieldPtr, refAlloca);
+
+                                if (bindingName != "_")
+                                {
+                                    codeGenContext.AddToDeepestScope(
+                                        new NormalLangPath(null, [bindingName]),
+                                        new ValueRefItem { Type = refType, ValueRef = refAlloca });
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Value mode: copy the payload field into a local variable
+                            var fieldAlloca = codeGenContext.Builder.BuildAlloca(fieldType.TypeRef, bindingName);
+                            fieldType.AssignTo(codeGenContext,
+                                new ValueRefItem { Type = fieldType, ValueRef = fieldPtr },
                                 new ValueRefItem { Type = fieldType, ValueRef = fieldAlloca });
+
+                            if (bindingName != "_")
+                            {
+                                codeGenContext.AddToDeepestScope(
+                                    new NormalLangPath(null, [bindingName]),
+                                    new ValueRefItem { Type = fieldType, ValueRef = fieldAlloca });
+                            }
                         }
 
                         unsafe

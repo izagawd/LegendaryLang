@@ -1325,6 +1325,13 @@ public class SemanticAnalyzer
     public static readonly NormalLangPath DropTraitPath =
         new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Marker", "Drop" });
 
+    /// <summary>
+    /// The canonical path of the MutReassign trait: std.core.marker.MutReassign.
+    /// Types implementing this can be reassigned through &amp;mut references.
+    /// </summary>
+    public static readonly NormalLangPath MutReassignTraitPath =
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Marker", "MutReassign" });
+
     public static readonly NormalLangPath AddTraitPath =
         new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Ops", "Add" });
     public static readonly NormalLangPath SubTraitPath =
@@ -1509,7 +1516,7 @@ public class SemanticAnalyzer
                 var name = def.TypePath is NormalLangPath nlpDef
                     ? nlpDef.GetLastPathSegment()?.ToString()
                     : null;
-                if (name is "Box" or "Copy")
+                if (name is "Box" or "Copy" or "MutReassign")
                 {
                     var usings = new UseDefinition((NormalLangPath)def.TypePath, null);
                     usings.RegisterUsings(pathShortcutContext);

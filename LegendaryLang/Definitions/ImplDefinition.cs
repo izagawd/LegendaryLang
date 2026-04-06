@@ -781,6 +781,72 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                 ValidateDropGenericConstraints(enumDefDrop.GenericParameters, enumDefDrop.LifetimeParameters, analyzer);
             }
         }
+
+        // If implementing MutReassign, validate constraints:
+        // - Structs: all fields must implement MutReassign
+        // - Enums: must be flat (no variant with payload fields)
+        if (LangPath.StripGenerics(TraitPath)?.Equals(SemanticAnalyzer.MutReassignTraitPath) == true)
+        {
+            var typeDef = analyzer.GetDefinition(ForTypePath)
+                          ?? analyzer.GetDefinition(LangPath.StripGenerics(ForTypePath));
+
+            if (typeDef is StructTypeDefinition structDefMut)
+            {
+                var mutBoundParams = GenericParameters
+                    .Where(gp => gp.TraitBounds.Any(b =>
+                        LangPath.StripGenerics(b.TraitPath)?.Equals(SemanticAnalyzer.MutReassignTraitPath) == true))
+                    .Select(gp => gp.Name)
+                    .ToHashSet();
+
+                foreach (var field in structDefMut.Fields)
+                {
+                    var fieldType = analyzer.ResolveQualifiedTypePath(field.TypePath);
+
+                    // Generic param check — must have MutReassign bound
+                    if (fieldType is NormalLangPath nlpField && nlpField.PathSegments.Length == 1)
+                    {
+                        var paramName = nlpField.PathSegments[0].ToString();
+                        if (GenericParameters.Any(gp => gp.Name == paramName))
+                        {
+                            if (!mutBoundParams.Contains(paramName))
+                                analyzer.AddException(new SemanticException(
+                                    $"Cannot implement MutReassign for '{ForTypePath}': field '{field.Name}' has type '{paramName}' " +
+                                    $"which does not have a MutReassign bound\n{Token.GetLocationStringRepresentation()}"));
+                            continue;
+                        }
+
+                        // Substitute struct generic params with concrete args
+                        if (structDefMut.GenericParameters.Any(gp => gp.Name == paramName)
+                            && ForTypePath is NormalLangPath nlpForType)
+                        {
+                            var genericArgs = nlpForType.GetFrontGenerics();
+                            for (int i = 0; i < structDefMut.GenericParameters.Length && i < genericArgs.Length; i++)
+                                if (structDefMut.GenericParameters[i].Name == paramName)
+                                { fieldType = genericArgs[i]; break; }
+                        }
+                    }
+
+                    if (!analyzer.TypeImplementsTrait(fieldType, SemanticAnalyzer.MutReassignTraitPath))
+                        analyzer.AddException(new SemanticException(
+                            $"Cannot implement MutReassign for '{ForTypePath}': field '{field.Name}' has type '{fieldType}' " +
+                            $"which does not implement MutReassign\n{Token.GetLocationStringRepresentation()}"));
+                }
+            }
+
+            if (typeDef is EnumTypeDefinition enumDefMut)
+            {
+                foreach (var variant in enumDefMut.Variants)
+                {
+                    if (variant.FieldTypes.Length > 0)
+                    {
+                        analyzer.AddException(new SemanticException(
+                            $"Cannot implement MutReassign for enum '{ForTypePath}': variant '{variant.Name}' has payload fields. " +
+                            $"Only flat enums (all unit variants) can implement MutReassign\n{Token.GetLocationStringRepresentation()}"));
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>
