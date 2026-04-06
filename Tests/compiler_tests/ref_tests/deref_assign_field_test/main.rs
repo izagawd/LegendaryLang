@@ -10,7 +10,9 @@ impl['a] Holder['a] {
 
 fn main() -> i32 {
     let x = 0;
-    let h = make Holder { r : &uniq x };
-    h.set(99);
+    {
+        let h = make Holder { r : &uniq x };
+        h.set(99);
+    };
     x
 }

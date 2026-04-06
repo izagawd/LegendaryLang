@@ -14,7 +14,9 @@ impl['a] Outer['a] {
 
 fn main() -> i32 {
     let x = 0;
-    let o = make Outer { inner : make Inner { r : &uniq x } };
-    o.set_val(55);
+    {
+        let o = make Outer { inner : make Inner { r : &uniq x } };
+        o.set_val(55);
+    };
     x
 }

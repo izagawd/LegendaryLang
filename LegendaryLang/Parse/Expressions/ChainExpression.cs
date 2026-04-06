@@ -270,20 +270,34 @@ public class FunctionCallKind : IChainKind
         else
         {
             // Implicit lifetime elision: if exactly one reference input,
-            // the return borrows from it. Applies to &T returns AND
-            // struct/enum returns with lifetime params (e.g., Wrapper['a]).
-            var refArgSources = new List<(string, RefKind)>();
-            for (int i = 0; i < FuncDef.Arguments.Length && i < Arguments.Length; i++)
+            // the return borrows from it. Only applies when the return type
+            // can actually hold a borrow: references (&T) or types with
+            // lifetime params (Wrapper['a]). Plain value types (i32) cannot.
+            bool returnCanHoldBorrow = LetStatement.IsReferenceType(TypePath);
+            if (!returnCanHoldBorrow && TypePath != null)
             {
-                if (!LetStatement.IsReferenceType(FuncDef.Arguments[i].TypePath)) continue;
-                var origin = LetStatement.TraceArgToSource(Arguments[i], analyzer);
-                if (origin != null)
-                {
-                    var inputKind = LetStatement.GetRefKindFromTypePath(FuncDef.Arguments[i].TypePath);
-                    refArgSources.Add((origin, inputKind));
-                }
+                var retDef = analyzer.GetDefinition(LangPath.StripGenerics(TypePath));
+                if (retDef is StructTypeDefinition std && std.LifetimeParameters.Length > 0)
+                    returnCanHoldBorrow = true;
+                else if (retDef is EnumTypeDefinition etd && etd.LifetimeParameters.Length > 0)
+                    returnCanHoldBorrow = true;
             }
-            if (refArgSources.Count == 1) results.Add(refArgSources[0]);
+
+            if (returnCanHoldBorrow)
+            {
+                var refArgSources = new List<(string, RefKind)>();
+                for (int i = 0; i < FuncDef.Arguments.Length && i < Arguments.Length; i++)
+                {
+                    if (!LetStatement.IsReferenceType(FuncDef.Arguments[i].TypePath)) continue;
+                    var origin = LetStatement.TraceArgToSource(Arguments[i], analyzer);
+                    if (origin != null)
+                    {
+                        var inputKind = LetStatement.GetRefKindFromTypePath(FuncDef.Arguments[i].TypePath);
+                        refArgSources.Add((origin, inputKind));
+                    }
+                }
+                if (refArgSources.Count == 1) results.Add(refArgSources[0]);
+            }
         }
         return results;
     }
@@ -551,7 +565,31 @@ public class FunctionCallKind : IChainKind
 
             var traitRet = analyzer.ResolveTraitMethodReturnType(functionPath);
             if (traitRet != null)
+            {
                 result.TypePath = ResolveTraitReturnType(traitRet, functionPath, qualifiedAsType, analyzer, tokenLoc);
+
+                // Set FuncDef for borrow tracking — find the impl method's FunctionDefinition
+                if (result.FuncDef == null)
+                {
+                    var lookup = analyzer.ResolveTraitMethodLookup(functionPath);
+                    if (lookup != null)
+                    {
+                        var concreteType = qualifiedAsType ?? lookup.Value.parentPath;
+                        foreach (var impl in analyzer.ImplDefinitions)
+                        {
+                            var bindings = impl.TryMatchConcreteType(concreteType);
+                            if (bindings == null) continue;
+                            var implTraitBase = LangPath.StripGenerics(impl.TraitPath);
+                            var traitDefPath = (lookup.Value.traitDef as IDefinition).TypePath;
+                            if (implTraitBase != null && implTraitBase.Equals(traitDefPath))
+                            {
+                                var method = impl.GetMethod(lookup.Value.methodName);
+                                if (method != null) { result.FuncDef = method; break; }
+                            }
+                        }
+                    }
+                }
+            }
             else
             {
                 var inherentRet = ResolveInherentReturn(result, analyzer);

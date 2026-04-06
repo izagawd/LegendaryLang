@@ -193,7 +193,7 @@ public class LetStatement : IStatement
         {
             // NLL-style: invalidate conflicting borrows
             analyzer.InvalidateConflictingBorrows(sourceName, refKind);
-            analyzer.RegisterBorrow(sourceName, VariableDefinition.Name, refKind);
+            analyzer.RegisterBorrow(sourceName, VariableDefinition.Name, refKind, TypePath);
 
             if (!analyzer.IsFunctionParameter(sourceName))
                 analyzer.MarkAsLocalBorrow(VariableDefinition.Name);

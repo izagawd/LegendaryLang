@@ -3,6 +3,7 @@ using LegendaryLang.Definitions;
 using LegendaryLang.Definitions.Types;
 using LegendaryLang.Parse;
 using LegendaryLang.Parse.Expressions;
+using LegendaryLang.Parse.Statements;
 
 namespace LegendaryLang.Semantics;
 
@@ -433,6 +434,7 @@ public class SemanticAnalyzer
         public readonly Dictionary<string, string> BorrowerToSource = new();
         public readonly Dictionary<string, List<(string borrower, RefKind kind)>> ActiveBorrows = new();
         public readonly HashSet<string> InvalidatedBorrows = new();
+        public readonly Dictionary<string, LangPath> BorrowerTypes = new();
     }
 
     private readonly Stack<BorrowScope> _borrowScopes = new();
@@ -448,7 +450,7 @@ public class SemanticAnalyzer
     /// Register that <paramref name="borrower"/> borrows from <paramref name="source"/>.
     /// Registered in the current (innermost) scope.
     /// </summary>
-    public void RegisterBorrow(string source, string borrower, RefKind kind = RefKind.Shared)
+    public void RegisterBorrow(string source, string borrower, RefKind kind = RefKind.Shared, LangPath? borrowerType = null)
     {
         var scope = _borrowScopes.Peek();
 
@@ -459,6 +461,9 @@ public class SemanticAnalyzer
         }
         set.Add(borrower);
         scope.BorrowerToSource[borrower] = source;
+
+        if (borrowerType != null)
+            scope.BorrowerTypes[borrower] = borrowerType;
 
         // If borrower was previously invalidated in any scope, clear it (fresh borrow)
         foreach (var s in _borrowScopes)
@@ -556,7 +561,9 @@ public class SemanticAnalyzer
 
     /// <summary>
     /// Returns the first active exclusive (&amp;uniq) borrow on the given source variable
-    /// whose borrower is still live (NLL). Searches all scopes.
+    /// that is still active. For reference/Copy borrowers, NLL applies (borrow expires at last use).
+    /// For non-Copy, non-reference borrowers, borrow persists until moved or scope exit
+    /// (because Drop could access the borrowed data at scope exit).
     /// </summary>
     public (string borrower, RefKind kind)? GetActiveExclusiveBorrow(string sourceName)
     {
@@ -566,8 +573,31 @@ public class SemanticAnalyzer
                 continue;
 
             foreach (var (borrower, kind) in activeList)
-                if (kind == RefKind.Uniq && IsVariableLiveTransitive(borrower))
-                    return (borrower, kind);
+            {
+                if (kind != RefKind.Uniq) continue;
+
+                // Look up borrower's type to determine NLL eligibility
+                LangPath? borrowerType = null;
+                foreach (var s in _borrowScopes)
+                    if (s.BorrowerTypes.TryGetValue(borrower, out var bt))
+                    { borrowerType = bt; break; }
+
+                bool isNllEligible = borrowerType != null
+                    && (LetStatement.IsReferenceType(borrowerType) || IsTypeCopy(borrowerType));
+
+                if (isNllEligible)
+                {
+                    // References & Copy types: NLL — borrow expires when borrower is no longer live
+                    if (IsVariableLiveTransitive(borrower))
+                        return (borrower, kind);
+                }
+                else
+                {
+                    // Non-Copy, non-reference: borrow persists until moved or scope exit
+                    if (!IsMoved(borrower))
+                        return (borrower, kind);
+                }
+            }
         }
 
         return null;
