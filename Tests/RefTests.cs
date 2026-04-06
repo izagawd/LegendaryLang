@@ -382,3 +382,27 @@ public class RefAutoReborrowTests
         CompilerTestHelper.AssertFail<UseAfterMoveError>("ref_tests/ref_uniq_let_still_moves_test");
     }
 }
+
+public class RefCreationBorrowConflictTests
+{
+    [Test]
+    public void RefStructDoubleUniqFieldFailTest()
+    {
+        // Two &uniq borrows of the same variable in a struct literal — should fail
+        CompilerTestHelper.AssertFail<BorrowConflictError>("ref_tests/ref_struct_double_uniq_field_fail_test");
+    }
+
+    [Test]
+    public void RefEnumVariantDoubleUniqFailTest()
+    {
+        // Two &uniq borrows of the same variable in an enum variant — should fail
+        CompilerTestHelper.AssertFail<BorrowConflictError>("ref_tests/ref_enum_variant_double_uniq_fail_test");
+    }
+
+    [Test]
+    public void RefEnumNestedStructDoubleUniqFailTest()
+    {
+        // Two structs each holding &uniq of the same variable passed to an enum variant — should fail
+        CompilerTestHelper.AssertFail<BorrowConflictError>("ref_tests/ref_enum_nested_struct_double_uniq_fail_test");
+    }
+}
