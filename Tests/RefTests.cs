@@ -559,6 +559,8 @@ public class RefBorrowThroughGenericTests
         CompilerTestHelper.AssertSuccess("ref_tests/ref_copy_through_generic_pass_test", 84);
     }
 
+    // ── Source returned / not returned ──
+
     [Test]
     public void RefBorrowSourceReturnedFailTest()
     {
@@ -571,5 +573,116 @@ public class RefBorrowThroughGenericTests
     {
         // Borrow source 'a' is NOT returned (b is) — borrower is harmless
         CompilerTestHelper.AssertSuccess("ref_tests/ref_borrow_source_not_returned_pass_test", 10);
+    }
+
+    [Test]
+    public void RefBorrowSourceExplicitReturnFailTest()
+    {
+        // return a; while borrower holds &uniq a
+        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_borrow_source_explicit_return_fail_test");
+    }
+
+    [Test]
+    public void RefBorrowSourceUsedInExprFailTest()
+    {
+        // a + b where a is borrowed — using source in expression
+        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_borrow_source_used_in_expr_fail_test");
+    }
+
+    [Test]
+    public void RefBorrowSourceReassignFailTest()
+    {
+        // a = 10 while borrower holds &uniq a
+        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_borrow_source_reassign_fail_test");
+    }
+
+    [Test]
+    public void RefBorrowTwoSourcesOneReturnedPassTest()
+    {
+        // Two sources borrowed, neither used — third var returned
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_borrow_two_sources_one_returned_pass_test", 20);
+    }
+
+    [Test]
+    public void RefBorrowConsumedThenSourceUsedPassTest()
+    {
+        // Borrower moved into DropIt(), source usable after
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_borrow_consumed_then_source_used_pass_test", 5);
+    }
+
+    [Test]
+    public void RefBorrowInnerScopeSourceAfterPassTest()
+    {
+        // Borrower in inner scope, source used after scope exits
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_borrow_inner_scope_source_after_pass_test", 5);
+    }
+
+    [Test]
+    public void RefBorrowSourcePassedToFnFailTest()
+    {
+        // read(a) while a is borrowed — passing source to function
+        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_borrow_source_passed_to_fn_fail_test");
+    }
+
+    [Test]
+    public void RefBorrowDifferentVarReturnedPassTest()
+    {
+        // Source borrowed, unrelated var returned
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_borrow_different_var_returned_pass_test", 42);
+    }
+
+    // ── Generic propagation edge cases ──
+
+    [Test]
+    public void RefGenericReturnsDifferentTypePassTest()
+    {
+        // Generic fn consumes borrower, returns i32 — borrow released by move
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_generic_returns_different_type_pass_test", 5);
+    }
+
+    [Test]
+    public void RefChainedGenericConsumedPassTest()
+    {
+        // Pass(Pass(h)) then DropIt(h2) — borrow released before source used
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_chained_generic_consumed_pass_test", 5);
+    }
+
+    [Test]
+    public void RefGenericPassthroughReassignFailTest()
+    {
+        // Pass(h) then a = 99 — borrow survives generic, blocks reassign
+        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_generic_passthrough_reassign_fail_test");
+    }
+
+    // ── Drop vs non-Drop borrower behavior ──
+
+    [Test]
+    public void RefDropBorrowerPersistsFailTest()
+    {
+        // Drop type borrower — borrow persists until scope exit even without explicit use
+        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_drop_borrower_persists_fail_test");
+    }
+
+    [Test]
+    public void RefNonDropBlockScopeReleasedPassTest()
+    {
+        // Non-drop borrower in block scope — borrow released at scope exit, source usable
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_nondrop_block_scope_released_pass_test", 47);
+    }
+
+    // ── Multi-field borrows ──
+
+    [Test]
+    public void RefMultiBorrowFieldsUntouchedPassTest()
+    {
+        // Struct borrows a and b, neither used — unrelated var returned
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_multi_borrow_fields_untouched_pass_test", 99);
+    }
+
+    [Test]
+    public void RefMultiBorrowOneSourceUsedFailTest()
+    {
+        // Struct borrows a and b, b returned — b used while borrowed
+        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_multi_borrow_one_source_used_fail_test");
     }
 }
