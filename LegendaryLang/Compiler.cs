@@ -210,6 +210,11 @@ public class Compiler
         if (parsed == null)
             return new CompileResult { Errors = errors };
 
+        // Don't attempt codegen if semantic analysis found errors —
+        // the AST may be in an inconsistent state (e.g., types used as values)
+        if (errors.Count > 0)
+            return new CompileResult { Errors = errors };
+
         var (parseResults, mainModule) = parsed.Value;
 
         var function = CodeGenContext.CodeGenMain(parseResults, mainModule, showLLVMIR, optimized);
