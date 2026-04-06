@@ -141,8 +141,16 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
     public Token Token { get; }
 
 
+    /// <summary>
+    /// When true, the body has already been analyzed (e.g., default trait method bodies
+    /// analyzed at trait definition site). Skips re-analysis at the impl level.
+    /// </summary>
+    public bool IsPreAnalyzed { get; init; }
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        if (IsPreAnalyzed) return;
+
         analyzer.AddScope();
 
         // Check for duplicate generic parameter names

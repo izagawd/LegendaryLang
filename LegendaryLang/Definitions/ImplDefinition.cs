@@ -27,7 +27,7 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
         IsInherent = isInherent;
         TraitPath = traitPath ?? InherentSentinel;
         ForTypePath = forTypePath;
-        Methods = methods.ToImmutableArray();
+        Methods = methods.ToList();
         Token = token;
         GenericParameters = genericParameters.ToImmutableArray();
         AssociatedTypeAssignments = associatedTypes.ToImmutableArray();
@@ -48,7 +48,7 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
 
     public LangPath TraitPath { get; set; }
     public LangPath ForTypePath { get; set; }
-    public ImmutableArray<FunctionDefinition> Methods { get; }
+    public List<FunctionDefinition> Methods { get; }
     public ImmutableArray<GenericParameter> GenericParameters { get; }
     public ImmutableArray<string> LifetimeParameters { get; }
     public ImmutableArray<ImplAssociatedType> AssociatedTypeAssignments { get; }
@@ -492,9 +492,47 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             var implMethod = Methods.FirstOrDefault(m => m.Name == traitMethod.Name);
             if (implMethod == null)
             {
-                analyzer.AddException(new TraitMethodNotImplementedException(
-                    traitMethod.Name, TraitPath, Token.GetLocationStringRepresentation()));
-                continue;
+                if (traitMethod.HasDefault)
+                {
+                    // Inject a synthetic FunctionDefinition from the trait's default body.
+                    // Substitute Self and trait generic params with concrete types so the
+                    // body is analyzed with concrete types (e.g., Self→i32, Rhs→i32).
+                    var existingMethod = Methods.FirstOrDefault();
+                    var implModule = existingMethod?.Module
+                        ?? new NormalLangPath(null, [new NormalLangPath.NormalPathSegment(
+                            $"impl {TraitPath} for {ForTypePath}")]);
+
+                    // Substitute parameter types: Self → concrete type, Rhs → concrete arg, etc.
+                    var substitutedParams = traitMethod.Parameters
+                        .Select(p => new VariableDefinition(p.IdentifierToken,
+                            p.TypePath != null ? SubstituteAll(p.TypePath, traitSubstitutions) : null))
+                        .ToImmutableArray();
+
+                    var substitutedReturnType = SubstituteAll(
+                        traitMethod.ReturnTypePath, traitSubstitutions);
+
+                    var defaultMethod = new FunctionDefinition(
+                        traitMethod.Name,
+                        substitutedParams,
+                        substitutedReturnType,
+                        traitMethod.DefaultBody,
+                        implModule,
+                        traitMethod.GenericParameters,
+                        traitMethod.Token,
+                        traitMethod.LifetimeParameters,
+                        traitMethod.ArgumentLifetimes,
+                        traitMethod.ReturnLifetime)
+                    { IsPreAnalyzed = true };
+
+                    Methods.Add(defaultMethod);
+                    implMethod = defaultMethod;
+                }
+                else
+                {
+                    analyzer.AddException(new TraitMethodNotImplementedException(
+                        traitMethod.Name, TraitPath, Token.GetLocationStringRepresentation()));
+                    continue;
+                }
             }
 
             if (implMethod.Arguments.Length != traitMethod.Parameters.Length)

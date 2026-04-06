@@ -45,7 +45,7 @@ public static class Lexer
                     }
                     else if (index + 1 < code.Length && code[index + 1] == '=')
                     {
-                        file.AddToken(new DoubleEquality(file, column, line));
+                        file.AddToken(new OperatorToken(file, column, line, Operator.Equals));
                         index++;
                     }
                     else
@@ -103,7 +103,15 @@ public static class Lexer
                     file.AddToken(new OperatorToken(file,column,line,Operator.GreaterThan));
                     break;
                 case '!':
-                    file.AddToken(new OperatorToken(file,column,line,Operator.ExclamationMark));
+                    if (index + 1 < code.Length && code[index + 1] == '=')
+                    {
+                        file.AddToken(new OperatorToken(file, column, line, Operator.NotEquals));
+                        index++;
+                    }
+                    else
+                    {
+                        file.AddToken(new OperatorToken(file,column,line,Operator.ExclamationMark));
+                    }
                     break;
                 case ':':
                     if (index + 1 < code.Length && code[index + 1] == ':')
@@ -125,12 +133,19 @@ public static class Lexer
                 case '&':
                     if (index + 1 < code.Length && code[index + 1] == '&')
                     {
-                        file.AddToken(new DoubleAmpersandToken(file, column, line));
+                        file.AddToken(new OperatorToken(file, column, line, Operator.And));
                         index++;
                     }
                     else
                     {
                         file.AddToken(new AmpersandToken(file, column, line));
+                    }
+                    break;
+                case '|':
+                    if (index + 1 < code.Length && code[index + 1] == '|')
+                    {
+                        file.AddToken(new OperatorToken(file, column, line, Operator.Or));
+                        index++;
                     }
                     break;
                 case '\r':

@@ -1,4 +1,4 @@
-﻿using LegendaryLang.ConcreteDefinition;
+using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Definitions;
 using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex;
@@ -21,22 +21,43 @@ public class BinaryOperationExpression : IExpression
     public IExpression Right { get; }
     public OperatorToken OperatorToken { get; }
 
-
     public IEnumerable<ISyntaxNode> Children => [Left, Right];
-
     public bool HasGuaranteedExplicitReturn => Left.HasGuaranteedExplicitReturn || Right.HasGuaranteedExplicitReturn;
 
-    private static string? GetOperatorMethodName(Operator op)
+    private static string? GetOperatorMethodName(Operator op) => op switch
     {
-        return op switch
-        {
-            Operator.Add => "Add",
-            Operator.Subtract => "Sub",
-            Operator.Multiply => "Mul",
-            Operator.Divide => "Div",
-            _ => null
-        };
-    }
+        Operator.Add => "Add",
+        Operator.Subtract => "Sub",
+        Operator.Multiply => "Mul",
+        Operator.Divide => "Div",
+        Operator.Equals => "Eq",
+        Operator.NotEquals => "Ne",
+        Operator.LessThan => "Lt",
+        Operator.GreaterThan => "Gt",
+        _ => null
+    };
+
+    private static NormalLangPath? GetOperatorTraitPath(Operator op) => op switch
+    {
+        Operator.Add => SemanticAnalyzer.AddTraitPath,
+        Operator.Subtract => SemanticAnalyzer.SubTraitPath,
+        Operator.Multiply => SemanticAnalyzer.MulTraitPath,
+        Operator.Divide => SemanticAnalyzer.DivTraitPath,
+        Operator.Equals => SemanticAnalyzer.PartialEqTraitPath,
+        Operator.NotEquals => SemanticAnalyzer.PartialEqTraitPath,
+        Operator.LessThan => SemanticAnalyzer.PartialOrdTraitPath,
+        Operator.GreaterThan => SemanticAnalyzer.PartialOrdTraitPath,
+        _ => null
+    };
+
+    private static bool IsComparisonOperator(Operator op) =>
+        op is Operator.Equals or Operator.NotEquals or Operator.LessThan or Operator.GreaterThan;
+
+    private static bool IsArithmeticOperator(Operator op) =>
+        op is Operator.Add or Operator.Subtract or Operator.Multiply or Operator.Divide;
+
+    private static bool IsLogicalOperator(Operator op) =>
+        op is Operator.And or Operator.Or;
 
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
@@ -44,39 +65,33 @@ public class BinaryOperationExpression : IExpression
         var rightVal = Right.CodeGen(codeGenContext);
 
         var type = leftVal.Type;
+        var op = OperatorToken.OperatorType;
 
-        // For non-primitive types on either side, dispatch to the trait impl method
+        // For non-primitive types, dispatch through trait impl methods
         if ((type is not PrimitiveType || rightVal.Type is not PrimitiveType)
-            && OperatorToken.OperatorType is Operator.Add or Operator.Subtract or Operator.Multiply or Operator.Divide)
+            && (IsArithmeticOperator(op) || IsComparisonOperator(op)))
         {
-            var traitPath = GetOperatorTraitPath(OperatorToken.OperatorType);
-            var methodName = GetOperatorMethodName(OperatorToken.OperatorType);
+            var traitPath = GetOperatorTraitPath(op);
+            var methodName = GetOperatorMethodName(op);
             if (traitPath != null && methodName != null)
             {
-                // Build trait path with RHS generic: Add(RhsType) so impl matching
-                // can distinguish Add(i32) from Add(Foo)
                 var traitWithRhs = traitPath.AppendGenerics([rightVal.Type.TypePath]);
-
-                // Build path: Add(RhsType).Add
                 var methodPath = traitWithRhs.Append(new NormalLangPath.NormalPathSegment(methodName));
 
-                // Resolve the trait method with a temporary trait bound
                 var funcRef = CallExpressionHelper.ResolveWithTraitBound(
                     codeGenContext, traitWithRhs, type.TypePath, methodPath);
 
                 if (funcRef != null)
-                {
                     return CallExpressionHelper.EmitCall(funcRef, [leftVal, rightVal], codeGenContext);
-                }
             }
         }
 
         // Primitive path: use LLVM intrinsic instructions
-        LLVMValueRef valueRef = null;
-
         var leftValRef = type.LoadValue(codeGenContext, leftVal);
         var rightValRef = type.LoadValue(codeGenContext, rightVal);
-        switch (OperatorToken.OperatorType)
+
+        LLVMValueRef valueRef;
+        switch (op)
         {
             case Operator.Add:
                 valueRef = codeGenContext.Builder.BuildAdd(leftValRef, rightValRef);
@@ -96,11 +111,23 @@ public class BinaryOperationExpression : IExpression
             case Operator.GreaterThan:
                 valueRef = codeGenContext.Builder.BuildICmp(LLVMIntPredicate.LLVMIntSGT, leftValRef, rightValRef);
                 break;
+            case Operator.Equals:
+                valueRef = codeGenContext.Builder.BuildICmp(LLVMIntPredicate.LLVMIntEQ, leftValRef, rightValRef);
+                break;
+            case Operator.NotEquals:
+                valueRef = codeGenContext.Builder.BuildICmp(LLVMIntPredicate.LLVMIntNE, leftValRef, rightValRef);
+                break;
+            case Operator.And:
+                valueRef = codeGenContext.Builder.BuildAnd(leftValRef, rightValRef);
+                break;
+            case Operator.Or:
+                valueRef = codeGenContext.Builder.BuildOr(leftValRef, rightValRef);
+                break;
             default:
                 throw new ArgumentOutOfRangeException();
         }
-        // if less than or greater than should return a bool, if not return the resolved type
-        if (OperatorToken.OperatorType is Operator.LessThan or Operator.GreaterThan)
+
+        if (IsComparisonOperator(op) || IsLogicalOperator(op))
         {
             return new ValueRefItem()
             {
@@ -109,7 +136,6 @@ public class BinaryOperationExpression : IExpression
             };
         }
 
-        // Use the resolved output type from Analyze
         var outputTypeRef = codeGenContext.GetRefItemFor(_resolvedOutputType ?? type.TypePath) as TypeRefItem;
         return new ValueRefItem
         {
@@ -119,73 +145,78 @@ public class BinaryOperationExpression : IExpression
     }
 
     private static BoolTypeDefinition BoolDef = new BoolTypeDefinition();
-    private static I32TypeDefinition i32Def = new I32TypeDefinition();
 
     private LangPath? _resolvedOutputType;
 
     public LangPath? TypePath { get; private set; }
 
-    private static NormalLangPath? GetOperatorTraitPath(Operator op)
-    {
-        return op switch
-        {
-            Operator.Add => SemanticAnalyzer.AddTraitPath,
-            Operator.Subtract => SemanticAnalyzer.SubTraitPath,
-            Operator.Multiply => SemanticAnalyzer.MulTraitPath,
-            Operator.Divide => SemanticAnalyzer.DivTraitPath,
-            _ => null
-        };
-    }
-
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        // Analyze and mark operands as moved (auto-reborrow for &uniq, same as function args)
         CallExpressionHelper.AnalyzeExpressionWithReborrow(Left, analyzer);
         CallExpressionHelper.AnalyzeExpressionWithReborrow(Right, analyzer);
 
-        if (OperatorToken.OperatorType is Operator.LessThan or Operator.GreaterThan)
+        var op = OperatorToken.OperatorType;
+
+        // Logical operators: both sides must be bool
+        if (IsLogicalOperator(op))
         {
-            // Comparison operators: both sides must be same type
-            if (Left.TypePath != Right.TypePath)
+            if (Left.TypePath != BoolDef.TypePath)
                 analyzer.AddException(new SemanticException(
-                    $"Both operands must be the same type! '{Left.TypePath}' is not the same as '{Right.TypePath}'\n{Right.Token.GetLocationStringRepresentation()}"));
+                    $"Left operand of '{op.ToSymbol()}' must be bool, found '{Left.TypePath}'\n{Left.Token.GetLocationStringRepresentation()}"));
+            if (Right.TypePath != BoolDef.TypePath)
+                analyzer.AddException(new SemanticException(
+                    $"Right operand of '{op.ToSymbol()}' must be bool, found '{Right.TypePath}'\n{Right.Token.GetLocationStringRepresentation()}"));
             TypePath = BoolDef.TypePath;
             return;
         }
 
-        if (!new[] { Operator.Add, Operator.Divide, Operator.Multiply, Operator.Subtract }
-                .Contains(OperatorToken.OperatorType))
+        // Comparison operators: check PartialEq/PartialOrd traits
+        if (IsComparisonOperator(op))
+        {
+            var traitPath = GetOperatorTraitPath(op);
+            if (traitPath != null)
+            {
+                var traitWithRhs = traitPath.AppendGenerics([Right.TypePath!]);
+                if (!analyzer.TypeImplementsTrait(Left.TypePath!, traitWithRhs))
+                {
+                    analyzer.AddException(new SemanticException(
+                        $"Type '{Left.TypePath}' does not implement '{traitPath.GetLastPathSegment()}({Right.TypePath})'.\n" +
+                        $"Cannot use operator '{op.ToSymbol()}'\n{Token.GetLocationStringRepresentation()}"));
+                }
+            }
+            TypePath = BoolDef.TypePath;
+            return;
+        }
+
+        // Arithmetic operators
+        if (!IsArithmeticOperator(op))
         {
             analyzer.AddException(new SemanticException(
-                $"Operator '{OperatorToken.OperatorType}' is not supported with binary expressions\n{Token.GetLocationStringRepresentation()}"));
+                $"Operator '{op.ToSymbol()}' is not supported with binary expressions\n{Token.GetLocationStringRepresentation()}"));
             TypePath = LangPath.VoidBaseLangPath;
             return;
         }
 
-        // Check operator trait
-        var traitPath = GetOperatorTraitPath(OperatorToken.OperatorType);
-        if (traitPath == null)
+        var arithmeticTraitPath = GetOperatorTraitPath(op);
+        if (arithmeticTraitPath == null)
         {
             TypePath = LangPath.VoidBaseLangPath;
             return;
         }
 
-        // Build trait path with Rhs generic: Add(Rhs) where Rhs = Right.TypePath
-        var traitWithRhs = traitPath.AppendGenerics([Right.TypePath!]);
+        var arithmeticTraitWithRhs = arithmeticTraitPath.AppendGenerics([Right.TypePath!]);
 
-        // Check if Left type implements the operator trait
-        if (!analyzer.TypeImplementsTrait(Left.TypePath!, traitWithRhs))
+        if (!analyzer.TypeImplementsTrait(Left.TypePath!, arithmeticTraitWithRhs))
         {
             analyzer.AddException(new SemanticException(
-                $"Type '{Left.TypePath}' does not implement '{traitPath.GetLastPathSegment()}({Right.TypePath})'.\n" +
-                $"Cannot use operator '{OperatorToken.OperatorType}'\n{Token.GetLocationStringRepresentation()}"));
+                $"Type '{Left.TypePath}' does not implement '{arithmeticTraitPath.GetLastPathSegment()}({Right.TypePath})'.\n" +
+                $"Cannot use operator '{op.ToSymbol()}'\n{Token.GetLocationStringRepresentation()}"));
             TypePath = Left.TypePath;
             _resolvedOutputType = Left.TypePath;
             return;
         }
 
-        // Resolve Output associated type
-        var outputType = analyzer.ResolveAssociatedType(Left.TypePath!, traitWithRhs, "Output");
+        var outputType = analyzer.ResolveAssociatedType(Left.TypePath!, arithmeticTraitWithRhs, "Output");
         if (outputType != null)
         {
             TypePath = outputType;
@@ -193,22 +224,18 @@ public class BinaryOperationExpression : IExpression
         }
         else
         {
-            // If the left type is a generic param, produce a QualifiedAssocTypePath
-            // so it matches return types like (T as Add(T)).Output or T.Output
             bool isGenericParam = Left.TypePath is NormalLangPath nlpLeft
                 && nlpLeft.PathSegments.Length == 1
                 && analyzer.IsGenericParam(nlpLeft.PathSegments[0].ToString());
 
             if (isGenericParam)
             {
-                // Produce (T as Add(T)).Output as the type
-                var qualifiedOutput = new QualifiedAssocTypePath(Left.TypePath, traitWithRhs, "Output");
+                var qualifiedOutput = new QualifiedAssocTypePath(Left.TypePath, arithmeticTraitWithRhs, "Output");
                 TypePath = qualifiedOutput;
                 _resolvedOutputType = qualifiedOutput;
             }
             else
             {
-                // Fallback: same as left type
                 TypePath = Left.TypePath;
                 _resolvedOutputType = Left.TypePath;
             }

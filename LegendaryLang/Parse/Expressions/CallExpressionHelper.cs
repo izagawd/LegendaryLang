@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Definitions;
 using LegendaryLang.Definitions.Types;
-using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Statements;
 using LegendaryLang.Semantics;
 using LLVMSharp.Interop;

@@ -1360,6 +1360,15 @@ public class SemanticAnalyzer
     public static readonly NormalLangPath DivTraitPath =
         new(null, new NormalLangPath.PathSegment[] { "Std", "Ops", "Div" });
 
+    public static readonly NormalLangPath PartialEqTraitPath =
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Ops", "PartialEq" });
+    public static readonly NormalLangPath EqTraitPath =
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Ops", "Eq" });
+    public static readonly NormalLangPath PartialOrdTraitPath =
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Ops", "PartialOrd" });
+    public static readonly NormalLangPath OrdTraitPath =
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Ops", "Ord" });
+
     public static readonly NormalLangPath ReceiverTraitPath =
         new(null, new NormalLangPath.PathSegment[] { "Std", "Deref", "Receiver" });
 

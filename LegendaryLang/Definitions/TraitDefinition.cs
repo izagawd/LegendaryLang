@@ -32,6 +32,15 @@ public class TraitMethodSignature
     public Dictionary<int, string> ArgumentLifetimes { get; init; } = new();
     public string? ReturnLifetime { get; init; }
 
+    /// <summary>
+    /// Optional default method body. If present, implementations may omit this method
+    /// and the default body will be used instead.
+    /// </summary>
+    public BlockExpression? DefaultBody { get; init; }
+
+    /// <summary>Whether this method has a default implementation.</summary>
+    public bool HasDefault => DefaultBody != null;
+
     public static TraitMethodSignature Parse(Parser parser)
     {
         var fnTok = parser.Pop();
@@ -58,9 +67,10 @@ public class TraitMethodSignature
         var returnResult = FunctionSignatureParser.ParseReturnType(parser);
 
         // Parse optional body (for default method implementations)
+        BlockExpression? defaultBody = null;
         if (parser.Peek() is LeftCurlyBraceToken)
         {
-            BlockExpression.Parse(parser, returnResult.ReturnTypePath);
+            defaultBody = BlockExpression.Parse(parser, returnResult.ReturnTypePath);
         }
         else
         {
@@ -76,7 +86,8 @@ public class TraitMethodSignature
             GenericParameters = genericParameters.ToImmutableArray(),
             LifetimeParameters = lifetimeParameters,
             ArgumentLifetimes = paramsResult.ArgumentLifetimes,
-            ReturnLifetime = returnResult.ReturnLifetime
+            ReturnLifetime = returnResult.ReturnLifetime,
+            DefaultBody = defaultBody
         };
     }
 
@@ -88,6 +99,7 @@ public class TraitMethodSignature
         foreach (var gp in GenericParameters)
             for (int i = 0; i < gp.TraitBounds.Count; i++)
                 gp.TraitBounds[i] = gp.TraitBounds[i].Resolve(resolver);
+        DefaultBody?.ResolvePaths(resolver);
     }
 }
 
@@ -208,6 +220,45 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
                             method.Token.GetLocationStringRepresentation()));
                     }
                 }
+            }
+
+            // Analyze default method bodies with Self: ThisTrait bound.
+            // This catches errors at the trait definition, not at each impl site.
+            if (method.HasDefault)
+            {
+                analyzer.AddScope();
+
+                // Build the trait bound: Self: ThisTrait(Generics).
+                // e.g., for trait PartialEq(Rhs), push Self: PartialEq(Rhs).
+                var traitBounds = new List<(LangPath traitPath, string typeName, Dictionary<string, LangPath>? assocConstraints)>();
+                // Self is bounded by this trait
+                var selfTraitPath = GenericParameters.Length > 0
+                    ? ((NormalLangPath)TypePath).AppendGenerics(
+                        GenericParameters.Select(gp => (LangPath)new NormalLangPath(null, [gp.Name])).ToArray())
+                    : TypePath;
+                traitBounds.Add((selfTraitPath, "Self", null));
+                // Trait generic params (Rhs, etc.) are unconstrained types
+                foreach (var gp in GenericParameters)
+                    traitBounds.Add(((LangPath)LangPath.VoidBaseLangPath, gp.Name, null));
+                // Method generic params
+                foreach (var mgp in method.GenericParameters)
+                    traitBounds.Add(mgp.TraitBounds.Count > 0
+                        ? (mgp.TraitBounds[0].TraitPath, mgp.Name, null)
+                        : ((LangPath)LangPath.VoidBaseLangPath, mgp.Name, null));
+
+                analyzer.PushTraitBounds(traitBounds);
+
+                // Register parameters as variables
+                foreach (var param in method.Parameters)
+                    analyzer.RegisterVariableType(
+                        new NormalLangPath(param.IdentifierToken, [param.Name]), param.TypePath);
+
+                analyzer.SetFunctionParameters(method.Parameters.Select(p => p.Name));
+
+                method.DefaultBody!.Analyze(analyzer);
+
+                analyzer.PopTraitBounds();
+                analyzer.PopScope();
             }
         }
     }

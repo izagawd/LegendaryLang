@@ -5,7 +5,7 @@ enum Action {
 
 fn process(a: Action) -> i32 {
     match a {
-        Action.Go(v) => return v,
+        Action.Go(v) => { return v; },
         Action.Stop => 0
     }
 }

@@ -256,7 +256,7 @@ public abstract class LangPath
         }
 
         // Double reference type: &&T, &&mut T, &&const T, &&uniq T in type position
-        if (next is DoubleAmpersandToken && typePosition)
+        if (next is OperatorToken { OperatorType: Operator.And } && typePosition)
         {
             parser.Pop(); // consume &&
 

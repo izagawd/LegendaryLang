@@ -371,3 +371,321 @@ public class AssociatedTypeConstraintTests
         AssertSuccess("trait_tests/assoc_type_self_return_test", 4);
     }
 }
+
+public class EqualityTests
+{
+    [Test] public void EqI32EqualTest() => AssertSuccess("trait_tests/eq_i32_equal_test", 1);
+    [Test] public void EqI32NotEqualTest() => AssertSuccess("trait_tests/eq_i32_not_equal_test", 0);
+
+    [Test]
+    public void EqBoolTest()
+    {
+        // true==true → 1, true==false → 0, false==false → 100. Total 101
+        AssertSuccess("trait_tests/eq_bool_test", 101);
+    }
+
+    [Test]
+    public void EqVariableTest()
+    {
+        // 42==42 → 1, 42==99 → 0. Total 1
+        AssertSuccess("trait_tests/eq_variable_test", 1);
+    }
+
+    [Test]
+    public void EqInWhileTest()
+    {
+        // 5 iterations (+1 each) + when i==3 (+100) = 105
+        AssertSuccess("trait_tests/eq_in_while_test", 105);
+    }
+
+    [Test]
+    public void EqCustomTypeTest()
+    {
+        // Point{1,2}==Point{1,2} → 1, Point{1,2}==Point{3,4} → 0. Total 1
+        AssertSuccess("trait_tests/eq_custom_type_test", 1);
+    }
+
+    [Test]
+    public void EqNoImplFailTest()
+    {
+        // Foo has no PartialEq impl — == should fail
+        AssertFail<GenericSemanticError>("trait_tests/eq_no_impl_fail_test");
+    }
+}
+
+public class ComparisonTests
+{
+    [Test]
+    public void OrdLessThanTest()
+    {
+        // 3<5 → 1, 5<3 → 0, 5<5 → 0. Total 1
+        AssertSuccess("trait_tests/ord_less_than_test", 1);
+    }
+
+    [Test]
+    public void OrdGreaterThanTest()
+    {
+        // 5>3 → 1, 3>5 → 0, 5>5 → 0. Total 1
+        AssertSuccess("trait_tests/ord_greater_than_test", 1);
+    }
+
+    [Test]
+    public void OrdChainedComparisonTest()
+    {
+        // clamp(50,0,100)=50 + clamp(200,0,100)=100 + clamp(-5,0,100)=0 = 150
+        AssertSuccess("trait_tests/ord_chained_comparison_test", 150);
+    }
+
+    [Test]
+    public void OrdCustomTypeTest()
+    {
+        // Num(5)<Num(10) → 1, Num(10)>Num(5) → 10, Num(5)==Num(5) → 100. Total 111
+        AssertSuccess("trait_tests/ord_custom_type_test", 111);
+    }
+
+    [Test]
+    public void OrdNoImplFailTest()
+    {
+        // Foo has no PartialOrd impl — < should fail
+        AssertFail<GenericSemanticError>("trait_tests/ord_no_impl_fail_test");
+    }
+}
+
+public class LogicalOperatorTests
+{
+    [Test]
+    public void LogicalAndTest()
+    {
+        // T&&T=1, T&&F=0, F&&T=0, F&&F=0. Total 1
+        AssertSuccess("trait_tests/logical_and_test", 1);
+    }
+
+    [Test]
+    public void LogicalOrTest()
+    {
+        // T||T=1, T||F=10, F||T=100, F||F=0. Total 111
+        AssertSuccess("trait_tests/logical_or_test", 111);
+    }
+
+    [Test]
+    public void LogicalCombinedTest()
+    {
+        // a&&c=1, a||b=10, b&&c=0, b||b=0. Total 11
+        AssertSuccess("trait_tests/logical_combined_test", 11);
+    }
+
+    [Test]
+    public void LogicalWithComparisonTest()
+    {
+        // in_range(5,0,10)=true→1, in_range(15,0,10)=false→0, in_range(0,0,10)=false→0. Total 1
+        AssertSuccess("trait_tests/logical_with_comparison_test", 1);
+    }
+
+    [Test]
+    public void LogicalAndNonBoolFailTest()
+    {
+        // 5 && 3 — operands must be bool
+        AssertFail<GenericSemanticError>("trait_tests/logical_and_non_bool_fail_test");
+    }
+
+    [Test]
+    public void LogicalOrNonBoolFailTest()
+    {
+        // 5 || 3 — operands must be bool
+        AssertFail<GenericSemanticError>("trait_tests/logical_or_non_bool_fail_test");
+    }
+}
+
+public class OperatorPrecedenceTests
+{
+    [Test]
+    public void PrecedenceMulBeforeAddTest()
+    {
+        // 2 + 3 * 4 = 2 + 12 = 14
+        AssertSuccess("trait_tests/precedence_mul_before_add_test", 14);
+    }
+
+    [Test]
+    public void PrecedenceAddBeforeCompareTest()
+    {
+        // (3 + 4) > 5 → true → 1
+        AssertSuccess("trait_tests/precedence_add_before_compare_test", 1);
+    }
+
+    [Test]
+    public void PrecedenceCompareBeforeAndTest()
+    {
+        // (3 < 5) && (10 > 7) → true && true → 1
+        AssertSuccess("trait_tests/precedence_compare_before_and_test", 1);
+    }
+
+    [Test]
+    public void PrecedenceAndBeforeOrTest()
+    {
+        // (false && true) || true → false || true → 1
+        AssertSuccess("trait_tests/precedence_and_before_or_test", 1);
+    }
+
+    [Test]
+    public void PrecedenceParensOverrideTest()
+    {
+        // (2 + 3) * 4 = 5 * 4 = 20
+        AssertSuccess("trait_tests/precedence_parens_override_test", 20);
+    }
+
+    [Test]
+    public void PrecedenceEqBeforeAndTest()
+    {
+        // (5 == 5) && (3 == 3) → true && true → 1
+        AssertSuccess("trait_tests/precedence_eq_before_and_test", 1);
+    }
+
+    [Test]
+    public void PrecedenceComplexExprTest()
+    {
+        // x=10,y=20: (10+20 > 25) && (10*2 == 20) → (30>25) && (20==20) → true && true → 1
+        AssertSuccess("trait_tests/precedence_complex_expr_test", 1);
+    }
+
+    [Test]
+    public void PrecedenceOrWithParensTest()
+    {
+        // false && (true || true) → false && true → false → 0
+        AssertSuccess("trait_tests/precedence_or_with_parens_test", 0);
+    }
+}
+
+public class DefaultTraitMethodTests
+{
+    [Test]
+    public void DefaultMethodUsedTest()
+    {
+        // Impl provides no methods, trait has default → default used → 42
+        AssertSuccess("trait_tests/default_method_used_test", 42);
+    }
+
+    [Test]
+    public void DefaultMethodOverrideTest()
+    {
+        // Impl overrides default method → override wins → 99
+        AssertSuccess("trait_tests/default_method_override_test", 99);
+    }
+
+    [Test]
+    public void DefaultMethodMixedTest()
+    {
+        // required(10)=20, optional(10)=11 (default) → 31
+        AssertSuccess("trait_tests/default_method_mixed_test", 31);
+    }
+
+    [Test]
+    public void DefaultMethodMissingRequiredFailTest()
+    {
+        // Impl omits required method (no default) → compile error
+        AssertFail<TraitMethodNotImplementedError>("trait_tests/default_method_missing_required_fail_test");
+    }
+
+    [Test]
+    public void DefaultMethodNeUsedTest()
+    {
+        // Ne is default impl of PartialEq — 5 != 3 → true → 1
+        AssertSuccess("trait_tests/default_method_ne_used_test", 1);
+    }
+
+    [Test]
+    public void DefaultMethodNeEqualTest()
+    {
+        // 5 != 5 → false → 0
+        AssertSuccess("trait_tests/default_method_ne_equal_test", 0);
+    }
+
+    [Test]
+    public void DefaultMethodNeCustomTypeTest()
+    {
+        // Custom type implements Eq only, Ne uses default: Num(5)!=Num(5)→0, Num(5)!=Num(9)→1. Total 1
+        AssertSuccess("trait_tests/default_method_ne_custom_type_test", 1);
+    }
+}
+
+public class NegateOperatorTests
+{
+    [Test] public void NegateTrueTest() => AssertSuccess("trait_tests/negate_true_test", 0);
+    [Test] public void NegateFalseTest() => AssertSuccess("trait_tests/negate_false_test", 1);
+    [Test] public void NegateDoubleTest() => AssertSuccess("trait_tests/negate_double_test", 1);
+
+    [Test]
+    public void NegateComparisonTest()
+    {
+        // !(3 > 5) → !(false) → true → 1
+        AssertSuccess("trait_tests/negate_comparison_test", 1);
+    }
+
+    [Test]
+    public void NegateWithAndTest()
+    {
+        // true && !false → true && true → 1
+        AssertSuccess("trait_tests/negate_with_and_test", 1);
+    }
+
+    [Test]
+    public void NegateNonBoolFailTest()
+    {
+        // !5 — not bool, should fail
+        AssertFail<GenericSemanticError>("trait_tests/negate_non_bool_fail_test");
+    }
+}
+
+public class NotEqualsTests
+{
+    [Test]
+    public void NeI32Test()
+    {
+        // 5!=3 → 1, 5!=5 → 0. Total 1
+        AssertSuccess("trait_tests/ne_i32_test", 1);
+    }
+
+    [Test]
+    public void NeBoolTest()
+    {
+        // true!=false → 1, true!=true → 0. Total 1
+        AssertSuccess("trait_tests/ne_bool_test", 1);
+    }
+
+    [Test]
+    public void NeInLoopTest()
+    {
+        // 0..9, skip 5 → 9 iterations counted
+        AssertSuccess("trait_tests/ne_in_loop_test", 9);
+    }
+
+    [Test]
+    public void NePrecedenceTest()
+    {
+        // (2+3 != 6) && (10 > 5) → (5!=6) && true → true && true → 1
+        AssertSuccess("trait_tests/ne_precedence_test", 1);
+    }
+
+    [Test]
+    public void NeNoImplFailTest()
+    {
+        // Foo has no PartialEq — != should fail
+        AssertFail<GenericSemanticError>("trait_tests/ne_no_impl_fail_test");
+    }
+}
+
+public class CombinedOperatorTests
+{
+    [Test]
+    public void CombinedAllOperatorsTest()
+    {
+        // eq=1, ne=2, lt=4, gt=8, and=16, or=32, neg=64. Total 127
+        AssertSuccess("trait_tests/combined_all_operators_test", 127);
+    }
+
+    [Test]
+    public void CombinedComplexConditionTest()
+    {
+        // is_valid(25)=true→1, is_valid(50)=false→0, is_valid(0)=false→0, is_valid(100)=false→0. Total 1
+        AssertSuccess("trait_tests/combined_complex_condition_test", 1);
+    }
+}
