@@ -7,5 +7,5 @@ impl Idk for i32 {
     }
 }
 fn main() -> i32 {
-    (i32 as Idk).Add(5, 10)
+    (i32 as Idk).add(5, 10)
 }

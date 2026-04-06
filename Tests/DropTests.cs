@@ -79,4 +79,6 @@ public class DropTests
     // ═══════════════════════════════════════════════════════════════
 
     [Test] public void DropEnumTest() => AssertSuccess("drop_tests/drop_enum_test", 1);
+    [Test] public void DropEnumVariantPayloadTest() => AssertSuccess("drop_tests/drop_enum_variant_payload_test", 1);
+    [Test] public void DropEnumInactiveVariantTest() => AssertSuccess("drop_tests/drop_enum_inactive_variant_test", 0);
 }

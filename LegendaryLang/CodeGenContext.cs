@@ -279,23 +279,102 @@ public class CodeGenContext
         if (IsManuallyDrop(typePath)) return;
 
         var typeRef = GetRefItemFor(typePath) as TypeRefItem;
-        if (typeRef?.Type is not StructType structType) return;
 
-        for (int i = 0; i < structType.ResolvedFieldTypes?.Length; i++)
+        // Struct field drops
+        if (typeRef?.Type is StructType structType)
         {
-            var fieldType = structType.ResolvedFieldTypes.Value[i];
-            var fieldTypePath = fieldType.TypePath;
+            for (int i = 0; i < structType.ResolvedFieldTypes?.Length; i++)
+            {
+                var fieldType = structType.ResolvedFieldTypes.Value[i];
+                var fieldTypePath = fieldType.TypePath;
 
-            bool fieldNeedsDrop = IsTypeDrop(fieldTypePath) || TypeHasDroppableFields(fieldTypePath);
-            if (!fieldNeedsDrop) continue;
+                bool fieldNeedsDrop = IsTypeDrop(fieldTypePath) || TypeHasDroppableFields(fieldTypePath);
+                if (!fieldNeedsDrop) continue;
 
-            var fieldPtr = Builder.BuildStructGEP2(structType.TypeRef, valuePtr, (uint)i);
+                var fieldPtr = Builder.BuildStructGEP2(structType.TypeRef, valuePtr, (uint)i);
 
-            if (IsTypeDrop(fieldTypePath))
-                EmitSingleDropCall(fieldTypePath, fieldPtr);
+                if (IsTypeDrop(fieldTypePath))
+                    EmitSingleDropCall(fieldTypePath, fieldPtr);
 
-            // Recurse into the field's own fields
-            EmitFieldDrops(fieldTypePath, fieldPtr);
+                // Recurse into the field's own fields
+                EmitFieldDrops(fieldTypePath, fieldPtr);
+            }
+            return;
+        }
+
+        // Enum variant field drops — switch on tag, drop the active variant's fields
+        if (typeRef?.Type is EnumType enumType && enumType.HasPayloads && enumType.ResolvedVariants != null)
+        {
+            // Check if any variant has droppable fields
+            bool anyDroppable = false;
+            foreach (var (variant, fieldTypes) in enumType.ResolvedVariants)
+                foreach (var ft in fieldTypes)
+                    if (IsTypeDrop(ft.TypePath) || TypeHasDroppableFields(ft.TypePath))
+                    { anyDroppable = true; break; }
+            if (!anyDroppable) return;
+
+            // Load the tag
+            var tagPtr = Builder.BuildStructGEP2(enumType.TypeRef, valuePtr, 0);
+            var tagVal = Builder.BuildLoad2(LLVMTypeRef.Int32, tagPtr, "drop_enum_tag");
+
+            var currentBlock = Builder.InsertBlock;
+            var function = currentBlock.Parent;
+            var mergeBlock = function.AppendBasicBlock("enum_drop_merge");
+
+            // Create switch on tag
+            var switchInst = Builder.BuildSwitch(tagVal, mergeBlock,
+                (uint)enumType.ResolvedVariants.Value.Length);
+
+            foreach (var (variant, fieldTypes) in enumType.ResolvedVariants)
+            {
+                // Check if this variant has any droppable fields
+                bool variantNeedsDrop = false;
+                foreach (var ft in fieldTypes)
+                    if (IsTypeDrop(ft.TypePath) || TypeHasDroppableFields(ft.TypePath))
+                    { variantNeedsDrop = true; break; }
+                if (!variantNeedsDrop) continue;
+
+                var variantBlock = function.AppendBasicBlock($"enum_drop_{variant.Name}");
+                switchInst.AddCase(
+                    LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, (ulong)variant.Tag, false),
+                    variantBlock);
+
+                Builder.PositionAtEnd(variantBlock);
+
+                // Get payload pointer
+                var payloadPtr = Builder.BuildStructGEP2(enumType.TypeRef, valuePtr, 1);
+
+                // Drop each field at its byte offset
+                ulong offset = 0;
+                for (int i = 0; i < fieldTypes.Length; i++)
+                {
+                    var fieldType = fieldTypes[i];
+                    bool fieldNeedsDrop = IsTypeDrop(fieldType.TypePath) || TypeHasDroppableFields(fieldType.TypePath);
+
+                    if (fieldNeedsDrop)
+                    {
+                        var fieldPtr = payloadPtr;
+                        if (offset > 0)
+                            fieldPtr = Builder.BuildGEP2(
+                                LLVMTypeRef.Int8, payloadPtr,
+                                [LLVMValueRef.CreateConstInt(LLVMTypeRef.Int64, offset, false)]);
+
+                        if (IsTypeDrop(fieldType.TypePath))
+                            EmitSingleDropCall(fieldType.TypePath, fieldPtr);
+                        EmitFieldDrops(fieldType.TypePath, fieldPtr);
+                    }
+
+                    unsafe
+                    {
+                        var dataLayout = LLVM.GetModuleDataLayout(Module);
+                        offset += LLVM.StoreSizeOfType(dataLayout, fieldType.TypeRef);
+                    }
+                }
+
+                Builder.BuildBr(mergeBlock);
+            }
+
+            Builder.PositionAtEnd(mergeBlock);
         }
     }
 
@@ -322,14 +401,28 @@ public class CodeGenContext
         if (IsManuallyDrop(typePath)) return false;
 
         var typeRef = GetRefItemFor(typePath) as TypeRefItem;
-        if (typeRef?.Type is not StructType structType) return false;
-        if (structType.ResolvedFieldTypes == null) return false;
 
-        foreach (var fieldType in structType.ResolvedFieldTypes)
+        // Struct fields
+        if (typeRef?.Type is StructType structType && structType.ResolvedFieldTypes != null)
         {
-            if (IsTypeDrop(fieldType.TypePath)) return true;
-            if (TypeHasDroppableFields(fieldType.TypePath)) return true;
+            foreach (var fieldType in structType.ResolvedFieldTypes)
+            {
+                if (IsTypeDrop(fieldType.TypePath)) return true;
+                if (TypeHasDroppableFields(fieldType.TypePath)) return true;
+            }
         }
+
+        // Enum variant fields
+        if (typeRef?.Type is EnumType enumType && enumType.ResolvedVariants != null)
+        {
+            foreach (var (variant, fieldTypes) in enumType.ResolvedVariants)
+                foreach (var ft in fieldTypes)
+                {
+                    if (IsTypeDrop(ft.TypePath)) return true;
+                    if (TypeHasDroppableFields(ft.TypePath)) return true;
+                }
+        }
+
         return false;
     }
 

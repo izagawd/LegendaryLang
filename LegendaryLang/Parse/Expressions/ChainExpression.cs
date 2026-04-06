@@ -165,6 +165,16 @@ public class EnumVariantCreationKind : IChainKind
     public LangPath? TypePath { get; set; }
     public IEnumerable<ISyntaxNode> KindChildren => Arguments;
 
+    public List<(string sourceName, RefKind refKind)> GetBorrowSources(SemanticAnalyzer analyzer)
+    {
+        // Propagate borrows from arguments — e.g., Foo.One(make Droppable{reference: &uniq x})
+        // borrows x through the struct field, same as struct creation.
+        var results = new List<(string, RefKind)>();
+        foreach (var arg in Arguments)
+            results.AddRange(LetStatement.ExtractBorrowSources(arg, analyzer));
+        return results;
+    }
+
     public ValueRefItem CodeGen(CodeGenContext ctx)
     {
         var typeRef = ctx.GetRefItemFor(EnumTypePath) as TypeRefItem;
@@ -364,6 +374,31 @@ public class FunctionCallKind : IChainKind
             var stripped = functionPath.PopGenerics();
             if (stripped != null) def = analyzer.GetDefinition(stripped);
             if (def is null && stripped != null) def = analyzer.GetDefinition(stripped.Pop());
+        }
+
+        // Fallback: for qualified trait calls (TraitPath.method), find the impl method
+        // by looking up the trait method signature and matching impl definitions.
+        if (def is null)
+        {
+            var traitMethodSig = analyzer.ResolveTraitMethodSignature(functionPath);
+            if (traitMethodSig != null)
+            {
+                // Find the FunctionDefinition from the matching impl
+                var lookup = analyzer.ResolveTraitMethodLookup(functionPath);
+                if (lookup != null)
+                {
+                    foreach (var impl in analyzer.ImplDefinitions)
+                    {
+                        var implTraitBase = LangPath.StripGenerics(impl.TraitPath);
+                        var traitDefPath = (lookup.Value.traitDef as IDefinition).TypePath;
+                        if (implTraitBase == traitDefPath)
+                        {
+                            var method = impl.GetMethod(lookup.Value.methodName);
+                            if (method != null) { def = method; break; }
+                        }
+                    }
+                }
+            }
         }
 
         if (def is FunctionDefinition fd)

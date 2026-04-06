@@ -651,6 +651,20 @@ public class BorrowMethodTests
         // additional &x OK while returned &uniq alive: 21 + 21 = 42
         AssertSuccess("borrow_method_tests/borrow_fn_shared_input_uniq_output_coexist_test", 42);
     }
+
+    [Test]
+    public void BorrowEnumVariantBlocksUseFailTest()
+    {
+        // Enum variant borrows idk via &uniq → can't modify idk while enum is live
+        AssertFail<UseWhileBorrowedError>("borrow_method_tests/borrow_enum_variant_blocks_use_fail_test");
+    }
+
+    [Test]
+    public void BorrowEnumVariantReleasedAfterMoveTest()
+    {
+        // After moving enum to DropNow, borrow is released → idk accessible = 1
+        AssertSuccess("borrow_method_tests/borrow_enum_variant_released_after_move_test", 1);
+    }
 }
 
 public class ImportTests

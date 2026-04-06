@@ -326,7 +326,7 @@ public class LetStatement : IStatement
     /// Extract borrow sources from an expression using Rust-style lifetime elision.
     /// Returns all variables that the result borrows from.
     /// </summary>
-    private static List<(string sourceName, RefKind refKind)> ExtractBorrowSources(
+    internal static List<(string sourceName, RefKind refKind)> ExtractBorrowSources(
         IExpression? expr, SemanticAnalyzer analyzer)
     {
         var results = new List<(string, RefKind)>();
