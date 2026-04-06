@@ -14,5 +14,5 @@ impl Math {
 
 fn main() -> i32 {
     let m = make Math { base_val : 5 };
-    m.Add(3) + m.Mul(2)
+    m.add(3) + m.mul(2)
 }

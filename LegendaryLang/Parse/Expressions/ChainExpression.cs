@@ -156,6 +156,67 @@ public class EnumVariantKind : IChainKind
     }
 }
 
+/// <summary>Enum tuple variant with payload fields (e.g. Foo.C(42)). Terminal node.</summary>
+public class EnumVariantCreationKind : IChainKind
+{
+    public required EnumVariant Variant { get; init; }
+    public required LangPath EnumTypePath { get; init; }
+    public required ImmutableArray<IExpression> Arguments { get; init; }
+    public LangPath? TypePath { get; set; }
+    public IEnumerable<ISyntaxNode> KindChildren => Arguments;
+
+    public ValueRefItem CodeGen(CodeGenContext ctx)
+    {
+        var typeRef = ctx.GetRefItemFor(EnumTypePath) as TypeRefItem;
+        var enumType = typeRef?.Type as EnumType;
+        if (enumType == null)
+            throw new InvalidOperationException(
+                $"Cannot resolve enum type '{EnumTypePath}' during codegen.");
+
+        var alloca = ctx.Builder.BuildAlloca(enumType.TypeRef);
+        // Store tag
+        var tagPtr = ctx.Builder.BuildStructGEP2(enumType.TypeRef, alloca, 0);
+        ctx.Builder.BuildStore(
+            LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, (ulong)Variant.Tag, false),
+            tagPtr);
+
+        // Store payload fields
+        if (Arguments.Length > 0 && enumType.HasPayloads)
+        {
+            var payloadPtr = ctx.Builder.BuildStructGEP2(enumType.TypeRef, alloca, 1);
+            var resolved = enumType.GetResolvedVariant(Variant.Name);
+            if (resolved != null)
+            {
+                ulong offset = 0;
+                for (int i = 0; i < Arguments.Length && i < resolved.Value.fieldTypes.Length; i++)
+                {
+                    var fieldType = resolved.Value.fieldTypes[i];
+                    var argVal = Arguments[i].CodeGen(ctx);
+
+                    var fieldPtr = payloadPtr;
+                    if (offset > 0)
+                    {
+                        fieldPtr = ctx.Builder.BuildGEP2(
+                            LLVMTypeRef.Int8, payloadPtr,
+                            [LLVMValueRef.CreateConstInt(LLVMTypeRef.Int64, offset, false)]);
+                    }
+
+                    fieldType.AssignTo(ctx, argVal,
+                        new ValueRefItem { Type = fieldType, ValueRef = fieldPtr });
+
+                    unsafe
+                    {
+                        var dataLayout = LLVM.GetModuleDataLayout(ctx.Module);
+                        offset += LLVM.StoreSizeOfType(dataLayout, fieldType.TypeRef);
+                    }
+                }
+            }
+        }
+
+        return new ValueRefItem { Type = enumType, ValueRef = alloca };
+    }
+}
+
 /// <summary>
 /// Function call (standalone or static method). Terminal node.
 /// Does its own CodeGen.
@@ -213,7 +274,7 @@ public class FunctionCallKind : IChainKind
     /// Factory: analyze a function call and return a fully resolved FunctionCallKind.
     /// Handles generic inference, trait method resolution, inherent impl resolution.
     /// </summary>
-    public static FunctionCallKind AnalyzeCall(
+    public static IChainKind AnalyzeCall(
         NormalLangPath functionPath, ImmutableArray<IExpression> arguments,
         NormalLangPath? qualifiedAsType, LangPath? expectedReturnType,
         Token? errorToken, SemanticAnalyzer analyzer)
@@ -269,7 +330,6 @@ public class FunctionCallKind : IChainKind
                                 enumTypePath = ((NormalLangPath)enumDef.TypePath).AppendGenerics(genericArgs);
                             else
                                 enumTypePath = enumDef.TypePath;
-                            result.TypePath = enumTypePath;
                             if (variant.FieldTypes.Length != arguments.Length)
                                 analyzer.AddException(new SemanticException(
                                     $"Variant '{variantName}' expects {variant.FieldTypes.Length} field(s), got {arguments.Length}\n{tokenLoc}"));
@@ -283,7 +343,13 @@ public class FunctionCallKind : IChainKind
                                         analyzer.AddException(new SemanticException(
                                             $"Variant '{variantName}' field {i} expects type '{expected}', found '{arguments[i].TypePath}'\n{tokenLoc}"));
                                 }
-                            return result;
+                            return new EnumVariantCreationKind
+                            {
+                                Variant = variant,
+                                EnumTypePath = enumTypePath,
+                                Arguments = arguments,
+                                TypePath = enumTypePath,
+                            };
                         }
                     }
                 }
@@ -303,6 +369,43 @@ public class FunctionCallKind : IChainKind
         if (def is FunctionDefinition fd)
         {
             result.FuncDef = fd;
+
+            // Separate comptime type args from runtime args based on CallParamLayout.
+            // This handles cases where callers pass args directly without going through
+            // DoFunctionCall (e.g., qualified trait calls, method calls with comptime params).
+            if (fd.CallParamLayout.Length > 0)
+            {
+                var typeArgs = new List<LangPath>();
+                var runtimeArgs = new List<IExpression>();
+                for (int argIdx = 0; argIdx < arguments.Length; argIdx++)
+                {
+                    if (argIdx < fd.CallParamLayout.Length && fd.CallParamLayout[argIdx])
+                    {
+                        var typePath = ChainExpression.TryResolveAsType(arguments[argIdx], analyzer);
+                        if (typePath != null)
+                            typeArgs.Add(typePath);
+                        else
+                            runtimeArgs.Add(arguments[argIdx]);
+                    }
+                    else
+                    {
+                        runtimeArgs.Add(arguments[argIdx]);
+                    }
+                }
+                if (typeArgs.Count > 0)
+                {
+                    arguments = runtimeArgs.ToImmutableArray();
+                    result = new FunctionCallKind
+                    {
+                        FunctionPath = functionPath.AppendGenerics(typeArgs),
+                        Arguments = arguments,
+                        QualifiedAsType = qualifiedAsType,
+                        FuncDef = fd,
+                    };
+                    functionPath = result.FunctionPath;
+                }
+            }
+
             var providedGenerics = functionPath.GetFrontGenerics();
 
             // Type inference
@@ -377,6 +480,10 @@ public class FunctionCallKind : IChainKind
                         analyzer.AddException(new TypeMismatchException(
                             paramType, argActualType, $"argument '{fd.Arguments[ai].Name}'", tokenLoc));
                 }
+                // Check argument count mismatch
+                if (arguments.Length != fd.Arguments.Length)
+                    analyzer.AddException(new SemanticException(
+                        $"Function '{fd.Name}' expects {fd.Arguments.Length} argument(s) but {arguments.Length} were provided\n{tokenLoc}"));
             }
         }
         else
@@ -742,7 +849,7 @@ public class MethodCallKind : IChainKind
     {
         if (selfParamType is NormalLangPath nlp && nlp.Contains(RefTypeDefinition.GetRefModule()))
             foreach (RefKind rk in Enum.GetValues(typeof(RefKind)))
-                if (nlp.PathSegments.Any(s => s.ToString() == RefTypeDefinition.GetRefName(rk)))
+                if (nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == RefTypeDefinition.GetRefName(rk)))
                     return rk;
         return null;
     }
@@ -762,7 +869,7 @@ public class MethodCallKind : IChainKind
             var callerType = fae.Caller.TypePath;
             if (callerType is NormalLangPath nlp && nlp.Contains(RefTypeDefinition.GetRefModule()))
                 foreach (RefKind rk in Enum.GetValues<RefKind>())
-                    if (nlp.PathSegments.Any(s => s.ToString() == RefTypeDefinition.GetRefName(rk)))
+                    if (nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == RefTypeDefinition.GetRefName(rk)))
                     { cap = cap == null ? rk : MinRefKindCapability(cap.Value, rk); break; }
             current = fae.Caller;
         }
@@ -788,7 +895,7 @@ public class MethodCallKind : IChainKind
             {
                 if (typePath is NormalLangPath nlp)
                     foreach (RefKind rk in Enum.GetValues<RefKind>())
-                        if (nlp.PathSegments.Any(s => s.ToString() == RefTypeDefinition.GetRefName(rk)))
+                        if (nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == RefTypeDefinition.GetRefName(rk)))
                             return rk;
                 return RefKind.Shared;
             }
@@ -1318,25 +1425,73 @@ public class ChainExpression : IExpression
     private FieldAccessKind DoFieldAccess(SemanticAnalyzer analyzer,
         IChainKind receiver, ref LangPath currentTypePath, AccessStep access)
     {
-        // Use FieldAccessExpression for analysis (auto-deref, trait deref, etc.)
-        // Suppress move checks — the chain's state machine already checked the root.
-        IExpression receiverExpr = new PathExpression(new NormalLangPath(RootToken, [RootName]));
-        var prevSuppress = analyzer.SuppressMoveChecks;
-        analyzer.SuppressMoveChecks = true;
-        var fa = new FieldAccessExpression(access.IdentifierToken, receiverExpr);
-        fa.Analyze(analyzer);
-        analyzer.SuppressMoveChecks = prevSuppress;
+        // Resolve field type from currentTypePath directly,
+        // instead of creating a FieldAccessExpression with the root variable
+        // (which would look up the field on the root's type, not the current chain type).
+        var workingType = currentTypePath;
+        bool autoDeref = false;
+        int autoDerefDepth = 0;
+
+        // Auto-deref: if type is a reference (&T), unwrap to T
+        if (workingType is NormalLangPath nlpRef
+            && nlpRef.Contains(RefTypeDefinition.GetRefModule()))
+        {
+            var generics = nlpRef.GetFrontGenerics();
+            if (generics.Length == 1)
+            {
+                workingType = generics[0];
+                autoDeref = true;
+            }
+        }
+
+        // Walk through Receiver/Deref chain to find the field
+        LangPath? fieldType = null;
+        var searchType = workingType;
+        const int maxDeref = 10;
+        while (searchType != null && autoDerefDepth < maxDeref)
+        {
+            var definition = analyzer.GetDefinition(searchType);
+            if (definition == null && searchType is NormalLangPath nlpCur && nlpCur.GetFrontGenerics().Length > 0)
+                definition = analyzer.GetDefinition(nlpCur.PopGenerics());
+
+            if (definition is StructTypeDefinition std && std.Fields.Any(f => f.Name == access.Name))
+            {
+                fieldType = std.Fields.First(f => f.Name == access.Name).TypePath;
+                if (searchType is NormalLangPath nlpType)
+                {
+                    var genericArgs = nlpType.GetFrontGenerics();
+                    if (genericArgs.Length > 0 && std.GenericParameters.Length > 0)
+                        fieldType = FieldAccessExpression.SubstituteGenerics(fieldType, std.GenericParameters, genericArgs);
+                }
+                if (fieldType != null)
+                    fieldType = analyzer.ResolveQualifiedTypePath(fieldType);
+                break;
+            }
+
+            // Try Receiver.Target to walk one level deeper
+            var target = analyzer.ResolveAssociatedType(searchType,
+                SemanticAnalyzer.ReceiverTraitPath, "Target");
+            if (target == null || target == searchType) break;
+            searchType = target;
+            autoDerefDepth++;
+        }
+
+        if (fieldType == null)
+        {
+            analyzer.AddException(new SemanticException(
+                $"Field '{access.Name}' not found on type '{currentTypePath}'\n{access.Token.GetLocationStringRepresentation()}"));
+        }
 
         var kind = new FieldAccessKind
         {
             Receiver = receiver,
             FieldName = access.Name,
-            TypePath = fa.TypePath,
-            AutoDeref = fa.AutoDeref,
-            AutoDerefDepth = fa.AutoDerefDepth,
+            TypePath = fieldType,
+            AutoDeref = autoDeref,
+            AutoDerefDepth = autoDerefDepth,
         };
         ResolvedKind = kind;
-        currentTypePath = fa.TypePath ?? currentTypePath;
+        currentTypePath = fieldType ?? currentTypePath;
         return kind;
     }
 
@@ -1415,7 +1570,7 @@ public class ChainExpression : IExpression
             ResolvedKind = kind;
     }
 
-    private FunctionCallKind AnalyzeFunctionCall(
+    private IChainKind AnalyzeFunctionCall(
         NormalLangPath callPath, IEnumerable<IExpression> args, SemanticAnalyzer analyzer)
     {
         return FunctionCallKind.AnalyzeCall(
@@ -1427,7 +1582,7 @@ public class ChainExpression : IExpression
     /// Tries to resolve an expression as a type reference.
     /// Returns the type path if it's a type/generic param, null if it's a runtime value.
     /// </summary>
-    private static LangPath? TryResolveAsType(IExpression expr, SemanticAnalyzer analyzer)
+    internal static LangPath? TryResolveAsType(IExpression expr, SemanticAnalyzer analyzer)
     {
         if (expr is ChainExpression chain && chain.Steps.Length == 0)
         {

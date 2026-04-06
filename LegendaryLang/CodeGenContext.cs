@@ -307,7 +307,10 @@ public class CodeGenContext
 
     private static bool IsManuallyDrop(LangPath typePath)
     {
-        return typePath is NormalLangPath nlp && nlp.Contains(ManuallyDropModule);
+        if (typePath is not NormalLangPath nlp) return false;
+        // Strip generics so ManuallyDrop(Box(i32)) matches ManuallyDrop
+        var stripped = nlp.PopGenerics() ?? nlp;
+        return stripped.Contains(ManuallyDropModule);
     }
 
     /// <summary>

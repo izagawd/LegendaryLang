@@ -43,11 +43,11 @@ public class TraitTests
     [Test] public void TraitImplMethodMatchingBoundsTest() => AssertSuccess("trait_tests/trait_impl_method_matching_bounds_test", 5);
     [Test] public void TraitGenericBoundPropagationFailTest() => AssertFail("trait_tests/trait_generic_bound_propagation_fail_test");
     [Test] public void TraitGenericBoundPropagationPassTest() => AssertSuccess("trait_tests/trait_generic_bound_propagation_pass_test", 5);
-    [Test] public void TraitQualifiedTurbofishTest() => AssertSuccess("trait_tests/trait_qualified_turbofish_test", 42);
-    [Test] public void TraitGenericParamTurbofishTest() => AssertSuccess("trait_tests/trait_generic_param_turbofish_test", 7);
-    [Test] public void TraitShorthandTurbofishTest() => AssertSuccess("trait_tests/trait_shorthand_turbofish_test", 13);
-    [Test] public void TraitBothTurbofishTest() => AssertSuccess("trait_tests/trait_both_turbofish_test", 10);
-    [Test] public void TraitTurbofishSemanticTest() => AssertSuccess("trait_tests/trait_turbofish_semantic_test");
+    [Test] public void TraitQualifiedComptimeCallTest() => AssertSuccess("trait_tests/trait_qualified_comptime_call_test", 42);
+    [Test] public void TraitGenericParamComptimeCallTest() => AssertSuccess("trait_tests/trait_generic_param_comptime_call_test", 7);
+    [Test] public void TraitShorthandComptimeCallTest() => AssertSuccess("trait_tests/trait_shorthand_comptime_call_test", 13);
+    [Test] public void TraitBothComptimeCallTest() => AssertSuccess("trait_tests/trait_both_comptime_call_test", 10);
+    [Test] public void TraitComptimeCallSemanticTest() => AssertSuccess("trait_tests/trait_comptime_call_semantic_test");
     [Test] public void TraitSupertraitBasicTest() => AssertSuccess("trait_tests/trait_supertrait_basic_test", 15);
     [Test] public void TraitSupertraitTransitiveTest() => AssertSuccess("trait_tests/trait_supertrait_transitive_test", 4);
     [Test] public void TraitSupertraitFailTest() => AssertFail("trait_tests/trait_supertrait_fail_test");

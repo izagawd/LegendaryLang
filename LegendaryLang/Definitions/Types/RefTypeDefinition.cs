@@ -49,7 +49,7 @@ public class RefTypeDefinition : TypeDefinition
     {
         return typePath is NormalLangPath nlp
                && nlp.Contains(GetRefModule())
-               && nlp.PathSegments.Any(s => s.ToString() == GetRefName(RefKind.Uniq));
+               && nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == GetRefName(RefKind.Uniq));
     }
 
     public override string Name => GetRefName(Kind);

@@ -560,56 +560,56 @@ public class BorrowMethodTests
     public void BorrowMethodUniqBlocksUseFailTest()
     {
         // &uniq active → can't call method on original
-        AssertFail("borrow_method_tests/borrow_method_uniq_blocks_use_fail_test");
+        AssertFail<UseWhileBorrowedError>("borrow_method_tests/borrow_method_uniq_blocks_use_fail_test");
     }
 
     [Test]
     public void BorrowMethodMutBlocksUseFailTest()
     {
         // &mut active → can't call method on original
-        AssertFail("borrow_method_tests/borrow_method_mut_blocks_use_fail_test");
+        AssertFail<UseWhileBorrowedError>("borrow_method_tests/borrow_method_mut_blocks_use_fail_test");
     }
 
     [Test]
     public void BorrowMethodUniqBlocksSharedFailTest()
     {
         // &uniq active → can't take &shared of same variable
-        AssertFail("borrow_method_tests/borrow_method_uniq_blocks_shared_fail_test");
+        AssertFail<BorrowConflictError>("borrow_method_tests/borrow_method_uniq_blocks_shared_fail_test");
     }
 
     [Test]
     public void BorrowMethodDoubleUniqFailTest()
     {
         // Two &uniq of same variable → conflict
-        AssertFail("borrow_method_tests/borrow_method_double_uniq_fail_test");
+        AssertFail<BorrowConflictError>("borrow_method_tests/borrow_method_double_uniq_fail_test");
     }
 
     [Test]
     public void BorrowMethodUniqBlocksMutFailTest()
     {
         // &uniq active → can't take &mut of same variable
-        AssertFail("borrow_method_tests/borrow_method_uniq_blocks_mut_fail_test");
+        AssertFail<BorrowConflictError>("borrow_method_tests/borrow_method_uniq_blocks_mut_fail_test");
     }
 
     [Test]
     public void BorrowMethodDerefUniqBlocksFailTest()
     {
         // &uniq active → can't use original even through auto-deref chain
-        AssertFail("borrow_method_tests/borrow_method_deref_uniq_blocks_fail_test");
+        AssertFail<UseWhileBorrowedError>("borrow_method_tests/borrow_method_deref_uniq_blocks_fail_test");
     }
 
     [Test]
     public void BorrowMethodUniqBlocksDerefFailTest()
     {
         // &uniq active → can't call method on original (method also uses uniq)
-        AssertFail("borrow_method_tests/borrow_method_uniq_blocks_deref_fail_test");
+        AssertFail<UseWhileBorrowedError>("borrow_method_tests/borrow_method_uniq_blocks_deref_fail_test");
     }
 
     [Test]
     public void BorrowMethodSharedThenUniqFailTest()
     {
         // &shared active → can't take &uniq while shared is live
-        AssertFail("borrow_method_tests/borrow_method_shared_then_uniq_fail_test");
+        AssertFail<BorrowConflictError>("borrow_method_tests/borrow_method_shared_then_uniq_fail_test");
     }
 
     // ── Borrow tracking through function returns ──
@@ -752,6 +752,24 @@ public class ArgTypeTests
     {
         // Box(i32).New(42) — generic belongs on Box, not new
         AssertFail("arg_type_tests/arg_type_generic_on_fn_not_type_fail_test");
+    }
+
+    [Test]
+    public void ArgTypeTooManyArgsFailTest()
+    {
+        AssertFail<GenericSemanticError>("arg_type_tests/arg_type_too_many_args_fail_test");
+    }
+
+    [Test]
+    public void ArgTypeTooFewArgsFailTest()
+    {
+        AssertFail<GenericSemanticError>("arg_type_tests/arg_type_too_few_args_fail_test");
+    }
+
+    [Test]
+    public void ArgTypeVoidReturnMismatchFailTest()
+    {
+        AssertFail<ReturnTypeMismatchError>("arg_type_tests/arg_type_void_return_mismatch_fail_test");
     }
 }
 

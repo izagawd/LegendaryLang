@@ -337,8 +337,9 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
             }
             else if (ReturnTypePath != LangPath.VoidBaseLangPath)
             {
-                analyzer.AddException(new SemanticException(
-                    $"Not all paths return a value of the valid type\n{Token.GetLocationStringRepresentation()}'"));
+                analyzer.AddException(new ReturnTypeMismatchException(
+                    ReturnTypePath, BlockExpression.TypePath ?? LangPath.VoidBaseLangPath,
+                    Token.GetLocationStringRepresentation()));
             }
         }
         analyzer.PopTraitBounds();
@@ -368,24 +369,12 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         if (actualGenerics.Length != 1 || expectedGenerics.Length != 1)
             return false;
 
-        // Direct ref-kind coercion: &mut T → &T (same pointee, different ref kind)
-        if (actualGenerics[0].Equals(expectedGenerics[0]))
-        {
-            RefKind? actualKind = null, expectedKind = null;
-            foreach (RefKind rk in Enum.GetValues<RefKind>())
-            {
-                var name = RefTypeDefinition.GetRefName(rk);
-                if (nlpActual.PathSegments.Any(s => s.ToString() == name)) actualKind = rk;
-                if (nlpExpected.PathSegments.Any(s => s.ToString() == name)) expectedKind = rk;
-            }
-            if (actualKind != null && expectedKind != null)
-                return DerefExpression.CanProduceRefKind(actualKind.Value, expectedKind.Value);
-        }
-
         // Auto-deref coercion: &&mut T → &T
         // actual is &K1 X where X is &K2 T, expected is &K3 T
         // If X (the pointee of actual) is itself a reference with the same pointee as expected,
-        // check if X's ref kind can produce expected's ref kind
+        // check if X's ref kind can produce expected's ref kind via the deref trait hierarchy.
+        // Note: direct ref-kind coercion (&mut T → &T) is NOT allowed here —
+        // only nested auto-deref through the trait hierarchy.
         if (actualGenerics[0] is NormalLangPath innerActual && innerActual.Contains(refModule))
         {
             var innerGenerics = innerActual.GetFrontGenerics();
@@ -395,8 +384,8 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
                 foreach (RefKind rk in Enum.GetValues<RefKind>())
                 {
                     var name = RefTypeDefinition.GetRefName(rk);
-                    if (innerActual.PathSegments.Any(s => s.ToString() == name)) innerKind = rk;
-                    if (nlpExpected.PathSegments.Any(s => s.ToString() == name)) expectedKind = rk;
+                    if (innerActual.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == name)) innerKind = rk;
+                    if (nlpExpected.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == name)) expectedKind = rk;
                 }
                 if (innerKind != null && expectedKind != null)
                     return DerefExpression.CanProduceRefKind(innerKind.Value, expectedKind.Value);

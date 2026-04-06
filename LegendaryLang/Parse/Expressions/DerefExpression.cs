@@ -48,7 +48,7 @@ public class DerefExpression : IExpression
             isReference = false;
             // Extract the raw pointer kind from the path
             foreach (RefKind kind in Enum.GetValues<RefKind>())
-                if (nlp.PathSegments.Any(s => s.ToString() == RawPtrTypeDefinition.GetRawPtrName(kind)))
+                if (nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == RawPtrTypeDefinition.GetRawPtrName(kind)))
                 {
                     rawPtrKind = kind;
                     break;
@@ -146,7 +146,7 @@ public class DerefExpression : IExpression
     {
         if (typePath is NormalLangPath nlp)
             foreach (RefKind rk in Enum.GetValues<RefKind>())
-                if (nlp.PathSegments.Any(s => s.ToString() == RefTypeDefinition.GetRefName(rk)))
+                if (nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == RefTypeDefinition.GetRefName(rk)))
                     return rk;
         return RefKind.Shared;
     }

@@ -23,10 +23,10 @@ public class InferenceTests
     [Test] public void InferStructPairFromFieldsTest() => AssertSuccess("inference_tests/infer_struct_pair_from_fields_test", 30);
 
     [Test]
-    public void InferTurbofishStillWorksTest()
+    public void InferExplicitComptimeStillWorksTest()
     {
-        // Mix of explicit turbofish and inferred — both should work
-        var result = Compile("inference_tests/infer_turbofish_still_works_test");
+        // Mix of explicit comptime and inferred — both should work
+        var result = Compile("inference_tests/infer_explicit_comptime_still_works_test");
         Assert.That(result.Success);
         Assert.That(52 == result.Function?.Invoke()); // 42 + 10
     }

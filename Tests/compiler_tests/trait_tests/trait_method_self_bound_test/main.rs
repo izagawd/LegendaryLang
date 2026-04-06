@@ -8,5 +8,5 @@ impl Idk for i32 {
 }
 fn main() -> i32 {
     let num = 5;
-    num.Add(10)
+    num.add(10)
 }
