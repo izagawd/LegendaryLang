@@ -28,7 +28,7 @@ public class TupleTypeDefinition : ComposableTypeDefinition
         get
         {
             var genericParameters = new List<GenericParameter>();
-            for (var i = 0; i < GenericParameters.Length; i++) genericParameters.Add(new GenericParameter(i.ToString()));
+            for (var i = 0; i < ComposedTypes.Length; i++) genericParameters.Add(new GenericParameter(i.ToString()));
             return genericParameters.ToImmutableArray();
         }
     }
@@ -48,21 +48,22 @@ public class TupleTypeDefinition : ComposableTypeDefinition
     public override IRefItem CreateRefDefinition(CodeGenContext context, ImmutableArray<LangPath> genericArguments)
     {
         var monomorphizedArguments = genericArguments.Select(i => i.Monomorphize(context)).ToArray();
-        var structt =
-            context.Module.Context.CreateNamedStruct(
-                new TupleLangPath(monomorphizedArguments).ToString());
+        var tuplePath = new TupleLangPath(monomorphizedArguments);
+        var structResult = context.GetOrCreateNamedStruct(tuplePath);
 
         var types = monomorphizedArguments
             .Select(i => (TypeRefItem)context.GetRefItemFor(i)!)
             .Select(i => i.Type)
             .ToArray();
         
-        structt.StructSetBody(types.Select(i => i.TypeRef).ToArray(), false);
+        if (structResult.isNew)
+            structResult.typeRef.StructSetBody(types.Select(i => i.TypeRef).ToArray(), false);
         return new TypeRefItem()
         {
-            Type = new TupleType(this,types, structt)
+            Type = new TupleType(this, types, structResult.typeRef)
             {
-                TypeDefinition = { }
+                TypeDefinition = { },
+                ResolvedFieldTypes = types.ToImmutableArray()
             }
         };
     }

@@ -1,0 +1,17 @@
+trait Copy {}
+impl Copy for i32 {}
+impl Copy for bool {}
+impl Copy for u8 {}
+impl Copy for usize {}
+impl[T:! type] Copy for &T {}
+impl[T:! type] Copy for &const T {}
+impl[T:! type] Copy for &mut T {}
+
+impl[T:! type] Copy for *shared T {}
+impl[T:! type] Copy for *const T {}
+impl[T:! type] Copy for *mut T {}
+impl[T:! type] Copy for *uniq T {}
+
+trait Drop {
+    fn Drop(self: &uniq Self);
+}

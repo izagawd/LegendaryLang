@@ -38,7 +38,12 @@ public static class Lexer
                 case ' ':
                     break;
                 case '=':
-                    if (index + 1 < code.Length && code[index + 1] == '=')
+                    if (index + 1 < code.Length && code[index + 1] == '>')
+                    {
+                        file.AddToken(new FatArrowToken(file, column, line));
+                        index++;
+                    }
+                    else if (index + 1 < code.Length && code[index + 1] == '=')
                     {
                         file.AddToken(new DoubleEquality(file, column, line));
                         index++;
@@ -63,6 +68,12 @@ public static class Lexer
                     break;
                 case ')':
                     file.AddToken(new RightParenthesisToken(file, column, line));
+                    break;
+                case '[':
+                    file.AddToken(new LeftBracketToken(file, column, line));
+                    break;
+                case ']':
+                    file.AddToken(new RightBracketToken(file, column, line));
                     break;
                 case '-':
                     if (index + 1 < code.Length && code[index + 1] == '>')
@@ -98,6 +109,11 @@ public static class Lexer
                     if (index + 1 < code.Length && code[index + 1] == ':')
                     {
                         file.AddToken(new DoubleColonToken(file, column, line));
+                        index++;
+                    }
+                    else if (index + 1 < code.Length && code[index + 1] == '!')
+                    {
+                        file.AddToken(new ColonBangToken(file, column, line));
                         index++;
                     }
                     else
@@ -167,7 +183,7 @@ public static class Lexer
                     // Adjust the constructor parameters as needed for your implementation.
                     file.AddToken(new NumberToken(file, startColumn, line, numberBuilder.ToString()));
                     break;
-                case var c when (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'):
+                case var c when (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_':
                     startColumn = column;
                     var identifierBuilder = new StringBuilder();
                     identifierBuilder.Append(current);
@@ -221,6 +237,27 @@ public static class Lexer
                         case "fn":
                             file.AddToken(new FnToken(file, column, line));
                             break;
+                        case "trait":
+                            file.AddToken(new TraitToken(file, column, line));
+                            break;
+                        case "impl":
+                            file.AddToken(new ImplToken(file, column, line));
+                            break;
+                        case "for":
+                            file.AddToken(new ForToken(file, column, line));
+                            break;
+                        case "as":
+                            file.AddToken(new AsToken(file, column, line));
+                            break;
+                        case "type":
+                            file.AddToken(new TypeKeywordToken(file, column, line));
+                            break;
+                        case "enum":
+                            file.AddToken(new EnumToken(file, column, line));
+                            break;
+                        case "match":
+                            file.AddToken(new MatchToken(file, column, line));
+                            break;
                         default:
                             file.AddToken(new IdentifierToken(file, column, line, ident));
                             break;
@@ -229,6 +266,25 @@ public static class Lexer
                     break;
 
                 default:
+                    // Lifetime: 'a, 'b, 'static, etc.
+                    if (current == '\'')
+                    {
+                        if (index + 1 < code.Length && char.IsLetter(code[index + 1]))
+                        {
+                            startColumn = column;
+                            var lifetimeBuilder = new StringBuilder();
+                            index++;
+                            column++;
+                            while (index < code.Length && (char.IsLetterOrDigit(code[index]) || code[index] == '_'))
+                            {
+                                lifetimeBuilder.Append(code[index]);
+                                index++;
+                                column++;
+                            }
+                            file.AddToken(new LifetimeToken(file, startColumn, line, lifetimeBuilder.ToString()));
+                            continue;
+                        }
+                    }
                     throw new UnrecognizedCharacterException(current);
                     break;
             }

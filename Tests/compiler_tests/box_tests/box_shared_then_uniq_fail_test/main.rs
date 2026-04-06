@@ -1,0 +1,6 @@
+fn main() -> i32 {
+    let b: Box(i32) = Box.New(42);
+    let r1: &i32 = &*b;
+    let r2: &uniq i32 = &uniq *b;
+    *r1 + *r2
+}

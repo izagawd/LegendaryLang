@@ -30,11 +30,26 @@ public class AssignVariableExpression : IExpression
     public void Analyze(SemanticAnalyzer analyzer)
     {
         TypePath = LangPath.VoidBaseLangPath;
+
+        // Suppress move checks for the LHS — assignment to a moved variable restores it
+        var prevSuppress = analyzer.SuppressMoveChecks;
+        analyzer.SuppressMoveChecks = true;
         Assigner.Analyze(analyzer);
+        analyzer.SuppressMoveChecks = prevSuppress;
+
         EqualsTo.Analyze(analyzer);
         if (EqualsTo.TypePath != Assigner.TypePath)
             analyzer.AddException(new SemanticException(
                 $"Cannot assign variable of type '{Assigner.TypePath}' to an expression of type '{EqualsTo.TypePath}'\n{Token.GetLocationStringRepresentation()}"));
+
+        // Mark the RHS variable as moved if not Copy
+        analyzer.TryMarkExpressionAsMoved(EqualsTo);
+
+        // Reassignment restores usability of the LHS variable
+        if (Assigner is ChainExpression { SimpleVariableName: string varName })
+            analyzer.UnmarkMoved(varName);
+        else if (Assigner is PathExpression pe && pe.Path is NormalLangPath nlp && nlp.PathSegments.Length == 1)
+            analyzer.UnmarkMoved(nlp.PathSegments[0].ToString());
     }
 
 

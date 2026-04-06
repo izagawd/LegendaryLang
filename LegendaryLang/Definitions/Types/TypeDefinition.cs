@@ -12,7 +12,7 @@ namespace LegendaryLang.Definitions.Types;
 /// </summary>
 public abstract class TypeDefinition : IItem,  IMonomorphizable, IAnalyzable,  IPathResolvable
 {
-    public bool ImplementsLater => false;
+
 
     public virtual LangPath TypePath =>Module.Append(Name);
 
@@ -29,7 +29,7 @@ public abstract class TypeDefinition : IItem,  IMonomorphizable, IAnalyzable,  I
 
    
     public abstract NormalLangPath Module { get; }
-    public bool HasBeenGened { get; set; } = false;
+
     /// <summary>
     /// For types, no need to just define it. fully codegen it! If its not fully codegenned it will lead to issues
     /// </summary>

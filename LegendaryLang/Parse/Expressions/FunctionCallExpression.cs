@@ -17,7 +17,7 @@ public class FunctionCallExpression : IExpression
     public ImmutableArray<IExpression> Arguments { get; }
 
     public ImmutableArray<LangPath> GenericArguments =>
-        (FunctionPath?.GetLastPathSegment() as NormalLangPath.GenericTypesPathSegment)?.TypePaths ?? [];
+        (FunctionPath?.GetLastPathSegment() as NormalLangPath.NormalPathSegment)?.GenericArgs ?? [];
 
     public NormalLangPath FunctionPath { get; set; }
     public IEnumerable<ISyntaxNode> Children => Arguments;

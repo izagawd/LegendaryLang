@@ -1,4 +1,5 @@
-﻿using LegendaryLang.Parse;
+using System.Collections.Immutable;
+using LegendaryLang.Parse;
 using NUnit.Framework;
 
 // ReSharper disable EqualExpressionComparison
@@ -38,29 +39,24 @@ public class LangPathTests
     [Test]
     public void TestComparisonWithGenerics()
     {
+        // hello.world != hello(dd).world
         Assert.That(new NormalLangPath(null, ["hello", "world"])
                     != new NormalLangPath(null, [
-                        "hello",
-                        new NormalLangPath.GenericTypesPathSegment([
-                            new NormalLangPath(null,
-                                ["dd"])
+                        new NormalLangPath.NormalPathSegment("hello", [
+                            new NormalLangPath(null, ["dd"])
                         ]),
                         "world"
                     ]));
+        // hello(d).world == hello(d).world
         Assert.That(new NormalLangPath(null, [
-                        "hello",
-                        new NormalLangPath.GenericTypesPathSegment(
-                        [
+                        new NormalLangPath.NormalPathSegment("hello", [
                             new NormalLangPath(null, ["d"])
                         ]),
                         "world"
                     ])
                     == new NormalLangPath(null, [
-                        "hello",
-                        new NormalLangPath.GenericTypesPathSegment(
-                        [
-                            new NormalLangPath(null,
-                                ["d"])
+                        new NormalLangPath.NormalPathSegment("hello", [
+                            new NormalLangPath(null, ["d"])
                         ]),
                         "world"
                     ]));
@@ -70,15 +66,17 @@ public class LangPathTests
     [Test]
     public void TestComparisonWithEmptyGenerics()
     {
+        // hello.world == hello(no generics).world
         Assert.That(new NormalLangPath(null, ["hello", "world"])
                     == new NormalLangPath(null, [
-                        "hello",
-                        new NormalLangPath.GenericTypesPathSegment([]), "world"
+                        new NormalLangPath.NormalPathSegment("hello", ImmutableArray<LangPath>.Empty),
+                        "world"
                     ]), "");
+        // hello.world != hello.earth (regardless of empty generics)
         Assert.That(new NormalLangPath(null, ["hello", "world"])
                     != new NormalLangPath(null, [
-                        "hello",
-                        new NormalLangPath.GenericTypesPathSegment([]), "earth"
+                        new NormalLangPath.NormalPathSegment("hello", ImmutableArray<LangPath>.Empty),
+                        "earth"
                     ]), "");
     }
 }

@@ -5,7 +5,7 @@ namespace LegendaryLang.Parse;
 
 public class UseDefinition : IItem
 {
-    public bool ImplementsLater => false;
+
 
     public UseDefinition(NormalLangPath pathToUse, Token token)
     {
@@ -34,7 +34,7 @@ public class UseDefinition : IItem
         var path = NormalLangPath.Parse(parser);
         if (path is not NormalLangPath normalPath) throw new Exception("d");
 
-        if (normalPath.PathSegments.Any(i => i is NormalLangPath.GenericTypesPathSegment)) throw new Exception("d");
+        if (normalPath.PathSegments.Any(i => i is NormalLangPath.NormalPathSegment { HasGenericArgs: true })) throw new Exception("d");
 
         SemiColon.Parse(parser);
         return new UseDefinition(normalPath, useToken);

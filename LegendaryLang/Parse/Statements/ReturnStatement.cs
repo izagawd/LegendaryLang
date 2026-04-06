@@ -30,6 +30,13 @@ public class ReturnStatement : IStatement
     public void Analyze(SemanticAnalyzer analyzer)
     {
         ToReturn?.Analyze(analyzer);
+
+        // Check if returning a reference to a local variable (dangling reference)
+        if (ToReturn != null && analyzer.IsExpressionLocalBorrow(ToReturn))
+        {
+            analyzer.AddException(new DanglingReferenceException(
+                Token.GetLocationStringRepresentation()));
+        }
     }
 
     /// <summary>

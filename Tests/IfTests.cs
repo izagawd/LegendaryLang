@@ -1,4 +1,4 @@
-﻿using LegendaryLang;
+using LegendaryLang;
 using LegendaryLang.Parse;
 using NUnit.Framework;
 

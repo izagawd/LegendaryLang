@@ -1,4 +1,5 @@
-﻿using LegendaryLang.Lex;
+﻿using System.Collections.Immutable;
+using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Statements;
 
@@ -25,36 +26,19 @@ public interface IExpression : IStatement
     {
         CodeGen(codeGenContext);
     }
+
     /// <summary>
-    ///     Parses field access, struct creation, variable assignment, etc. pretty much anything after a
-    ///     path (NOTE: a path can be a local or global var. a::b::c is considered a path)
+    ///     Parses `make TypePath { field: value, ... }` struct creation.
     /// </summary>
-    /// <param name="parser"></param>
-    /// <returns></returns>
-    public static IExpression ParsePossibleIdentPossibilities(Parser parser)
+    public static IExpression ParseMakeExpression(Parser parser)
     {
-        var parsed = NormalLangPath.Parse(parser);
-        var parsedPath = new PathExpression(parsed);
-        var next = parser.Peek();
-        if (next is EqualityToken) return AssignVariableExpression.Parse(parser, parsedPath);
-
-        if (next is LeftCurlyBraceToken)
-        {
-            if (parsed is NormalLangPath normalLangPath)
-                return StructCreationExpression.Parse(parser, normalLangPath);
-            throw new ExpectedParserException(parser, [ParseType.StructPath], parsed.FirstIdentifierToken);
-        }
-
-
-        if (next is LeftParenthesisToken)
-        {
-            if (parsed is NormalLangPath normalLangPath)
-                return FunctionCallExpression.ParseFunctionCallExpression(parser, normalLangPath);
-            throw new ExpectedParserException(parser, [ParseType.FunctionCall], parsed.FirstIdentifierToken);
-        }
-
-        return parsedPath;
+        parser.Pop(); // consume 'make'
+        var typePath = LangPath.Parse(parser, true);
+        if (typePath is not NormalLangPath normalPath)
+            throw new ExpectedParserException(parser, [ParseType.StructPath], parser.Peek());
+        return StructCreationExpression.Parse(parser, normalPath);
     }
+
 
 
     public static IExpression ParseBracketOrTuple(Parser parser)
@@ -62,6 +46,41 @@ public interface IExpression : IStatement
         var leftParenthesis = Parenthesis.ParseLeft(parser);
         var exprs = new List<IExpression> { Parse(parser) };
         var next = parser.Peek();
+
+        // Check for qualified trait expression: (Type as Trait)
+        if (next is AsToken)
+        {
+            parser.Pop(); // consume 'as'
+            var typePath = ExtractPathFromExpression(exprs.First());
+            var traitPath = LangPath.Parse(parser, true);
+            Parenthesis.ParseRight(parser);
+
+            // Expect .method after )
+            if (parser.Peek() is not DotToken)
+                return new BracketExpression(leftParenthesis, exprs.First());
+
+            parser.Pop(); // consume .
+            var methodIdent = Identifier.Parse(parser);
+
+            NormalLangPath synthesizedPath;
+            if (traitPath is NormalLangPath nlp)
+                synthesizedPath = nlp.Append(methodIdent.Identity);
+            else
+                throw new ParseException($"Expected a normal path for trait in qualified expression");
+
+            // Check for ( args
+            if (parser.Peek() is LeftParenthesisToken)
+            {
+                var args = ParseCallArgs(parser);
+                var rootExpr = new PathExpression(synthesizedPath);
+                return new ChainExpression(rootExpr,
+                    [new CallStep { Arguments = args, Token = rootExpr.Token }],
+                    qualifiedAsType: typePath as NormalLangPath);
+            }
+
+            return new PathExpression(synthesizedPath);
+        }
+
         IExpression expression = null;
         var doneOnce = true;
         while (next is CommaToken)
@@ -81,7 +100,38 @@ public interface IExpression : IStatement
         return new TupleCreationExpression(leftParenthesis, exprs);
     }
 
-    public static IExpression ParsePrimary(Parser parser)
+    /// <summary>
+    /// Extracts a LangPath from a parsed expression (for qualified trait expressions).
+    /// Handles ChainExpression, PathExpression, etc.
+    /// </summary>
+    private static LangPath? ExtractPathFromExpression(IExpression expr)
+    {
+        if (expr is ChainExpression chain)
+        {
+            var segments = new List<NormalLangPath.PathSegment>
+                { (NormalLangPath.PathSegment)chain.RootName };
+            foreach (var step in chain.Steps)
+            {
+                if (step is AccessStep access)
+                    segments.Add((NormalLangPath.PathSegment)access.Name);
+                else if (step is CallStep call)
+                {
+                    var innerArgs = call.Arguments
+                        .Select(a => ExtractPathFromExpression(a))
+                        .Where(p => p != null)
+                        .Cast<LangPath>()
+                        .ToImmutableArray();
+                    if (innerArgs.Length > 0 && segments[^1] is NormalLangPath.NormalPathSegment lastSeg)
+                        segments[^1] = lastSeg.WithGenericArgs(innerArgs);
+                }
+            }
+            return new NormalLangPath(chain.RootToken, segments);
+        }
+        if (expr is PathExpression pe) return pe.Path;
+        return null;
+    }
+
+    public static IExpression ParsePrimary(Parser parser, bool handleAssignment = true)
     {
         var token = parser.Peek();
         IExpression expression;
@@ -102,8 +152,18 @@ public interface IExpression : IStatement
             case OperatorToken {OperatorType: Operator.ExclamationMark}:
                 expression = UnaryOperationExpression.Parse(parser);
                 break;
+            case OperatorToken {OperatorType: Operator.Multiply}:
+                var derefTok = parser.Pop();
+                // Parse inner WITHOUT assignment handling — *expr = value
+                // means the = belongs to the outer deref, not the inner expr.
+                // e.g., *self.r = 5 should be (*self.r) = 5, not *(self.r = 5)
+                expression = new DerefExpression(ParsePrimary(parser, false), (Token)derefTok);
+                break;
             case IfToken:
                 expression = IfExpression.Parse(parser);
+                break;
+            case MatchToken:
+                expression = MatchExpression.Parse(parser);
                 break;
             case NumberToken:
                 expression = NumberExpression.Parse(parser);
@@ -116,8 +176,11 @@ public interface IExpression : IStatement
             case LeftParenthesisToken:
                 expression = ParseBracketOrTuple(parser);
                 break;
+            case IdentifierToken identToken when identToken.Identity == "make":
+                expression = ParseMakeExpression(parser);
+                break;
             case IdentifierToken:
-                expression = ParsePossibleIdentPossibilities(parser);
+                expression = ChainExpression.Parse(parser);
                 break;
             case IBoolToken:
                 expression = BoolExpression.Parse(parser);
@@ -130,13 +193,31 @@ public interface IExpression : IStatement
 
         token = parser.Peek();
 
-        while (token is DotToken)
+        // Dot-loop for non-chain expressions (e.g., (expr).field, if_expr.field)
+        // ChainExpression already consumed its dots during Parse.
+        if (expression is not ChainExpression)
         {
-            expression = FieldAccessExpression.Parse(parser, expression);
-            token = parser.Peek();
+            while (token is DotToken)
+            {
+                expression = FieldAccessExpression.Parse(parser, expression);
+                token = parser.Peek();
+
+                // Check for method call: expr.method(args)
+                if (token is LeftParenthesisToken && expression is FieldAccessExpression fieldExpr)
+                {
+                    var args = ParseCallArgs(parser);
+                    expression = new ChainExpression(fieldExpr.Caller,
+                    [
+                        new AccessStep { Name = fieldExpr.Field.Identity, 
+                            IdentifierToken = fieldExpr.Field, Token = fieldExpr.Token },
+                        new CallStep { Arguments = args, Token = fieldExpr.Token }
+                    ]);
+                    token = parser.Peek();
+                }
+            }
         }
 
-        if (token is EqualityToken) expression = AssignVariableExpression.Parse(parser, expression);
+        if (handleAssignment && token is EqualityToken) expression = AssignVariableExpression.Parse(parser, expression);
         return expression;
     }
 
@@ -173,5 +254,19 @@ public interface IExpression : IStatement
         }
 
         return lhs;
+    }
+
+    /// <summary>Parse a parenthesized argument list: (arg1, arg2, ...)</summary>
+    private static ImmutableArray<IExpression> ParseCallArgs(Parser parser)
+    {
+        Parenthesis.ParseLeft(parser);
+        var args = new List<IExpression>();
+        while (parser.Peek() is not RightParenthesisToken)
+        {
+            args.Add(Parse(parser));
+            if (parser.Peek() is CommaToken) parser.Pop();
+        }
+        Parenthesis.ParseRight(parser);
+        return args.ToImmutableArray();
     }
 }

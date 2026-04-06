@@ -1,4 +1,6 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Definitions;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Statements;
@@ -37,6 +39,11 @@ public class BlockExpression : IExpression
         foreach (var i in SyntaxNodes.OfType<IDefinition>())
         {
             context.AddToDeepestScope(i);
+        }
+        // Register nested impl definitions for trait method resolution
+        foreach (var impl in SyntaxNodes.OfType<ImplDefinition>())
+        {
+            context.AddImplDefinition(impl);
         }
         // Iterate over each syntax node in the block.
         foreach (var item in BlockSyntaxNodeContainers.Where(i => i.Node is not IItem)) 
@@ -89,6 +96,21 @@ public class BlockExpression : IExpression
         }
 
 
+        // Save the return value to a temp BEFORE drops run.
+        // Drops may free memory the return value points to (e.g., *box returns a heap pointer
+        // that Box.Drop will free). Saving the value to the stack prevents use-after-free.
+        ValueRefItem savedReturnValue = lastValue;
+        if (lastValue.Type.TypePath != LangPath.VoidBaseLangPath)
+        {
+            var returnVal = lastValue.Type.LoadValue(context, lastValue);
+            var returnTemp = context.Builder.BuildAlloca(lastValue.Type.TypeRef, "block_ret_tmp");
+            context.Builder.BuildStore(returnVal, returnTemp);
+            savedReturnValue = new ValueRefItem { Type = lastValue.Type, ValueRef = returnTemp };
+        }
+
+        // Emit drop calls for droppable variables before exiting scope
+        context.EmitDropCalls();
+
         context.PopScope();
 
 
@@ -101,7 +123,7 @@ public class BlockExpression : IExpression
             return (context.GetRefItemFor(ExpectedReturnType) as TypeRefItem).Type.CreateUninitializedValRef(context);
         }
 
-        return lastValue;
+        return savedReturnValue;
     }
 
 
@@ -128,12 +150,54 @@ public class BlockExpression : IExpression
             foreach (var i in syntaxNode.Children.Where(i => i is not IItem)) SetExpectedReturnTypesRecursively(i);
         }
 
+        var seenDefs = new HashSet<string>();
         foreach (var i in BlockSyntaxNodeContainers.Select(i => i.Node).OfType<IDefinition>() )
         {
+            if (!seenDefs.Add(i.Name))
+            {
+                analyzer.AddException(new DuplicateDefinitionException(
+                    i.TypePath, i.Token?.GetLocationStringRepresentation() ?? ""));
+            }
             analyzer.RegisterDefinitionAtDeepestScope(i.TypePath,i);
         }
+        // Register nested impl definitions so their methods are visible
+        foreach (var impl in BlockSyntaxNodeContainers.Select(i => i.Node).OfType<ImplDefinition>())
+        {
+            analyzer.AddImplDefinition(impl);
+            foreach (var method in impl.Methods)
+                analyzer.RegisterDefinitionAtDeepestScope(method.TypePath, method);
+        }
         SetExpectedReturnTypesRecursively(this);
-        foreach (var item in SyntaxNodes.OfType<IAnalyzable>()) item.Analyze(analyzer);
+
+        // NLL: pre-compute which variables are referenced from each point onward.
+        // This allows borrow checking to determine if a borrower is still "live" —
+        // if not, its exclusive borrow has effectively expired.
+        var analyzableItems = SyntaxNodes.OfType<IAnalyzable>().ToList();
+        // Collect variables referenced in each item
+        var itemVars = new List<HashSet<string>>();
+        foreach (var item in analyzableItems)
+        {
+            var vars = new HashSet<string>();
+            SemanticAnalyzer.CollectReferencedVariables((ISyntaxNode)item, vars);
+            itemVars.Add(vars);
+        }
+        // Build suffix unions: for position i, union of variables in items i..end
+        var suffixVars = new HashSet<string>[analyzableItems.Count + 1];
+        suffixVars[analyzableItems.Count] = new HashSet<string>();
+        for (int i = analyzableItems.Count - 1; i >= 0; i--)
+        {
+            suffixVars[i] = new HashSet<string>(suffixVars[i + 1]);
+            suffixVars[i].UnionWith(itemVars[i]);
+        }
+
+        var savedLiveVars = analyzer.SaveLiveVariables();
+        for (int i = 0; i < analyzableItems.Count; i++)
+        {
+            // Live = variables in current item + all remaining items
+            analyzer.SetLiveVariables(suffixVars[i]);
+            analyzableItems[i].Analyze(analyzer);
+        }
+        analyzer.RestoreLiveVariables(savedLiveVars);
 
         foreach (var item in BlockSyntaxNodeContainers)
         {
@@ -169,6 +233,36 @@ public class BlockExpression : IExpression
             }
 
             TypePath = possibleTypePath ?? LangPath.VoidBaseLangPath;
+        }
+
+        // Cannot return a non-Copy value out of a dereference.
+        // e.g., *boxed_foo or *ref_foo as the last expression where the type doesn't impl Copy
+        if (last is not null && !last.Value.HasSemiColonAfter
+            && last.Value.Node is DerefExpression { IsNonCopyPlaceDeref: true } derefRet)
+        {
+            if (derefRet.IsNonCopyRefDeref)
+            {
+                analyzer.AddException(new MoveOutOfReferenceException(
+                    derefRet.TypePath, derefRet.Token.GetLocationStringRepresentation()));
+            }
+            else
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Cannot move non-Copy type '{derefRet.TypePath}' out of dereference. " +
+                    $"Use a reference instead: &*expr or access fields: (*expr).field\n{derefRet.Token.GetLocationStringRepresentation()}"));
+            }
+        }
+
+        // Check if the block's value is a reference that borrows from a variable
+        // declared in THIS scope — it would dangle after the scope exits
+        if (last is not null && !last.Value.HasSemiColonAfter
+            && last.Value.Node is IExpression lastExpr
+            && TypePath is NormalLangPath nlpBlock
+            && nlpBlock.Contains(RefTypeDefinition.GetRefModule())
+            && analyzer.IsExpressionBorrowingFromCurrentScope(lastExpr))
+        {
+            analyzer.AddException(new DanglingReferenceException(
+                lastExpr.Token.GetLocationStringRepresentation()));
         }
 
         analyzer.PopScope();

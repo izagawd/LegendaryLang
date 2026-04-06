@@ -384,7 +384,7 @@ fn main() -> i32 {
 
 ### Mixing Deduced and Explicit
 
-Implicit `[]` comes first, then explicit `()`:
+Implicit `[]` comes first, then explicit `()`. Lifetimes are the first to be in `[]`.:
 
 ```
 fn transform['a, T:! type](x: T) -> T {
@@ -549,7 +549,7 @@ impl[T:! Copy] Wrapper(T) {
 }
 
 fn main() -> i32 {
-    let w = make Wrapper(i32) { val: 99 };
+    let w : Wrapper(i32) = make Wrapper(i32) { val: 99 };
     w.get_val()
 }
 ```

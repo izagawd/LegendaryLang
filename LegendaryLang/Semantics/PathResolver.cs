@@ -6,7 +6,7 @@ public class PathResolver
 {
     public void AddToDeepestScope(string map, NormalLangPath to)
     {
-        ScopeItems.Peek().Add(map, to);
+        ScopeItems.Peek().TryAdd(map, to);
     }
     private readonly Stack<Dictionary<string, NormalLangPath>> ScopeItems = new();
     public NormalLangPath? GetFullPathOfShortcut(string shortcut)

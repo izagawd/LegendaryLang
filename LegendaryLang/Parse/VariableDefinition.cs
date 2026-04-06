@@ -21,7 +21,7 @@ public class VariableDefinition
         if (nextToken is ColonToken)
         {
             Colon.Parse(parser);
-            var typeId = LangPath.Parse(parser);
+            var typeId = LangPath.Parse(parser, true);
             return new VariableDefinition(name, typeId);
         }
 

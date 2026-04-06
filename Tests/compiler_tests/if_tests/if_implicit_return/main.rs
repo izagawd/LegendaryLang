@@ -1,5 +1,5 @@
 ﻿
-use std::primitive::i32;
+use Std.Primitive.i32;
 fn main() -> i32{
     let gotten = if true{
         5
@@ -16,5 +16,5 @@ fn main() -> i32{
          5
          };
             
-    gotten + gotten2  
+    gotten + gotten2
 }

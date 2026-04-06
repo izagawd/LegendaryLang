@@ -7,7 +7,7 @@ using LLVMSharp.Interop;
 namespace LegendaryLang.Definitions.Types;
 
 
-public class PointerTypeDefinition : TypeDefinition
+public abstract class PointerTypeDefinition : TypeDefinition
 {
 
     public PointerTypeDefinition(bool isMut)
@@ -31,25 +31,7 @@ public class PointerTypeDefinition : TypeDefinition
     public bool IsMut { get; }
 
     public override string Name => GetPointerName(IsMut);
-    public override NormalLangPath Module => GetPointerModule();
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="context"></param>
-    /// <param name="genericArguments">Pointers expect exactly 1 generic argument, which is the type its pointing to</param>
-    /// <returns></returns>
-    public override IRefItem CreateRefDefinition(CodeGenContext context, ImmutableArray<LangPath>  genericArguments)
-    {
-        var pointingToType = ((TypeRefItem)context.GetRefItemFor(genericArguments[0]));
-        var typeRef
-            = LLVMTypeRef.CreatePointer(pointingToType.TypeRef, 0);
 
-        return new TypeRefItem()
-        {
-            Type = new ConcreteDefinition.PointerType(this, pointingToType.Type, typeRef),
-            
-        };
-    }
 
     public override ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
     {
