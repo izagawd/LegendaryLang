@@ -147,6 +147,13 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
     /// </summary>
     public bool IsPreAnalyzed { get; init; }
 
+    /// <summary>
+    /// For injected default trait methods: maps abstract names (Self, Rhs, etc.)
+    /// to concrete types. Pushed into codegen scope so the shared body AST
+    /// can resolve qualified calls like (Self as PartialEq(Rhs)).Eq.
+    /// </summary>
+    public Dictionary<string, LangPath>? TraitSubstitutions { get; init; }
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
         if (IsPreAnalyzed) return;

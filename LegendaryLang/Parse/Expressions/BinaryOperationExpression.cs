@@ -34,6 +34,8 @@ public class BinaryOperationExpression : IExpression
         Operator.NotEquals => "Ne",
         Operator.LessThan => "Lt",
         Operator.GreaterThan => "Gt",
+        Operator.LessEqual => "Le",
+        Operator.GreaterEqual => "Ge",
         _ => null
     };
 
@@ -47,11 +49,14 @@ public class BinaryOperationExpression : IExpression
         Operator.NotEquals => SemanticAnalyzer.PartialEqTraitPath,
         Operator.LessThan => SemanticAnalyzer.PartialOrdTraitPath,
         Operator.GreaterThan => SemanticAnalyzer.PartialOrdTraitPath,
+        Operator.LessEqual => SemanticAnalyzer.PartialOrdTraitPath,
+        Operator.GreaterEqual => SemanticAnalyzer.PartialOrdTraitPath,
         _ => null
     };
 
     private static bool IsComparisonOperator(Operator op) =>
-        op is Operator.Equals or Operator.NotEquals or Operator.LessThan or Operator.GreaterThan;
+        op is Operator.Equals or Operator.NotEquals or Operator.LessThan or Operator.GreaterThan
+            or Operator.LessEqual or Operator.GreaterEqual;
 
     private static bool IsArithmeticOperator(Operator op) =>
         op is Operator.Add or Operator.Subtract or Operator.Multiply or Operator.Divide;
@@ -82,7 +87,31 @@ public class BinaryOperationExpression : IExpression
                     codeGenContext, traitWithRhs, type.TypePath, methodPath);
 
                 if (funcRef != null)
+                {
+                    if (IsComparisonOperator(op))
+                    {
+                        // Comparison trait methods take &Self and &Rhs — pass references.
+                        // Variables already live in allocas (pointers), so use them directly.
+                        // Only stack-allocate for literals/expression results in registers.
+                        var leftPtr = leftVal.ValueRef.TypeOf.Kind == LLVMTypeKind.LLVMPointerTypeKind
+                            ? leftVal.ValueRef
+                            : leftVal.StackAllocate(codeGenContext);
+                        var rightPtr = rightVal.ValueRef.TypeOf.Kind == LLVMTypeKind.LLVMPointerTypeKind
+                            ? rightVal.ValueRef
+                            : rightVal.StackAllocate(codeGenContext);
+
+                        var callResult = codeGenContext.Builder.BuildCall2(
+                            funcRef.Function.FunctionType,
+                            funcRef.Function.FunctionValueRef,
+                            [leftPtr, rightPtr]);
+
+                        return CallExpressionHelper.BuildCallReturnValue(
+                            callResult, funcRef.Function.ReturnType, codeGenContext);
+                    }
+
+                    // Arithmetic operators take values
                     return CallExpressionHelper.EmitCall(funcRef, [leftVal, rightVal], codeGenContext);
+                }
             }
         }
 
@@ -110,6 +139,12 @@ public class BinaryOperationExpression : IExpression
                 break;
             case Operator.GreaterThan:
                 valueRef = codeGenContext.Builder.BuildICmp(LLVMIntPredicate.LLVMIntSGT, leftValRef, rightValRef);
+                break;
+            case Operator.LessEqual:
+                valueRef = codeGenContext.Builder.BuildICmp(LLVMIntPredicate.LLVMIntSLE, leftValRef, rightValRef);
+                break;
+            case Operator.GreaterEqual:
+                valueRef = codeGenContext.Builder.BuildICmp(LLVMIntPredicate.LLVMIntSGE, leftValRef, rightValRef);
                 break;
             case Operator.Equals:
                 valueRef = codeGenContext.Builder.BuildICmp(LLVMIntPredicate.LLVMIntEQ, leftValRef, rightValRef);

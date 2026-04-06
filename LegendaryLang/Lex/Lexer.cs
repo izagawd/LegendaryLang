@@ -97,10 +97,26 @@ public static class Lexer
                     file.AddToken(new OperatorToken(file,column,line,Operator.Multiply));
                     break;
                 case '<':
-                    file.AddToken(new OperatorToken(file,column,line,Operator.LessThan));
+                    if (index + 1 < code.Length && code[index + 1] == '=')
+                    {
+                        file.AddToken(new OperatorToken(file, column, line, Operator.LessEqual));
+                        index++;
+                    }
+                    else
+                    {
+                        file.AddToken(new OperatorToken(file,column,line,Operator.LessThan));
+                    }
                     break;
                 case '>':
-                    file.AddToken(new OperatorToken(file,column,line,Operator.GreaterThan));
+                    if (index + 1 < code.Length && code[index + 1] == '=')
+                    {
+                        file.AddToken(new OperatorToken(file, column, line, Operator.GreaterEqual));
+                        index++;
+                    }
+                    else
+                    {
+                        file.AddToken(new OperatorToken(file,column,line,Operator.GreaterThan));
+                    }
                     break;
                 case '!':
                     if (index + 1 < code.Length && code[index + 1] == '=')

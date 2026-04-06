@@ -79,6 +79,18 @@ public class Function : IConcreteDefinition,  IPathResolvable
             }
         }
 
+        // For injected default trait methods: push Self/Rhs → concrete type mappings
+        // so the shared body AST can resolve qualified calls like (Self as PartialEq(Rhs)).Eq
+        if (Definition.TraitSubstitutions != null)
+        {
+            foreach (var (name, boundType) in Definition.TraitSubstitutions)
+            {
+                var boundRefItem = context.GetRefItemFor(boundType);
+                if (boundRefItem != null)
+                    context.AddToDeepestScope(new NormalLangPath(null, [name]), boundRefItem);
+            }
+        }
+
         // Push trait bounds so trait method calls resolve to the correct impl
         // Build monomorphized generic args for substitution
         var monoGenericArgs = new LangPath[Definition.GenericParameters.Length];

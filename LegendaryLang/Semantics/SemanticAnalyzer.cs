@@ -1537,19 +1537,20 @@ public class SemanticAnalyzer
             var usings = new UseDefinition((NormalLangPath)i.TypePath, null);
             usings.RegisterUsings(pathShortcutContext);
         }
-        // Auto-import only Box and Copy from std. Everything else requires explicit path or 'use'.
-        foreach (var result in ParseResults.Where(r => r.File?.Path.StartsWith("Std") == true))
-            foreach (var def in result.Items.OfType<IDefinition>())
-            {
-                var name = def.TypePath is NormalLangPath nlpDef
-                    ? nlpDef.GetLastPathSegment()?.ToString()
-                    : null;
-                if (name is "Box" or "Copy" or "MutReassign" or "Option")
-                {
-                    var usings = new UseDefinition((NormalLangPath)def.TypePath, null);
-                    usings.RegisterUsings(pathShortcutContext);
-                }
-            }
+        // Auto-import specific items from std by exact path.
+        // Everything else requires explicit path or 'use'.
+        var autoImportPaths = new[]
+        {
+            new NormalLangPath(null, new NormalLangPath.PathSegment[] { "Std", "Alloc", "Box" }),
+            new NormalLangPath(null, new NormalLangPath.PathSegment[] { "Std", "Marker", "Copy" }),
+            new NormalLangPath(null, new NormalLangPath.PathSegment[] { "Std", "Marker", "MutReassign" }),
+            new NormalLangPath(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Option" }),
+        };
+        foreach (var path in autoImportPaths)
+        {
+            var usings = new UseDefinition(path, null);
+            usings.RegisterUsings(pathShortcutContext);
+        }
         foreach (var result in ParseResults)
         {
             pathShortcutContext.AddScope();

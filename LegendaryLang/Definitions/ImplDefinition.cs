@@ -4,6 +4,7 @@ using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
 using LegendaryLang.Parse.Expressions;
+using LegendaryLang.Parse.Statements;
 using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Definitions;
@@ -522,7 +523,7 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                         traitMethod.LifetimeParameters,
                         traitMethod.ArgumentLifetimes,
                         traitMethod.ReturnLifetime)
-                    { IsPreAnalyzed = true };
+                    { IsPreAnalyzed = true, TraitSubstitutions = new Dictionary<string, LangPath>(traitSubstitutions) };
 
                     Methods.Add(defaultMethod);
                     implMethod = defaultMethod;
@@ -554,6 +555,20 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                     var resolvedImplParamType = SubstituteAll(implParamType, traitSubstitutions, associatedTypeNames);
                     if (resolvedTraitParamType != resolvedImplParamType)
                     {
+                        // If trait expects &T and impl provides T, auto-adjust the impl param
+                        // to &T. The codegen passes references, and the body auto-derefs.
+                        if (LetStatement.IsReferenceType(resolvedTraitParamType)
+                            && resolvedTraitParamType is NormalLangPath nlpTraitParam)
+                        {
+                            var innerType = nlpTraitParam.GetFrontGenerics();
+                            if (innerType.Length == 1 && innerType[0] == resolvedImplParamType)
+                            {
+                                // Accept: adjust impl param type to match trait's reference type
+                                implMethod.Arguments[i].TypePath = resolvedTraitParamType;
+                                continue;
+                            }
+                        }
+
                         analyzer.AddException(new SemanticException(
                             $"Method '{traitMethod.Name}': parameter '{traitMethod.Parameters[i].Name}' has type '{resolvedImplParamType}' " +
                             $"but trait requires '{resolvedTraitParamType}'\n{implMethod.Token.GetLocationStringRepresentation()}"));

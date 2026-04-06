@@ -689,3 +689,210 @@ public class CombinedOperatorTests
         AssertSuccess("trait_tests/combined_complex_condition_test", 1);
     }
 }
+
+public class LessEqualGreaterEqualTests
+{
+    [Test]
+    public void LeBasicTest()
+    {
+        // 3<=5 → 1, 5<=5 → 10, 7<=5 → 0. Total 11
+        AssertSuccess("trait_tests/le_basic_test", 11);
+    }
+
+    [Test]
+    public void GeBasicTest()
+    {
+        // 5>=3 → 1, 5>=5 → 10, 3>=5 → 0. Total 11
+        AssertSuccess("trait_tests/ge_basic_test", 11);
+    }
+
+    [Test]
+    public void LeGeBoundaryTest()
+    {
+        // clamp(0,0,100)=0 + clamp(100,0,100)=100 + clamp(50,0,100)=50 = 150
+        AssertSuccess("trait_tests/le_ge_boundary_test", 150);
+    }
+
+    [Test]
+    public void LeGeInWhileTest()
+    {
+        // sum 1+2+...+10 = 55
+        AssertSuccess("trait_tests/le_ge_in_while_test", 55);
+    }
+
+    [Test]
+    public void LeGeWithLogicalTest()
+    {
+        // in_range_inclusive: 5→1, 1→10, 10→100, 0→0, 11→0. Total 111
+        AssertSuccess("trait_tests/le_ge_with_logical_test", 111);
+    }
+
+    [Test]
+    public void LeGePrecedenceTest()
+    {
+        // (2+3 <= 5) && (10-1 >= 9) → (5<=5) && (9>=9) → true && true → 1
+        AssertSuccess("trait_tests/le_ge_precedence_test", 1);
+    }
+
+    [Test]
+    public void LeGeCustomTypeTest()
+    {
+        // Score(5)<=Score(10)→1, Score(5)<=Score(5)→10, Score(10)>=Score(5)→100, Score(5)>=Score(5)→1000. Total 1111
+        AssertSuccess("trait_tests/le_ge_custom_type_test", 1111);
+    }
+}
+
+public class ReferenceComparisonTests
+{
+    [Test]
+    public void EqRefSharedTest()
+    {
+        // &42 == &42 → 1, &42 == &99 → 0. Total 1
+        AssertSuccess("trait_tests/eq_ref_shared_test", 1);
+    }
+
+    [Test]
+    public void EqRefMutTest()
+    {
+        // &mut 42 == &mut 42 → 1
+        AssertSuccess("trait_tests/eq_ref_mut_test", 1);
+    }
+
+    [Test]
+    public void NeRefTest()
+    {
+        // &10 != &20 → 1
+        AssertSuccess("trait_tests/ne_ref_test", 1);
+    }
+
+    [Test]
+    public void OrdRefSharedTest()
+    {
+        // &3<&7→1, &7>&3→10, &3<=&7→100, &7>=&3→1000. Total 1111
+        AssertSuccess("trait_tests/ord_ref_shared_test", 1111);
+    }
+
+    [Test]
+    public void EqRefFnParamTest()
+    {
+        // are_equal(&5, &5)→1, are_equal(&5, &9)→0. Total 1
+        AssertSuccess("trait_tests/eq_ref_fn_param_test", 1);
+    }
+
+    [Test]
+    public void OrdRefFnParamTest()
+    {
+        // is_less(&3, &7)→1, is_less(&7, &3)→0. Total 1
+        AssertSuccess("trait_tests/ord_ref_fn_param_test", 1);
+    }
+}
+
+public class AllComparisonOpsTests
+{
+    [Test]
+    public void AllComparisonOpsTest()
+    {
+        // ==1, !=2, <4, >8, <=16, <=32, >=64, >=128. Total 255
+        AssertSuccess("trait_tests/all_comparison_ops_test", 255);
+    }
+
+    [Test]
+    public void ComparisonChainTest()
+    {
+        // is_sorted3(1,2,3)→1, (1,1,1)→10, (3,2,1)→0, (1,3,2)→0. Total 11
+        AssertSuccess("trait_tests/comparison_chain_test", 11);
+    }
+
+    [Test]
+    public void BinarySearchTest()
+    {
+        // floor(sqrt(100)) = 10
+        AssertSuccess("trait_tests/binary_search_test", 10);
+    }
+}
+
+public class NestedRefComparisonTests
+{
+    [Test]
+    public void EqDoubleRefTest()
+    {
+        // &&42 == &&42 → 1
+        AssertSuccess("trait_tests/eq_double_ref_test", 1);
+    }
+
+    [Test]
+    public void EqMutRefInnerTest()
+    {
+        // &(&mut 10) == &(&mut 10) → 1
+        AssertSuccess("trait_tests/eq_mut_ref_inner_test", 1);
+    }
+
+    [Test]
+    public void OrdDoubleRefTest()
+    {
+        // &&3 < &&7 → 1, &&7 > &&3 → 10. Total 11
+        AssertSuccess("trait_tests/ord_double_ref_test", 11);
+    }
+}
+
+public class GenericComparisonTests
+{
+    [Test]
+    public void GenericEqConstraintTest()
+    {
+        // are_equal[i32](&42, &42) → 1, (&42, &99) → 0. Total 1
+        AssertSuccess("trait_tests/generic_eq_constraint_test", 1);
+    }
+
+    [Test]
+    public void GenericOrdConstraintTest()
+    {
+        // max_of(10,20)=20 + max_of(5,3)=5 = 25
+        AssertSuccess("trait_tests/generic_ord_constraint_test", 25);
+    }
+
+    [Test]
+    public void GenericOrdRefConstraintTest()
+    {
+        // clamp(50,0,100)=50 + clamp(200,0,100)=100 + clamp(-5,0,100)=0 = 150
+        AssertSuccess("trait_tests/generic_ord_ref_constraint_test", 150);
+    }
+
+    [Test]
+    public void GenericEqNoConstraintFailTest()
+    {
+        // T:! type has no PartialEq bound — == should fail
+        AssertFail<GenericSemanticError>("trait_tests/generic_eq_no_constraint_fail_test");
+    }
+}
+
+public class ComparisonBorrowTests
+{
+    [Test]
+    public void EqNoMoveTest()
+    {
+        // Copy struct compared 3 times — all succeed → 111
+        AssertSuccess("trait_tests/eq_no_move_test", 111);
+    }
+
+    [Test]
+    public void EqNoMoveNonCopyTest()
+    {
+        // Non-copy struct compared twice — takes &Self so no move → 1
+        AssertSuccess("trait_tests/eq_no_move_noncopy_test", 1);
+    }
+
+    [Test]
+    public void ComparisonPreservesValuesTest()
+    {
+        // All 6 comparison ops used, then a + b still accessible → 30
+        AssertSuccess("trait_tests/comparison_preserves_values_test", 30);
+    }
+
+    [Test]
+    public void AllSixComparisonOpsTest()
+    {
+        // ==1, !=2, <4, >8, <=16, <=32, >=64, >=128. Total 255
+        AssertSuccess("trait_tests/all_six_comparison_ops_test", 255);
+    }
+}
