@@ -445,6 +445,17 @@ public class CodeGenContext
     }
 
     /// <summary>
+    /// Destructs a value at a pointer: calls Drop (if implemented) then recursively drops fields.
+    /// Used by the DestructPtr intrinsic to destruct heap-allocated values before deallocation.
+    /// </summary>
+    public void EmitDestruct(LangPath typePath, LLVMValueRef valuePtr)
+    {
+        if (IsTypeDrop(typePath))
+            EmitSingleDropCall(typePath, valuePtr);
+        EmitFieldDrops(typePath, valuePtr);
+    }
+
+    /// <summary>
     /// Emits a single drop call for a variable at the given pointer.
     /// Directly searches ImplDefinitions for the Drop impl and resolves the method.
     /// </summary>

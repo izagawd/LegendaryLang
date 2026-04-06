@@ -12,6 +12,7 @@ fn Dealloc(ptr: *uniq u8, size: usize, align: usize);
 fn AllocZeroed(size: usize, align: usize) -> *uniq u8;
 fn PtrWrite[T:! type](dst: *uniq u8, val: T) -> *uniq T;
 fn PtrAsU8[T:! type](ptr: *uniq T) -> *uniq u8;
+fn DestructPtr[T:! type](ptr: *uniq T);
 
 struct Box(T:! type) {
     ptr: *uniq T
@@ -39,6 +40,7 @@ impl[T:! type] Box(T) {
 
 impl[T:! type] Drop for Box(T) {
     fn Drop(self: &uniq Self) {
+        DestructPtr(self.ptr);
         let p: *uniq u8 = PtrAsU8(self.ptr);
         let s: usize = SizeOf(T);
         let a: usize = AlignOf(T);

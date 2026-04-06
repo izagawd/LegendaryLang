@@ -128,10 +128,11 @@ public class PathExpression : IExpression
             return;
         }
 
-        if (!analyzer.SuppressMoveChecks && Path is NormalLangPath nlpMove && nlpMove.PathSegments.Length == 1)
+        if (Path is NormalLangPath nlpMove && nlpMove.PathSegments.Length == 1)
         {
             var varName = nlpMove.PathSegments[0].ToString();
-            if (analyzer.IsMoved(varName))
+
+            if (!analyzer.SuppressMoveChecks && analyzer.IsMoved(varName))
             {
                 analyzer.AddException(new UseAfterMoveException(
                     Path, Token.GetLocationStringRepresentation()));

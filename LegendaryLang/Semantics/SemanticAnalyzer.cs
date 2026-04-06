@@ -318,42 +318,53 @@ public class SemanticAnalyzer
     public bool SuppressUseWhileBorrowedChecks { get; set; }
 
     /// <summary>
-    /// NLL: set of variable names that are referenced from the current analysis point onward
-    /// (current expression + remaining items in the block). Used to determine if a borrower
-    /// is still "live" — if not, its borrow has effectively expired.
-    /// Null means liveness info is unavailable (conservative: assume all borrows are live).
+    /// NLL: stack of live-variable sets, one per block scope.
+    /// Each entry tracks variables referenced from the current analysis point onward
+    /// within that block. A variable is considered live if it appears in ANY scope on the stack.
+    /// Using a stack handles variable shadowing correctly — an inner block's "x" is a different
+    /// binding than the outer block's "x", and each scope tracks its own liveness independently.
     /// </summary>
-    private HashSet<string>? _liveVariables;
+    private readonly Stack<HashSet<string>> _liveVariablesStack = new();
 
     /// <summary>
-    /// Sets the live-variable set for NLL borrow checking.
-    /// Called by BlockExpression before analyzing each item.
+    /// Pushes a new live-variable set for the current block scope.
+    /// Called by BlockExpression at block entry.
     /// </summary>
-    public void SetLiveVariables(HashSet<string>? liveVars)
+    public void PushLiveVariables(HashSet<string> liveVars)
     {
-        _liveVariables = liveVars;
+        _liveVariablesStack.Push(liveVars);
     }
 
     /// <summary>
-    /// Saves the current live-variable set (for nested block save/restore).
+    /// Pops the current block scope's live-variable set.
+    /// Called by BlockExpression at block exit.
     /// </summary>
-    public HashSet<string>? SaveLiveVariables() => _liveVariables;
-
-    /// <summary>
-    /// Restores a previously saved live-variable set.
-    /// </summary>
-    public void RestoreLiveVariables(HashSet<string>? saved)
+    public void PopLiveVariables()
     {
-        _liveVariables = saved;
+        if (_liveVariablesStack.Count > 0)
+            _liveVariablesStack.Pop();
     }
 
     /// <summary>
-    /// Checks whether a variable is referenced from the current point onward.
-    /// If liveness info is unavailable, conservatively returns true.
+    /// Replaces the top of the live-variables stack as we advance through a block's items.
+    /// </summary>
+    public void UpdateLiveVariables(HashSet<string> liveVars)
+    {
+        if (_liveVariablesStack.Count > 0)
+            _liveVariablesStack.Pop();
+        _liveVariablesStack.Push(liveVars);
+    }
+
+    /// <summary>
+    /// Checks whether a variable is referenced from the current point onward
+    /// in any enclosing block scope. If the stack is empty, conservatively returns true.
     /// </summary>
     public bool IsVariableLive(string varName)
     {
-        return _liveVariables?.Contains(varName) ?? true;
+        if (_liveVariablesStack.Count == 0) return true;
+        foreach (var scope in _liveVariablesStack)
+            if (scope.Contains(varName)) return true;
+        return false;
     }
 
     /// <summary>

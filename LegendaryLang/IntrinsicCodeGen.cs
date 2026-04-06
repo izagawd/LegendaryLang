@@ -15,7 +15,7 @@ public static class IntrinsicCodeGen
     private static readonly NormalLangPath AllocModule = new(null, ["Std", "Core", "Alloc"]);
 
     private static readonly HashSet<string> IntrinsicNames =
-        ["SizeOf", "AlignOf", "Alloc", "Dealloc", "AllocZeroed", "PtrWrite", "PtrAsU8"];
+        ["SizeOf", "AlignOf", "Alloc", "Dealloc", "AllocZeroed", "PtrWrite", "PtrAsU8", "DestructPtr"];
 
     public static bool IsIntrinsic(NormalLangPath module, string name)
     {
@@ -38,6 +38,7 @@ public static class IntrinsicCodeGen
             "AllocZeroed" => EmitAllocZeroed(function, context),
             "PtrWrite" => EmitPtrWrite(function, context),
             "PtrAsU8" => EmitPtrAsU8(function, context),
+            "DestructPtr" => EmitDestructPtr(function, context),
             _ => false
         };
     }
@@ -164,6 +165,35 @@ public static class IntrinsicCodeGen
         });
 
         context.Builder.BuildRet(rawPtr);
+        return true;
+    }
+
+    /// <summary>
+    /// DestructPtr(*uniq T): destructs the value at the pointer — calls Drop (if T implements it)
+    /// and recursively drops T's fields. Does NOT free memory.
+    /// Used by Box.Drop to destruct the heap-allocated T before calling Dealloc.
+    /// </summary>
+    private static bool EmitDestructPtr(Function function, CodeGenContext context)
+    {
+        if (function.Arguments.Length != 1) return false;
+
+        var ptrArg = function.Arguments[0];
+        var ptrType = ptrArg.Type as RawPtrType;
+        if (ptrType == null) return false;
+
+        var typePath = ptrType.PointingToType.TypePath;
+
+        // Load the raw pointer from the argument alloca
+        var rawPtr = ptrType.LoadValue(context, new ValueRefItem
+        {
+            Type = ptrType, ValueRef = ptrArg.Alloca
+        });
+
+        // Destruct the value at the pointer: Drop call + recursive field drops
+        context.EmitDestruct(typePath, rawPtr);
+
+        var voidVal = context.GetVoid();
+        context.Builder.BuildRet(voidVal.LoadValue(context));
         return true;
     }
 

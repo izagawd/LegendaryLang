@@ -567,7 +567,7 @@ public class BorrowMethodTests
     public void BorrowMethodMutBlocksUseFailTest()
     {
         // &mut active → can't call method on original
-        AssertFail<UseWhileBorrowedError>("borrow_method_tests/borrow_method_mut_blocks_use_fail_test");
+        AssertFail<BorrowInvalidatedError>("borrow_method_tests/borrow_method_mut_blocks_use_fail_test");
     }
 
     [Test]

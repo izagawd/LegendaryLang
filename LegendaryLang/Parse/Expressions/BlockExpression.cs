@@ -190,14 +190,15 @@ public class BlockExpression : IExpression
             suffixVars[i].UnionWith(itemVars[i]);
         }
 
-        var savedLiveVars = analyzer.SaveLiveVariables();
+        // Push this block's scope onto the live-variables stack
+        analyzer.PushLiveVariables(suffixVars[0]);
         for (int i = 0; i < analyzableItems.Count; i++)
         {
             // Live = variables in current item + all remaining items
-            analyzer.SetLiveVariables(suffixVars[i]);
+            analyzer.UpdateLiveVariables(suffixVars[i]);
             analyzableItems[i].Analyze(analyzer);
         }
-        analyzer.RestoreLiveVariables(savedLiveVars);
+        analyzer.PopLiveVariables();
 
         foreach (var item in BlockSyntaxNodeContainers)
         {

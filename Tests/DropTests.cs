@@ -81,4 +81,11 @@ public class DropTests
     [Test] public void DropEnumTest() => AssertSuccess("drop_tests/drop_enum_test", 1);
     [Test] public void DropEnumVariantPayloadTest() => AssertSuccess("drop_tests/drop_enum_variant_payload_test", 1);
     [Test] public void DropEnumInactiveVariantTest() => AssertSuccess("drop_tests/drop_enum_inactive_variant_test", 0);
+
+    // ═══════════════════════════════════════════════════════════════
+    //  BOX DESTRUCT TESTS — DestructPtr intrinsic
+    // ═══════════════════════════════════════════════════════════════
+
+    [Test] public void DropBoxDestructsInnerTest() => AssertSuccess("drop_tests/drop_box_destructs_inner_test", 1);
+    [Test] public void DropBoxDestructsNestedFieldTest() => AssertSuccess("drop_tests/drop_box_destructs_nested_field_test", 1);
 }

@@ -96,6 +96,12 @@ public class FieldAccessKind : IChainKind
     public LangPath? TypePath { get; set; }
     public bool AutoDeref { get; init; }
     public int AutoDerefDepth { get; init; }
+    /// <summary>
+    /// Maximum ref kind capability for method calls through this field access chain.
+    /// Set when accessing fields through a reference — narrows what methods can be called.
+    /// e.g., through &amp;shared Wrapper, field &amp;uniq Holder narrows to shared capability.
+    /// </summary>
+    public RefKind? MaxCapability { get; init; }
     public IEnumerable<ISyntaxNode> KindChildren => Receiver.KindChildren;
 
     public ValueRefItem CodeGen(CodeGenContext ctx)
@@ -376,31 +382,6 @@ public class FunctionCallKind : IChainKind
             if (def is null && stripped != null) def = analyzer.GetDefinition(stripped.Pop());
         }
 
-        // Fallback: for qualified trait calls (TraitPath.method), find the impl method
-        // by looking up the trait method signature and matching impl definitions.
-        if (def is null)
-        {
-            var traitMethodSig = analyzer.ResolveTraitMethodSignature(functionPath);
-            if (traitMethodSig != null)
-            {
-                // Find the FunctionDefinition from the matching impl
-                var lookup = analyzer.ResolveTraitMethodLookup(functionPath);
-                if (lookup != null)
-                {
-                    foreach (var impl in analyzer.ImplDefinitions)
-                    {
-                        var implTraitBase = LangPath.StripGenerics(impl.TraitPath);
-                        var traitDefPath = (lookup.Value.traitDef as IDefinition).TypePath;
-                        if (implTraitBase == traitDefPath)
-                        {
-                            var method = impl.GetMethod(lookup.Value.methodName);
-                            if (method != null) { def = method; break; }
-                        }
-                    }
-                }
-            }
-        }
-
         if (def is FunctionDefinition fd)
         {
             result.FuncDef = fd;
@@ -511,6 +492,13 @@ public class FunctionCallKind : IChainKind
                     if (paramType == null || argActualType == null) continue;
                     if (fd.GenericParameters.Length > 0 && providedGenerics.Length > 0)
                         paramType = FieldAccessExpression.SubstituteGenerics(paramType, fd.GenericParameters, providedGenerics);
+                    // Skip type check when arg is a generic param — it'll be verified at monomorphization
+                    if (argActualType is NormalLangPath nlpArg && nlpArg.PathSegments.Length == 1
+                        && analyzer.IsGenericParam(nlpArg.PathSegments[0].ToString()))
+                        continue;
+                    if (paramType is NormalLangPath nlpParam && nlpParam.PathSegments.Length == 1
+                        && analyzer.IsGenericParam(nlpParam.PathSegments[0].ToString()))
+                        continue;
                     if (paramType != argActualType)
                         analyzer.AddException(new TypeMismatchException(
                             paramType, argActualType, $"argument '{fd.Arguments[ai].Name}'", tokenLoc));
@@ -523,7 +511,42 @@ public class FunctionCallKind : IChainKind
         }
         else
         {
-            // Trait method or inherent impl
+            // Trait method or inherent impl — also handle comptime args
+            var traitMethodSig = analyzer.ResolveTraitMethodSignature(functionPath);
+            if (traitMethodSig != null && traitMethodSig.GenericParameters.Length > 0)
+            {
+                // Trait method has comptime generic params — separate type args from runtime args
+                var typeArgs = new List<LangPath>();
+                var runtimeArgs = new List<IExpression>();
+                int comptimeCount = traitMethodSig.GenericParameters.Length;
+                for (int argIdx = 0; argIdx < arguments.Length; argIdx++)
+                {
+                    if (argIdx < comptimeCount)
+                    {
+                        var typePath = ChainExpression.TryResolveAsType(arguments[argIdx], analyzer);
+                        if (typePath != null)
+                            typeArgs.Add(typePath);
+                        else
+                            runtimeArgs.Add(arguments[argIdx]);
+                    }
+                    else
+                    {
+                        runtimeArgs.Add(arguments[argIdx]);
+                    }
+                }
+                if (typeArgs.Count > 0)
+                {
+                    arguments = runtimeArgs.ToImmutableArray();
+                    functionPath = functionPath.AppendGenerics(typeArgs);
+                    result = new FunctionCallKind
+                    {
+                        FunctionPath = functionPath,
+                        Arguments = arguments,
+                        QualifiedAsType = qualifiedAsType,
+                    };
+                }
+            }
+
             var traitRet = analyzer.ResolveTraitMethodReturnType(functionPath);
             if (traitRet != null)
                 result.TypePath = ResolveTraitReturnType(traitRet, functionPath, qualifiedAsType, analyzer, tokenLoc);
@@ -758,7 +781,7 @@ public class MethodCallKind : IChainKind
     public static MethodCallKind? AnalyzeCall(
         IChainKind receiver, LangPath receiverType, string methodName,
         ImmutableArray<IExpression> arguments, Token? errorToken,
-        string? rootVarName, SemanticAnalyzer analyzer)
+        string? rootVarName, SemanticAnalyzer analyzer, RefKind? maxCapability = null)
     {
         CallExpressionHelper.AnalyzeArgumentsWithReborrow(arguments, analyzer);
         
@@ -781,6 +804,18 @@ public class MethodCallKind : IChainKind
             if (bindings == null) continue;
 
             var autoRefKind = DetectAutoRefKind(method.Arguments[0].TypePath);
+
+            // Check field access chain capability — e.g., through &shared, can't call &uniq methods
+            if (autoRefKind != null && maxCapability != null
+                && !DerefExpression.CanProduceRefKind(maxCapability.Value, autoRefKind.Value))
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Cannot call method '{methodName}' taking '&{RefTypeDefinition.GetRefName(autoRefKind.Value)} Self' " +
+                    $"through field access chain (access limited to " +
+                    $"'&{RefTypeDefinition.GetRefName(maxCapability.Value)}')\n{tokenLoc}"));
+                return null;
+            }
+
             CheckImplicitBorrow(autoRefKind, rootVarName, analyzer);
 
             var dispatchPath = impl.IsInherent ? impl.ForTypePath : impl.TraitPath;
@@ -827,7 +862,9 @@ public class MethodCallKind : IChainKind
             var currentType = receiverType;
             var visited = new HashSet<LangPath>();
             int derefDepth = 0;
-            RefKind? chainCap = null;
+            // Start with the field access chain's capability if present —
+            // accessing through &shared narrows what the deref chain can produce
+            RefKind? chainCap = maxCapability;
 
             while (derefDepth < 10 && analyzer.TypeImplementsTrait(currentType, receiverTraitPath))
             {
@@ -911,7 +948,7 @@ public class MethodCallKind : IChainKind
         return cap;
     }
 
-    private static RefKind MinRefKindCapability(RefKind a, RefKind b)
+    internal static RefKind MinRefKindCapability(RefKind a, RefKind b)
     {
         if (a == RefKind.Shared || b == RefKind.Shared) return RefKind.Shared;
         if (a == RefKind.Uniq) return b;
@@ -920,7 +957,7 @@ public class MethodCallKind : IChainKind
         return RefKind.Shared;
     }
 
-    private static RefKind? GetDerefCapability(LangPath? typePath, SemanticAnalyzer analyzer)
+    internal static RefKind? GetDerefCapability(LangPath? typePath, SemanticAnalyzer analyzer)
     {
         if (typePath == null) return null;
         var pointee = DerefExpression.TryGetPointeeType(typePath, out var isRef, out var ptrKind);
@@ -1384,12 +1421,13 @@ public class ChainExpression : IExpression
 
     private void CheckVariableUsage(SemanticAnalyzer analyzer, string varName)
     {
-        if (analyzer.SuppressMoveChecks) return;
-
-        if (analyzer.IsMoved(varName))
-            analyzer.AddException(new UseAfterMoveException(
-                new NormalLangPath(RootToken, [varName]),
-                Token.GetLocationStringRepresentation()));
+        if (!analyzer.SuppressMoveChecks)
+        {
+            if (analyzer.IsMoved(varName))
+                analyzer.AddException(new UseAfterMoveException(
+                    new NormalLangPath(RootToken, [varName]),
+                    Token.GetLocationStringRepresentation()));
+        }
 
         if (analyzer.IsBorrowInvalidated(varName))
             analyzer.AddException(new BorrowInvalidatedException(
@@ -1460,24 +1498,28 @@ public class ChainExpression : IExpression
     private FieldAccessKind DoFieldAccess(SemanticAnalyzer analyzer,
         IChainKind receiver, ref LangPath currentTypePath, AccessStep access)
     {
-        // Resolve field type from currentTypePath directly,
-        // instead of creating a FieldAccessExpression with the root variable
-        // (which would look up the field on the root's type, not the current chain type).
         var workingType = currentTypePath;
         bool autoDeref = false;
         int autoDerefDepth = 0;
+        RefKind? outerRefKind = null;
 
-        // Auto-deref: if type is a reference (&T), unwrap to T
+        // Auto-deref: if type is a reference (&T), unwrap to T and track ref kind
         if (workingType is NormalLangPath nlpRef
             && nlpRef.Contains(RefTypeDefinition.GetRefModule()))
         {
             var generics = nlpRef.GetFrontGenerics();
             if (generics.Length == 1)
             {
+                outerRefKind = MethodCallKind.GetDerefCapability(workingType, analyzer);
                 workingType = generics[0];
                 autoDeref = true;
             }
         }
+
+        // Propagate capability from prior field accesses in the chain
+        RefKind? maxCap = outerRefKind;
+        if (receiver is FieldAccessKind fak && fak.MaxCapability != null)
+            maxCap = maxCap == null ? fak.MaxCapability : MethodCallKind.MinRefKindCapability(maxCap.Value, fak.MaxCapability.Value);
 
         // Walk through Receiver/Deref chain to find the field
         LangPath? fieldType = null;
@@ -1524,6 +1566,7 @@ public class ChainExpression : IExpression
             TypePath = fieldType,
             AutoDeref = autoDeref,
             AutoDerefDepth = autoDerefDepth,
+            MaxCapability = maxCap,
         };
         ResolvedKind = kind;
         currentTypePath = fieldType ?? currentTypePath;
@@ -1533,9 +1576,13 @@ public class ChainExpression : IExpression
     private void DoMethodCall(SemanticAnalyzer analyzer,
         IChainKind receiver, LangPath receiverType, AccessStep access, CallStep call, int stepIndex)
     {
+        // Propagate field access chain's max capability to the method call
+        RefKind? maxCap = null;
+        if (receiver is FieldAccessKind fak) maxCap = fak.MaxCapability;
+
         var kind = MethodCallKind.AnalyzeCall(
             receiver, receiverType, access.Name, call.Arguments,
-            access.Token, RootName, analyzer);
+            access.Token, RootName, analyzer, maxCap);
 
         if (kind == null) return;
 
