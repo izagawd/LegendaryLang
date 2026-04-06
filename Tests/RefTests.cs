@@ -558,4 +558,18 @@ public class RefBorrowThroughGenericTests
         // Copy type through generic — no borrow tracking needed
         CompilerTestHelper.AssertSuccess("ref_tests/ref_copy_through_generic_pass_test", 84);
     }
+
+    [Test]
+    public void RefBorrowSourceReturnedFailTest()
+    {
+        // Borrow source 'a' is returned while borrower is alive — should fail
+        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_borrow_source_returned_fail_test");
+    }
+
+    [Test]
+    public void RefBorrowSourceNotReturnedPassTest()
+    {
+        // Borrow source 'a' is NOT returned (b is) — borrower is harmless
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_borrow_source_not_returned_pass_test", 10);
+    }
 }
