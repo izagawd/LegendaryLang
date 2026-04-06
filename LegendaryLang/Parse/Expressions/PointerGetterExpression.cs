@@ -173,5 +173,13 @@ public class PointerGetterExpression : IExpression
         return innerVal;
     }
 
-    public void ResolvePaths(PathResolver resolver) { }
+    public void ResolvePaths(PathResolver resolver)
+    {
+        // Resolve the inner expression's paths so type lookup works
+        // for comptime type args like &const Foo
+        if (PointingTo is ChainExpression chain)
+            chain.ResolvePaths(resolver);
+        else if (PointingTo is PathExpression pe)
+            pe.ResolvePaths(resolver);
+    }
 }

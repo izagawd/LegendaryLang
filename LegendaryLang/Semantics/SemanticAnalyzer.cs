@@ -494,10 +494,12 @@ public class SemanticAnalyzer
             if (!scope.ActiveBorrows.TryGetValue(source, out var activeList))
                 continue;
 
+
             var toInvalidate = activeList
                 .Where(b => !AreRefKindsCompatible(b.kind, newKind))
                 .Select(b => b.borrower)
                 .ToList();
+
 
             foreach (var borrower in toInvalidate)
             {
@@ -546,7 +548,9 @@ public class SemanticAnalyzer
     {
         foreach (var scope in _borrowScopes)
             if (scope.InvalidatedBorrows.Contains(variableName))
+            {
                 return true;
+            }
         return false;
     }
 

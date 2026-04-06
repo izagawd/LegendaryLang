@@ -249,11 +249,9 @@ public class FunctionCallKind : IChainKind
     public List<(string sourceName, RefKind refKind)> GetBorrowSources(SemanticAnalyzer analyzer)
     {
         var results = new List<(string, RefKind)>();
-        if (!LetStatement.IsReferenceType(TypePath)) return results;
-        if (FuncDef == null) return results;
-
         if (FuncDef.ReturnLifetime == "static") return results;
 
+        // Explicit lifetime annotations: link return lifetime to matching param lifetimes
         if (FuncDef.ReturnLifetime != null)
         {
             for (int i = 0; i < FuncDef.Arguments.Length && i < Arguments.Length; i++)
@@ -270,6 +268,9 @@ public class FunctionCallKind : IChainKind
         }
         else
         {
+            // Implicit lifetime elision: if exactly one reference input,
+            // the return borrows from it. Applies to &T returns AND
+            // struct/enum returns with lifetime params (e.g., Wrapper['a]).
             var refArgSources = new List<(string, RefKind)>();
             for (int i = 0; i < FuncDef.Arguments.Length && i < Arguments.Length; i++)
             {
@@ -1666,6 +1667,29 @@ public class ChainExpression : IExpression
     /// </summary>
     internal static LangPath? TryResolveAsType(IExpression expr, SemanticAnalyzer analyzer)
     {
+        // Reference type in comptime position: &const Foo → Std.Reference.const_(Foo)
+        if (expr is PointerGetterExpression pge)
+        {
+            var innerType = TryResolveAsType(pge.PointingTo, analyzer);
+            if (innerType != null)
+            {
+                var refModule = RefTypeDefinition.GetRefModule();
+                var refName = RefTypeDefinition.GetRefName(pge.RefKind);
+                return refModule.Append(refName).AppendGenerics([innerType]);
+            }
+            return null;
+        }
+
+        // PathExpression — simple path like Foo, i32, Std.Core.Alloc.Box
+        if (expr is PathExpression pe && pe.Path is NormalLangPath nlpPath)
+        {
+            if (nlpPath.PathSegments.Length == 1 && analyzer.IsGenericParam(nlpPath.PathSegments[0].ToString()))
+                return nlpPath;
+            var def = analyzer.GetDefinition(nlpPath);
+            if (def is StructTypeDefinition or EnumTypeDefinition or TraitDefinition or PrimitiveTypeDefinition)
+                return (def as IDefinition)!.TypePath;
+        }
+
         if (expr is ChainExpression chain && chain.Steps.Length == 0)
         {
             // Simple identifier — check if it's a generic param or a type

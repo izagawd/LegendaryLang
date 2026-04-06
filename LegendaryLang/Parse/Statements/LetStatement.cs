@@ -290,7 +290,7 @@ public class LetStatement : IStatement
             foreach (RefKind rk in Enum.GetValues(typeof(RefKind)))
             {
                 var refName = RefTypeDefinition.GetRefName(rk);
-                if (nlp.PathSegments.Any(s => s.ToString() == refName))
+                if (nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == refName))
                     return rk;
             }
         }
@@ -337,6 +337,9 @@ public class LetStatement : IStatement
         {
             var kindSources = chain.ResolvedKind.GetBorrowSources(analyzer);
             if (kindSources.Count > 0) return kindSources;
+        }
+        else
+        {
         }
 
         // Case 1: Direct borrow — &x, &mut x, &const x, &uniq x

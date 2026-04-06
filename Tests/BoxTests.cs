@@ -574,21 +574,21 @@ public class BorrowMethodTests
     public void BorrowMethodUniqBlocksSharedFailTest()
     {
         // &uniq active → can't take &shared of same variable
-        AssertFail<BorrowConflictError>("borrow_method_tests/borrow_method_uniq_blocks_shared_fail_test");
+        AssertFail<BorrowInvalidatedError>("borrow_method_tests/borrow_method_uniq_blocks_shared_fail_test");
     }
 
     [Test]
     public void BorrowMethodDoubleUniqFailTest()
     {
         // Two &uniq of same variable → conflict
-        AssertFail<BorrowConflictError>("borrow_method_tests/borrow_method_double_uniq_fail_test");
+        AssertFail<BorrowInvalidatedError>("borrow_method_tests/borrow_method_double_uniq_fail_test");
     }
 
     [Test]
     public void BorrowMethodUniqBlocksMutFailTest()
     {
         // &uniq active → can't take &mut of same variable
-        AssertFail<BorrowConflictError>("borrow_method_tests/borrow_method_uniq_blocks_mut_fail_test");
+        AssertFail<BorrowInvalidatedError>("borrow_method_tests/borrow_method_uniq_blocks_mut_fail_test");
     }
 
     [Test]
@@ -609,7 +609,7 @@ public class BorrowMethodTests
     public void BorrowMethodSharedThenUniqFailTest()
     {
         // &shared active → can't take &uniq while shared is live
-        AssertFail<BorrowConflictError>("borrow_method_tests/borrow_method_shared_then_uniq_fail_test");
+        AssertFail<BorrowInvalidatedError>("borrow_method_tests/borrow_method_shared_then_uniq_fail_test");
     }
 
     // ── Borrow tracking through function returns ──
@@ -618,7 +618,7 @@ public class BorrowMethodTests
     public void BorrowFnReturnUniqInputBlocksFailTest()
     {
         // bro(&uniq made) -> &i32: locks made as &uniq, &made while gotten alive → fail
-        AssertFail("borrow_method_tests/borrow_fn_return_uniq_input_blocks_fail_test");
+        AssertFail<BorrowInvalidatedError>("borrow_method_tests/borrow_fn_return_uniq_input_blocks_fail_test");
     }
 
     [Test]
