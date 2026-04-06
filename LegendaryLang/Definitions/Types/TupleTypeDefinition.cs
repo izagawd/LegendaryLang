@@ -35,6 +35,7 @@ public class TupleTypeDefinition : ComposableTypeDefinition
 
 
     public override ImmutableArray<LangPath> ComposedTypes { get; }
+    public override ImmutableArray<string> LifetimeParameters => [];
 
     public override void ResolvePaths(PathResolver resolver)
     {

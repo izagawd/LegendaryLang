@@ -240,22 +240,20 @@ public class FunctionCallKind : IChainKind
         }
         else
         {
-            // Implicit lifetime elision: if exactly one reference input,
-            // the return borrows from it. Only applies when the return type
+            // Implicit lifetime elision: only applies when the return type
             // can actually hold a borrow: references (&T) or types with
             // lifetime params (Wrapper['a]). Plain value types (i32) cannot.
             bool returnCanHoldBorrow = LetStatement.IsReferenceType(TypePath);
             if (!returnCanHoldBorrow && TypePath != null)
             {
                 var retDef = analyzer.GetDefinition(LangPath.StripGenerics(TypePath));
-                if (retDef is StructTypeDefinition std && std.LifetimeParameters.Length > 0)
-                    returnCanHoldBorrow = true;
-                else if (retDef is EnumTypeDefinition etd && etd.LifetimeParameters.Length > 0)
+                if (retDef is ComposableTypeDefinition ctd && ctd.LifetimeParameters.Length > 0)
                     returnCanHoldBorrow = true;
             }
 
             if (returnCanHoldBorrow)
             {
+                // 1. Reference-type arguments: if exactly one, the return borrows from it
                 var refArgSources = new List<(string, RefKind)>();
                 for (int i = 0; i < FuncDef.Arguments.Length && i < Arguments.Length; i++)
                 {
@@ -268,37 +266,41 @@ public class FunctionCallKind : IChainKind
                     }
                 }
                 if (refArgSources.Count == 1) results.Add(refArgSources[0]);
-            }
-        }
 
-        // Propagate borrows through non-Copy arguments that themselves hold borrows.
-        // e.g., PassAround(yo) where yo: Yo{dd: &uniq counter} → result borrows counter.
-        // This handles generic functions like fn f[T](x: T) -> T where T is a struct
-        // with reference fields — the borrow must survive through the call.
-        // Also handles chained calls like Pass2(Pass1(h)) by recursing into argument expressions.
-        if (results.Count == 0)
-        {
-            for (int i = 0; i < Arguments.Length; i++)
-            {
-                if (Arguments[i].TypePath != null && analyzer.IsTypeCopy(Arguments[i].TypePath))
-                    continue;
-
-                // Check if the argument is a variable with existing borrows
-                var argVarName = IExpression.TryGetSimpleVariableName(Arguments[i]);
-                if (argVarName != null)
+                // 2. Non-reference arguments whose concrete types carry lifetimes.
+                //    e.g., fn Pass[T](x: T) -> T where T = Yo['a] — the argument's type
+                //    has lifetime parameters, so it carries borrows through its definition.
+                //    The return type inherits those borrows because it's the same lifetime-carrying type.
+                if (results.Count == 0)
                 {
-                    var borrowInfo = analyzer.GetBorrowInfo(argVarName);
-                    if (borrowInfo != null)
+                    for (int i = 0; i < Arguments.Length; i++)
                     {
-                        results.Add(borrowInfo.Value);
-                        continue;
+                        var argType = Arguments[i].TypePath;
+                        if (argType == null || analyzer.IsTypeCopy(argType)) continue;
+                        if (LetStatement.IsReferenceType(argType)) continue;
+
+                        // Check if the argument's concrete type has lifetime parameters
+                        var argDef = analyzer.GetDefinition(LangPath.StripGenerics(argType));
+                        if (argDef is not ComposableTypeDefinition ctd || ctd.LifetimeParameters.Length == 0)
+                            continue;
+
+                        // Type carries lifetimes — propagate borrows from the argument
+                        var argVarName = IExpression.TryGetSimpleVariableName(Arguments[i]);
+                        if (argVarName != null)
+                        {
+                            var borrowInfo = analyzer.GetBorrowInfo(argVarName);
+                            if (borrowInfo != null)
+                            {
+                                results.Add(borrowInfo.Value);
+                                continue;
+                            }
+                        }
+
+                        // Handle expressions (chained calls like Pass2(Pass1(h)))
+                        var argBorrows = LetStatement.ExtractBorrowSources(Arguments[i], analyzer);
+                        results.AddRange(argBorrows);
                     }
                 }
-
-                // Check if the argument expression itself produces borrows
-                // (handles chained calls like Pass2(Pass1(h)))
-                var argBorrows = LetStatement.ExtractBorrowSources(Arguments[i], analyzer);
-                results.AddRange(argBorrows);
             }
         }
 
@@ -1705,7 +1707,7 @@ public class ChainExpression : IExpression
             if (nlpPath.PathSegments.Length == 1 && analyzer.IsGenericParam(nlpPath.PathSegments[0].ToString()))
                 return nlpPath;
             var def = analyzer.GetDefinition(nlpPath);
-            if (def is StructTypeDefinition or EnumTypeDefinition or TraitDefinition or PrimitiveTypeDefinition)
+            if (def is TypeDefinition or TraitDefinition)
                 return (def as IDefinition)!.TypePath;
         }
 
@@ -1717,7 +1719,7 @@ public class ChainExpression : IExpression
 
             // Use resolved path (after ResolvePaths) so i32 → Std.Primitive.i32 etc.
             var def = analyzer.GetDefinition(chain.ResolvedRootPath);
-            if (def is StructTypeDefinition or EnumTypeDefinition or TraitDefinition or PrimitiveTypeDefinition)
+            if (def is TypeDefinition or TraitDefinition)
                 return (def as IDefinition)!.TypePath;
         }
         else if (expr is ChainExpression chainWithSteps)
@@ -1729,7 +1731,7 @@ public class ChainExpression : IExpression
                 // Verify it resolves to a type
                 var basePath = LangPath.StripGenerics(path);
                 var def = analyzer.GetDefinition(basePath);
-                if (def is StructTypeDefinition or EnumTypeDefinition or TraitDefinition or PrimitiveTypeDefinition)
+                if (def is TypeDefinition or TraitDefinition)
                     return path;
                 if (basePath is NormalLangPath nlpBase && nlpBase.PathSegments.Length == 1
                     && analyzer.IsGenericParam(nlpBase.PathSegments[0].ToString()))

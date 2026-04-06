@@ -38,7 +38,7 @@ public class EnumTypeDefinition : ComposableTypeDefinition
     public EnumToken EnumToken { get; }
     public ImmutableArray<EnumVariant> Variants { get; }
     public ImmutableArray<GenericParameter> GenericParameters { get; }
-    public ImmutableArray<string> LifetimeParameters { get; }
+    public override ImmutableArray<string> LifetimeParameters { get; }
 
     public override string Name { get; }
     public override NormalLangPath Module { get; }

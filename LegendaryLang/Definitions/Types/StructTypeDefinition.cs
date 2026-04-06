@@ -34,7 +34,7 @@ public class StructTypeDefinition : ComposableTypeDefinition
     public override ImmutableArray<LangPath> ComposedTypes => Fields.Select(i => i.TypePath).ToImmutableArray();
 
     public ImmutableArray<GenericParameter> GenericParameters { get; }
-    public ImmutableArray<string> LifetimeParameters { get; }
+    public override ImmutableArray<string> LifetimeParameters { get; }
 
     public override void ResolvePaths(PathResolver resolver)
     {
