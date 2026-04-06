@@ -601,6 +601,24 @@ public class FunctionCallKind : IChainKind
                 }
             }
         }
+
+        // Check for types used as runtime arguments — a type name like `i32`
+        // being passed where a value is expected (e.g., Box.New(i32, 0))
+        foreach (var arg in result.Arguments)
+        {
+            if (arg is ChainExpression chain && chain.ResolvedKind is VariableRefKind vrk)
+            {
+                var argDef = analyzer.GetDefinition(vrk.Path);
+                if (argDef is TypeDefinition)
+                {
+                    analyzer.AddException(new SemanticException(
+                        $"'{vrk.Path}' is a type, not a value. " +
+                        $"A type cannot be used where a runtime value is expected.\n" +
+                        tokenLoc));
+                }
+            }
+        }
+
         return result;
     }
 
