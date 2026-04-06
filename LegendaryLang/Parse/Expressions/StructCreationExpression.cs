@@ -150,6 +150,10 @@ public class StructCreationExpression : IExpression
                     $"Field '{field.FieldToken.Identity}' expects type '{fieldType}', found '{field.EqualsTo.TypePath}'\n" +
                     $"{field.FieldToken.GetLocationStringRepresentation()}"));
         }
+
+        // Mark non-Copy field values as moved — ownership transfers to the struct
+        foreach (var field in AssignFields)
+            analyzer.TryMarkExpressionAsMoved(field.EqualsTo);
     }
 
     public bool HasGuaranteedExplicitReturn => AssignFields.Any(i => i.EqualsTo.HasGuaranteedExplicitReturn);
