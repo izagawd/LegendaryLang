@@ -338,9 +338,6 @@ public class LetStatement : IStatement
             var kindSources = chain.ResolvedKind.GetBorrowSources(analyzer);
             if (kindSources.Count > 0) return kindSources;
         }
-        else
-        {
-        }
 
         // Case 1: Direct borrow — &x, &mut x, &const x, &uniq x
         if (expr is PointerGetterExpression pge)

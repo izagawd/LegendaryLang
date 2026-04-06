@@ -249,6 +249,7 @@ public class FunctionCallKind : IChainKind
     public List<(string sourceName, RefKind refKind)> GetBorrowSources(SemanticAnalyzer analyzer)
     {
         var results = new List<(string, RefKind)>();
+        if (FuncDef == null) return results;
         if (FuncDef.ReturnLifetime == "static") return results;
 
         // Explicit lifetime annotations: link return lifetime to matching param lifetimes
