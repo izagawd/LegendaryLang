@@ -1,4 +1,4 @@
-use Std.Core.Ops.Sub;
+use Std.Ops.Sub;
 fn do_sub[T:! Sub(T) + Copy](a: T, b: T) -> (T as Sub(T)).Output {
     a - b
 }

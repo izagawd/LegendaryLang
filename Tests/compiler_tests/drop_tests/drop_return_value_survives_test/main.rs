@@ -1,4 +1,4 @@
-use Std.Core.Marker.Drop;
+use Std.Ops.Drop;
 struct Dropper {
     r: &uniq i32
 }

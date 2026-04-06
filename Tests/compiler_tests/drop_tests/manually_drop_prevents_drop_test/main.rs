@@ -1,5 +1,5 @@
-use Std.Core.Marker.Drop;
-use Std.Core.Alloc.ManuallyDrop;
+use Std.Ops.Drop;
+use Std.Mem.ManuallyDrop;
 
 struct Counter {
     r: &uniq i32

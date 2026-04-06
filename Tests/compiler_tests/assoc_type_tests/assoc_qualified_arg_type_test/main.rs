@@ -1,4 +1,4 @@
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 fn take_output(x: (i32 as Add(i32)).Output) -> i32 {
     x
 }

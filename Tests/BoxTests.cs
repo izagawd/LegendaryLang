@@ -672,21 +672,21 @@ public class ImportTests
     [Test]
     public void ImportSpecificTest()
     {
-        // use std.core.ops.Add; use std.core.marker.Drop;
+        // use Std.Ops.Add; use Std.Ops.Drop;
         AssertSuccess("import_tests/import_specific_test", 42);
     }
 
     [Test]
     public void ImportFullPathTest()
     {
-        // impl std.core.ops.Add(Wrapper) for Wrapper — no import needed
+        // impl Std.Ops.Add(Wrapper) for Wrapper — no import needed
         AssertSuccess("import_tests/import_full_path_test", 42);
     }
 
     [Test]
     public void ImportModuleTest()
     {
-        // use std.core.ops; then impl ops.Add(Pair) for Pair
+        // use Std.Ops; then impl Ops.Add(Pair) for Pair
         AssertSuccess("import_tests/import_module_test", 42);
     }
 
@@ -700,7 +700,7 @@ public class ImportTests
     [Test]
     public void ImportWrongPathFailTest()
     {
-        // use std.core.ops.Drop — Drop is in marker, not ops
+        // use Std.Marker.Drop — Drop is in Ops, not Marker
         AssertFail("import_tests/import_wrong_path_fail_test");
     }
 }

@@ -1,4 +1,4 @@
-use Std.Core.Marker.Drop;
+use Std.Ops.Drop;
 struct Point {
     x: i32,
     y: i32

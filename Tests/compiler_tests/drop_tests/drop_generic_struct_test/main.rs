@@ -1,4 +1,4 @@
-use Std.Core.Marker.Drop;
+use Std.Ops.Drop;
 struct Wrapper['a](T:! type) {
     val: T,
     r: &'a uniq i32

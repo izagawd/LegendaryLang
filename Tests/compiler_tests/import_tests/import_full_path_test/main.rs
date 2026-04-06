@@ -2,7 +2,7 @@ struct Wrapper {
     inner: i32
 }
 
-impl Std.Core.Ops.Add(Wrapper) for Wrapper {
+impl Std.Ops.Add(Wrapper) for Wrapper {
     type Output = i32;
     fn Add(lhs: Wrapper, rhs: Wrapper) -> i32 {
         lhs.inner + rhs.inner

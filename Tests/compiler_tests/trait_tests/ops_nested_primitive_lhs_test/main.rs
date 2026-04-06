@@ -1,4 +1,4 @@
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 fn main() -> i32 {
     struct Foo {}
     impl Add(Foo) for i32 {

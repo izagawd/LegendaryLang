@@ -1,4 +1,4 @@
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 trait Addable: Add(i32, Output = i32) {}
 
 impl Addable for i32 {}

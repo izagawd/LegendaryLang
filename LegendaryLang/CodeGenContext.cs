@@ -379,10 +379,10 @@ public class CodeGenContext
     }
 
     /// <summary>
-    /// Checks if a type is std.core.alloc.ManuallyDrop — suppresses all drop propagation.
+    /// Checks if a type is Std.Mem.ManuallyDrop — suppresses all drop propagation.
     /// Only the official ManuallyDrop from std is recognized, not user-defined types with the same name.
     /// </summary>
-    private static readonly NormalLangPath ManuallyDropModule = new(null, ["Std", "Core", "Alloc", "ManuallyDrop"]);
+    private static readonly NormalLangPath ManuallyDropModule = new(null, ["Std", "Mem", "ManuallyDrop"]);
 
     private static bool IsManuallyDrop(LangPath typePath)
     {

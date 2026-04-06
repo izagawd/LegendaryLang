@@ -1,4 +1,4 @@
-use Std.Core.Ops;
+use Std.Ops;
 
 struct Pair {
     x: i32,

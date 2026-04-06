@@ -1,3 +1,7 @@
+trait Drop {
+    fn Drop(self: &uniq Self);
+}
+
 trait Add(Rhs:! type) {
     type Output;
     fn Add(lhs: Self, rhs: Rhs) -> Self.Output;

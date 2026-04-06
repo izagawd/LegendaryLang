@@ -1314,44 +1314,44 @@ public class SemanticAnalyzer
         => typePath != null && TypeImplementsTrait(typePath, DropTraitPath);
 
     /// <summary>
-    /// The canonical path of the Copy marker trait: std.core.marker.Copy
+    /// The canonical path of the Copy marker trait: Std.Marker.Copy
     /// </summary>
     public static readonly NormalLangPath CopyTraitPath =
-        new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Marker", "Copy" });
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Marker", "Copy" });
 
     /// <summary>
-    /// The canonical path of the Drop trait: std.core.marker.Drop
+    /// The canonical path of the Drop trait: Std.Ops.Drop
     /// </summary>
     public static readonly NormalLangPath DropTraitPath =
-        new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Marker", "Drop" });
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Ops", "Drop" });
 
     /// <summary>
-    /// The canonical path of the MutReassign trait: std.core.marker.MutReassign.
+    /// The canonical path of the MutReassign trait: Std.Marker.MutReassign.
     /// Types implementing this can be reassigned through &amp;mut references.
     /// </summary>
     public static readonly NormalLangPath MutReassignTraitPath =
-        new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Marker", "MutReassign" });
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Marker", "MutReassign" });
 
     public static readonly NormalLangPath AddTraitPath =
-        new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Ops", "Add" });
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Ops", "Add" });
     public static readonly NormalLangPath SubTraitPath =
-        new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Ops", "Sub" });
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Ops", "Sub" });
     public static readonly NormalLangPath MulTraitPath =
-        new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Ops", "Mul" });
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Ops", "Mul" });
     public static readonly NormalLangPath DivTraitPath =
-        new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Ops", "Div" });
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Ops", "Div" });
 
     public static readonly NormalLangPath ReceiverTraitPath =
-        new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Deref", "Receiver" });
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Deref", "Receiver" });
 
     public static readonly NormalLangPath DerefTraitPath =
-        new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Deref", "Deref" });
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Deref", "Deref" });
     public static readonly NormalLangPath DerefConstTraitPath =
-        new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Deref", "DerefConst" });
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Deref", "DerefConst" });
     public static readonly NormalLangPath DerefMutTraitPath =
-        new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Deref", "DerefMut" });
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Deref", "DerefMut" });
     public static readonly NormalLangPath DerefUniqTraitPath =
-        new(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Deref", "DerefUniq" });
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Deref", "DerefUniq" });
 
     /// <summary>
     /// Returns the deref trait required for a given reference kind.

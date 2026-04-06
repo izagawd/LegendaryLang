@@ -1109,7 +1109,7 @@ public class ChainExpression : IExpression
 
     /// <summary>
     /// After ResolvePaths, this holds the fully resolved root path
-    /// (e.g., "Alloc" → "Std.Core.Alloc.Alloc" via use imports).
+    /// (e.g., "Alloc" → "Std.Alloc.Alloc" via use imports).
     /// Before resolution, it's just the raw root name.
     /// </summary>
     public NormalLangPath ResolvedRootPath { get; private set; }
@@ -1667,7 +1667,7 @@ public class ChainExpression : IExpression
             return null;
         }
 
-        // PathExpression — simple path like Foo, i32, Std.Core.Alloc.Box
+        // PathExpression — simple path like Foo, i32, Std.Alloc.Box
         if (expr is PathExpression pe && pe.Path is NormalLangPath nlpPath)
         {
             if (nlpPath.PathSegments.Length == 1 && analyzer.IsGenericParam(nlpPath.PathSegments[0].ToString()))
@@ -1714,8 +1714,8 @@ public class ChainExpression : IExpression
         // resolve it through its existing impl resolution logic
         // (handles generic inference, trait dispatch, etc.)
         //
-        // e.g., Box.New(42) → path = "std.core.Alloc.Box.New"
-        //        Box(i32).New(42) → path = "std.core.Alloc.Box.(i32).New"
+        // e.g., Box.New(42) → path = "Std.Alloc.Box.New"
+        //        Box(i32).New(42) → path = "Std.Alloc.Box.(i32).New"
         //
         //   1. Split into parent (Box) and method (New)
         //   2. Search inherent impls

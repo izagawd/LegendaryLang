@@ -12,10 +12,6 @@ impl[T:! type] Copy for *const T {}
 impl[T:! type] Copy for *mut T {}
 impl[T:! type] Copy for *uniq T {}
 
-trait Drop {
-    fn Drop(self: &uniq Self);
-}
-
 trait MutReassign {}
 impl MutReassign for i32 {}
 impl MutReassign for bool {}

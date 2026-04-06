@@ -1,4 +1,4 @@
-use Std.Core.Marker.MutReassign;
+use Std.Marker.MutReassign;
 
 enum Maybe(T:! type) {
     Some(T),

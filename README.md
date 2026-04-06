@@ -405,7 +405,7 @@ fn double[T:! Copy](x: T) -> i32 {
 Multiple bounds with `+`:
 
 ```
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 
 fn add_twice[T:! Add(T) + Copy](a: T, b: T) -> (T as Add(T)).Output {
     a + b
@@ -575,7 +575,7 @@ impl Producer for i32 {
 ### With Operator Traits
 
 ```
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 
 fn add_em[T:! Add(T)](a: T, b: T) -> (T as Add(T)).Output {
     a + b
@@ -589,7 +589,7 @@ fn main() -> i32 {
 ### Associated Type Constraints
 
 ```
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 
 fn add_same[T:! Add(T, Output = T) + Copy](a: T, b: T) -> T {
     a + b
@@ -628,10 +628,10 @@ fn main() -> i32 {
 
 ## Operator Overloading
 
-Arithmetic operators dispatch through standard library traits in `Std.Core.Ops`:
+Arithmetic operators dispatch through standard library traits in `Std.Ops`:
 
 ```
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 
 struct Vec2 { x: i32, y: i32 }
 
@@ -715,7 +715,7 @@ A type can only implement `Copy` if all its fields are also `Copy`. `Copy` and `
 Implement `Drop` to run cleanup code when a value goes out of scope:
 
 ```
-use Std.Core.Marker.Drop;
+use Std.Ops.Drop;
 
 struct Guard['a] {
     counter: &'a uniq i32
@@ -744,8 +744,8 @@ Drop order is reverse declaration order. Moved values are not dropped. `Copy` an
 Wrap a value in `ManuallyDrop` to suppress its destructor:
 
 ```
-use Std.Core.Alloc.ManuallyDrop;
-use Std.Core.Marker.Drop;
+use Std.Mem.ManuallyDrop;
+use Std.Ops.Drop;
 
 // ManuallyDrop(T) prevents T's Drop from running
 let _no_drop = make ManuallyDrop(MyType) { val: some_value };
@@ -800,7 +800,7 @@ fn main() -> i32 {
 This works with generic traits too:
 
 ```
-(Vec2 as Std.Core.Ops.Add(Vec2)).Add(a, b)
+(Vec2 as Std.Ops.Add(Vec2)).Add(a, b)
 ```
 
 ## Imports
@@ -808,15 +808,15 @@ This works with generic traits too:
 Use `use` to bring items into scope by their full module path:
 
 ```
-use Std.Core.Ops.Add;
-use Std.Core.Marker.Drop;
-use Std.Core.Alloc.ManuallyDrop;
+use Std.Ops.Add;
+use Std.Ops.Drop;
+use Std.Mem.ManuallyDrop;
 ```
 
 After importing, use the short name:
 
 ```
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 
 impl Add(i32) for MyType {
     // ...
@@ -826,7 +826,7 @@ impl Add(i32) for MyType {
 Without importing, use the full path:
 
 ```
-impl Std.Core.Ops.Add(i32) for MyType {
+impl Std.Ops.Add(i32) for MyType {
     // ...
 }
 ```
@@ -835,34 +835,48 @@ impl Std.Core.Ops.Add(i32) for MyType {
 
 ## Standard Library
 
-### `Std.Core.Marker`
+### `Std.Marker`
 
-| Item   | Description                                                  |
-|--------|--------------------------------------------------------------|
-| `Copy` | Marker trait — types are bitwise-copied instead of moved.    |
+| Item           | Description                                                  |
+|----------------|--------------------------------------------------------------|
+| `Copy`         | Marker trait — types are bitwise-copied instead of moved.    |
+| `MutReassign`  | Marker trait — types can be reassigned through `&mut` references. |
+
+### `Std.Ops`
+
+| Item  | Description |
+|-------|-------------|
 | `Drop` | Destructor trait — `fn Drop(self: &uniq Self)` runs on scope exit. |
+| `Add` | `+` operator — `trait Add(Rhs:! type) { type Output; fn Add(lhs: Self, rhs: Rhs) -> Self.Output; }` |
+| `Sub` | `-` operator — same shape as Add. |
+| `Mul` | `*` operator — same shape as Add. |
+| `Div` | `/` operator — same shape as Add. |
 
-### `Std.Core.Ops`
+All four arithmetic traits are implemented for `i32` with `Output = i32`.
 
-| Item  | Operator | Signature |
-|-------|----------|-----------|
-| `Add` | `+`      | `trait Add(Rhs:! type) { type Output; fn Add(lhs: Self, rhs: Rhs) -> Self.Output; }` |
-| `Sub` | `-`      | `trait Sub(Rhs:! type) { type Output; fn Sub(lhs: Self, rhs: Rhs) -> Self.Output; }` |
-| `Mul` | `*`      | `trait Mul(Rhs:! type) { type Output; fn Mul(lhs: Self, rhs: Rhs) -> Self.Output; }` |
-| `Div` | `/`      | `trait Div(Rhs:! type) { type Output; fn Div(lhs: Self, rhs: Rhs) -> Self.Output; }` |
-
-All four are implemented for `i32` with `Output = i32`.
-
-### `Std.Core.Alloc`
+### `Std.Alloc`
 
 | Item               | Description                                        |
 |--------------------|----------------------------------------------------|
 | `Box(T)`           | Heap-allocated smart pointer. Freed on drop.       |
-| `ManuallyDrop(T)`  | Wrapper that suppresses the inner value's destructor. |
+
+### `Std.Mem`
+
+| Item               | Description                                        |
+|--------------------|----------------------------------------------------|
 | `SizeOf(T)`        | Returns the size of type `T` in bytes.             |
 | `AlignOf(T)`       | Returns the alignment of type `T` in bytes.        |
+| `ManuallyDrop(T)`  | Wrapper that suppresses the inner value's destructor. |
 
-### `Std.Core.Deref`
+### `Std.Ptr`
+
+| Item               | Description                                        |
+|--------------------|----------------------------------------------------|
+| `PtrWrite(dst, val)` | Writes a value to a raw pointer destination.     |
+| `PtrAsU8(ptr)`     | Casts a typed raw pointer to `*uniq u8`.           |
+| `DestructPtr(ptr)` | Destructs the value at a pointer (Drop + field drops). |
+
+### `Std.Deref`
 
 | Item         | Description                                                  |
 |--------------|--------------------------------------------------------------|
@@ -914,7 +928,7 @@ impl Foo for i32 { fn bar() -> i32 { 0 } }
 impl Point { fn origin() -> Self { make Point { x: 0, y: 0 } } }
 
 // Import
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 
 // Qualified call
 (i32 as Foo).bar()

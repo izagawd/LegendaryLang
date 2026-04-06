@@ -1,4 +1,4 @@
-use Std.Core.Marker.Drop;
+use Std.Ops.Drop;
 struct Wrapper(T:! type) {
     ptr: *uniq T
 }

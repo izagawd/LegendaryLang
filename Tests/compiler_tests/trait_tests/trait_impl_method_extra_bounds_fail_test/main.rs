@@ -1,4 +1,4 @@
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 trait Foo {
     fn bro[T:! type](to_add: T) -> i32;
 }

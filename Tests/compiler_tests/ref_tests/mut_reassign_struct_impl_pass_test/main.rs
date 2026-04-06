@@ -1,4 +1,4 @@
-use Std.Core.Marker.MutReassign;
+use Std.Marker.MutReassign;
 
 struct Point { x: i32, y: i32 }
 impl Copy for Point {}

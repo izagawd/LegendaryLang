@@ -1,4 +1,4 @@
-use Std.Core.Marker.MutReassign;
+use Std.Marker.MutReassign;
 
 struct Inner { val: i32 }
 struct Outer { inner: Inner }

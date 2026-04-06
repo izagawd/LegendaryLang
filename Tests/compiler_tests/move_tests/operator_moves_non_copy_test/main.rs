@@ -1,5 +1,5 @@
-use Std.Core.Ops.Add;
-use Std.Core.Ops.Sub;
+use Std.Ops.Add;
+use Std.Ops.Sub;
 fn use_twice[T:! Add(T) + Sub(T)](one: T, two: T) -> T {
     one + two - two
 }

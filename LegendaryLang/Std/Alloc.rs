@@ -1,25 +1,22 @@
-use Std.Core.Marker.Drop;
-use Std.Core.Deref.Receiver;
-use Std.Core.Deref.Deref;
-use Std.Core.Deref.DerefConst;
-use Std.Core.Deref.DerefMut;
-use Std.Core.Deref.DerefUniq;
+use Std.Ops.Drop;
+use Std.Deref.Receiver;
+use Std.Deref.Deref;
+use Std.Deref.DerefConst;
+use Std.Deref.DerefMut;
+use Std.Deref.DerefUniq;
+use Std.Mem.ManuallyDrop;
+use Std.Mem.SizeOf;
+use Std.Mem.AlignOf;
+use Std.Ptr.PtrWrite;
+use Std.Ptr.PtrAsU8;
+use Std.Ptr.DestructPtr;
 
-fn SizeOf(T:! type) -> usize;
-fn AlignOf(T:! type) -> usize;
 fn Alloc(size: usize, align: usize) -> *uniq u8;
 fn Dealloc(ptr: *uniq u8, size: usize, align: usize);
 fn AllocZeroed(size: usize, align: usize) -> *uniq u8;
-fn PtrWrite[T:! type](dst: *uniq u8, val: T) -> *uniq T;
-fn PtrAsU8[T:! type](ptr: *uniq T) -> *uniq u8;
-fn DestructPtr[T:! type](ptr: *uniq T);
 
 struct Box(T:! type) {
     ptr: *uniq T
-}
-
-struct ManuallyDrop(T:! type) {
-    val: T
 }
 
 impl[T:! type] Box(T) {

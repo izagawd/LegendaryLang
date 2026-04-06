@@ -1,4 +1,4 @@
-use Std.Core.Marker.Drop;
+use Std.Ops.Drop;
 
 struct Droppable['a] {
     reference: &'a uniq i32

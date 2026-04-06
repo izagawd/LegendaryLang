@@ -1,4 +1,4 @@
-use Std.Core.Ops.Drop;
+use Std.Marker.Drop;
 
 struct Foo { val: i32 }
 

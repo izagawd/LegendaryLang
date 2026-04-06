@@ -1,5 +1,5 @@
-use Std.Core.Ops.Add;
-use Std.Core.Ops.Sub;
+use Std.Ops.Add;
+use Std.Ops.Sub;
 fn compute(T:! Add(T, Output = T) + Sub(T, Output = T) + Copy, one: T, two: T) -> T {
     one + two - two
 }

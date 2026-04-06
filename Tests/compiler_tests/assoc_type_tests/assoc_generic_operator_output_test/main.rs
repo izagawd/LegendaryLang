@@ -1,4 +1,4 @@
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 fn something[T:! Add(T)](one: T, two: T) -> (T as Add(T)).Output {
     one + two
 }

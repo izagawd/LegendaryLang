@@ -1,4 +1,4 @@
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 fn dd[T:! type](one: T) -> (T as Add(T)).Output {
     one
 }

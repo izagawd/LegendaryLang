@@ -1,4 +1,4 @@
-use Std.Core.Alloc.ManuallyDrop;
+use Std.Mem.ManuallyDrop;
 
 fn main() -> i32 {
     let made = Box.New(4);

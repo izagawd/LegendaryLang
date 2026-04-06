@@ -1,5 +1,5 @@
-use Std.Core.Ops.Add;
-use Std.Core.Ops.Mul;
+use Std.Ops.Add;
+use Std.Ops.Mul;
 trait Adder {
     fn Add(a: Self, b: Self) -> Self;
 }

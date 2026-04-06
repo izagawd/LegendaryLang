@@ -1,4 +1,4 @@
-use Std.Core.Deref.Deref;
+use Std.Deref.Deref;
 
 struct Foo { val: i32 }
 impl Copy for Foo {}

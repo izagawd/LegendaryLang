@@ -1,5 +1,5 @@
-use Std.Core.Marker.Drop;
-use Std.Core.Alloc.Box;
+use Std.Ops.Drop;
+use Std.Alloc.Box;
 
 struct Droppable['a] {
     reference: &'a uniq i32

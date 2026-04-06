@@ -1,4 +1,4 @@
-use Std.Core.Marker.Drop;
+use Std.Ops.Drop;
 struct Dropper['a] {
     r: &'a uniq i32
 }

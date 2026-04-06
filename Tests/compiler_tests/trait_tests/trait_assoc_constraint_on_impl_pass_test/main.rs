@@ -1,4 +1,4 @@
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 struct Wrapper(T:! type) {
     val: T
 }

@@ -13,22 +13,34 @@ namespace LegendaryLang;
 /// </summary>
 public static class IntrinsicCodeGen
 {
-    private static readonly NormalLangPath AllocModule = new(null, ["Std", "Core", "Alloc"]);
+    private static readonly NormalLangPath AllocModule = new(null, ["Std", "Alloc"]);
+    private static readonly NormalLangPath MemModule = new(null, ["Std", "Mem"]);
+    private static readonly NormalLangPath PtrModule = new(null, ["Std", "Ptr"]);
 
-    private static readonly HashSet<string> IntrinsicNames =
-        ["SizeOf", "AlignOf", "Alloc", "Dealloc", "AllocZeroed", "PtrWrite", "PtrAsU8", "DestructPtr"];
+    private static readonly Dictionary<string, NormalLangPath> IntrinsicModules = new()
+    {
+        ["SizeOf"] = MemModule,
+        ["AlignOf"] = MemModule,
+        ["Alloc"] = AllocModule,
+        ["Dealloc"] = AllocModule,
+        ["AllocZeroed"] = AllocModule,
+        ["PtrWrite"] = PtrModule,
+        ["PtrAsU8"] = PtrModule,
+        ["DestructPtr"] = PtrModule,
+    };
 
     public static bool IsIntrinsic(NormalLangPath module, string name)
     {
-        if (!IntrinsicNames.Contains(name)) return false;
-        return module.Contains(AllocModule);
+        if (!IntrinsicModules.TryGetValue(name, out var expectedModule)) return false;
+        return module.Contains(expectedModule);
     }
 
     public static bool TryEmit(Function function, CodeGenContext context)
     {
         var defPath = function.Definition.TypePath;
         if (defPath is not NormalLangPath nlp) return false;
-        if (!nlp.Contains(AllocModule)) return false;
+        if (!IntrinsicModules.TryGetValue(function.Definition.Name, out var expectedModule)) return false;
+        if (!nlp.Contains(expectedModule)) return false;
 
         return function.Definition.Name switch
         {
@@ -43,7 +55,6 @@ public static class IntrinsicCodeGen
             _ => false
         };
     }
-
     // ── Type query intrinsics ──
 
     private static bool EmitSizeOf(Function function, CodeGenContext context)

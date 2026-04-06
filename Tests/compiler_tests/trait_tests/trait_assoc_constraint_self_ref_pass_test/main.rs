@@ -1,4 +1,4 @@
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 fn add_twice(T:! Add(T, Output = T) + Copy, a: T) -> T {
     a + a
 }

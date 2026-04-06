@@ -1,4 +1,4 @@
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 trait Doubler {
     fn double(x: Self) -> (Self as Add(Self)).Output;
 }

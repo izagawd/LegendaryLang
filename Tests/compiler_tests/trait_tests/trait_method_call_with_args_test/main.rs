@@ -1,4 +1,4 @@
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 trait Adder {
     fn add_to(self: &Self, other: i32) -> i32;
 }

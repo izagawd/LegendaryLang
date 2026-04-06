@@ -1,4 +1,4 @@
-use Std.Core.Ops.Add;
+use Std.Ops.Add;
 struct Holder {
     val: (i32 as Add(i32)).Output
 }
