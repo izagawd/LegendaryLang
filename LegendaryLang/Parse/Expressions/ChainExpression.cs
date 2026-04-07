@@ -1450,17 +1450,9 @@ public class ChainExpression : IExpression
                 }
 
                 // Field access
-                var fa = new FieldAccessExpression(access.IdentifierToken, RootExpression!);
-                fa.Analyze(analyzer);
-                currentKind = new FieldAccessKind
-                {
-                    Receiver = currentKind,
-                    FieldName = access.Name,
-                    TypePath = fa.TypePath,
-                    AutoDeref = fa.AutoDeref,
-                    AutoDerefDepth = fa.AutoDerefDepth,
-                };
-                currentTypePath = fa.TypePath ?? currentTypePath;
+                var typePath = currentTypePath;
+                currentKind = DoFieldAccess(analyzer, currentKind, ref typePath, access);
+                currentTypePath = typePath;
             }
         }
 
@@ -1824,17 +1816,8 @@ public class ChainExpression : IExpression
             else
             {
                 // Field access on the result of a previous call
-                var receiverExpr = new PathExpression(new NormalLangPath(RootToken, [RootName]));
-                var fa = new FieldAccessExpression(access.IdentifierToken, receiverExpr);
-                fa.Analyze(analyzer);
-                ResolvedKind = new FieldAccessKind
-                {
-                    Receiver = callResult,
-                    FieldName = access.Name,
-                    TypePath = fa.TypePath,
-                    AutoDeref = fa.AutoDeref,
-                    AutoDerefDepth = fa.AutoDerefDepth,
-                };
+                var typePath = callResult.TypePath!;
+                ResolvedKind = DoFieldAccess(analyzer, callResult, ref typePath, access);
             }
         }
     }

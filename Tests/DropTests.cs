@@ -211,4 +211,25 @@ public class DropTests
         // fn has local Dropper, then return new Dropper — local drops, returned doesn't
         AssertSuccess("drop_tests/drop_early_return_locals_drop_test", 2);
     }
+
+    [Test]
+    public void DropTemporaryExpressionTest()
+    {
+        // make Foo{...}; without storing — temporary should be dropped immediately
+        AssertSuccess("drop_tests/drop_temporary_expression_test", 6);
+    }
+
+    [Test]
+    public void DropTemporaryFnCallTest()
+    {
+        // make_counter(&mut x); without storing — temporary should be dropped immediately
+        AssertSuccess("drop_tests/drop_temporary_fn_call_test", 10);
+    }
+
+    [Test]
+    public void DropStoredStillWorksTest()
+    {
+        // let bruh = make Foo{...}; — regression: stored values still drop at scope exit
+        AssertSuccess("drop_tests/drop_stored_still_works_test", 6);
+    }
 }

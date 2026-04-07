@@ -46,6 +46,12 @@ public class BlockExpression : IExpression
         {
             context.AddImplDefinition(impl);
         }
+        // Determine which node is last (for return value vs discarded decision)
+        var lastContainer = BlockSyntaxNodeContainers
+            .Where(i => i.Node is not IItem).Cast<BlockSyntaxNodeContainer?>().LastOrDefault();
+
+        bool exitedViaReturn = false;
+
         // Iterate over each syntax node in the block.
         foreach (var item in BlockSyntaxNodeContainers.Where(i => i.Node is not IItem)) 
         {
@@ -54,6 +60,17 @@ public class BlockExpression : IExpression
             {
                 lastValue = expr.CodeGen(context);
                 lastReturnedExpression = expr;
+
+                // Drop temporaries: expressions with semicolons (value discarded),
+                // or non-last expressions. The last expression without semicolon is the
+                // block's return value — it must NOT be dropped here.
+                bool isLast = lastContainer != null && item.Node == lastContainer.Value.Node;
+                bool isDiscarded = item.HasSemiColonAfter || !isLast;
+                if (isDiscarded && lastValue.Type?.TypePath != null
+                    && lastValue.Type.TypePath != LangPath.VoidBaseLangPath)
+                {
+                    context.EmitDestruct(lastValue.Type.TypePath, lastValue.ValueRef);
+                }
             }
             // return statements are special, as when you encounter one theres no
             // point in code genning the rest of the nodes
@@ -61,6 +78,7 @@ public class BlockExpression : IExpression
             {
                 lastValue = ret.ToReturn?.CodeGen(context) ?? context.GetVoid();
                 lastReturnedExpression = ret.ToReturn;
+                exitedViaReturn = true;
                 break;
             }
             // If the node is a statement, simply generate code.
@@ -96,9 +114,17 @@ public class BlockExpression : IExpression
             // stop looping, since explicit returns ignores the rest of the code in
             // blocks anyways
             var firstNoticed = GetFirstNoticedGuaranteedReturn(item.Node);
-            if (firstNoticed is not null) break;
+            if (firstNoticed is not null) { exitedViaReturn = true; break; }
         }
 
+        // If the last expression had a semicolon, the block returns void — not the expression's value.
+        // Does NOT apply when the loop exited via a return statement (return always produces a value).
+        if (!exitedViaReturn && lastContainer is { HasSemiColonAfter: true, Node: IExpression }
+            && lastContainer.Value.Node is not ReturnStatement)
+        {
+            lastValue = context.GetVoid();
+            lastReturnedExpression = null;
+        }
 
         // Save the return value to a temp BEFORE drops run.
         // Drops may free memory the return value points to (e.g., *box returns a heap pointer

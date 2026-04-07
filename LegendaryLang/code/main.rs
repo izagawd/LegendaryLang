@@ -1,10 +1,5 @@
-﻿use Std.Ops.Drop;
-
-struct Foo{}
-impl Foo {
-    fn yo(self: Self){}
-
+﻿use code.dark.Nester;
 fn main() -> i32{
-    make Foo{}.yo();
-    5
+    let dd: Nester = make Nester{kk:5};
+    return dd.kk;
 }
