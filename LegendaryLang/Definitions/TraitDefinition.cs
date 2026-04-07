@@ -319,28 +319,24 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
         var associatedTypes = new List<TraitAssociatedType>();
         while (parser.Peek() is not RightCurlyBraceToken)
         {
-            if (parser.Peek() is TypeKeywordToken)
+            if (parser.Peek() is LetToken)
             {
-                // Parse associated type: type Output; or type Output: Bound1 + Bound2;
-                parser.Pop();
+                // Parse associated type:
+                //   let Output :! type;          — unconstrained
+                //   let Output :! Copy;          — single bound
+                //   let Output :! Copy + Clone;  — multiple bounds
+                parser.Pop(); // consume 'let'
                 var atName = Identifier.Parse(parser);
-                var atBounds = new List<LangPath>();
-                if (parser.Peek() is ColonToken)
-                {
-                    parser.Pop();
-                    atBounds.Add(LangPath.Parse(parser, true));
-                    while (parser.Peek() is OperatorToken { OperatorType: Operator.Add })
-                    {
-                        parser.Pop();
-                        atBounds.Add(LangPath.Parse(parser, true));
-                    }
-                }
+                var colonBang = parser.Pop();
+                if (colonBang is not ColonBangToken)
+                    throw new ExpectedParserException(parser, ParseType.ColonBang, colonBang);
+                var bounds = FunctionSignatureParser.ParseComptimeBounds(parser);
                 SemiColon.Parse(parser);
                 associatedTypes.Add(new TraitAssociatedType
                 {
                     Name = atName.Identity,
                     Token = atName,
-                    TraitBounds = atBounds
+                    TraitBounds = bounds.Select(b => b.TraitPath).ToList()
                 });
             }
             else

@@ -4,7 +4,7 @@ struct Foo {
 }
 
 impl Add(Foo) for Foo {
-    type Output = Foo;
+    let Output :! type = Foo;
     fn Add(lhs: Foo, rhs: Foo) -> Foo {
         make Foo { val : lhs.val + rhs.val }
     }

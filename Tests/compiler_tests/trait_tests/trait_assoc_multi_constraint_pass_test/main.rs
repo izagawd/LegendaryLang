@@ -1,12 +1,12 @@
 trait Transformer {
-    type Input;
-    type Output;
+    let Input :! type;
+    let Output :! type;
     fn transform(input: Self) -> i32;
 }
 
 impl Transformer for i32 {
-    type Input = bool;
-    type Output = i32;
+    let Input :! type = bool;
+    let Output :! type = i32;
     fn transform(input: i32) -> i32 {
         input
     }

@@ -1,13 +1,13 @@
 trait Transformer {
-    type Input;
-    type Output;
+    let Input :! type;
+    let Output :! type;
 }
 
 trait I32Transformer: Transformer(Input = i32, Output = i32) {}
 
 impl Transformer for i32 {
-    type Input = i32;
-    type Output = i32;
+    let Input :! type = i32;
+    let Output :! type = i32;
 }
 
 impl I32Transformer for i32 {}

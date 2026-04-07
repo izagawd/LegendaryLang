@@ -3,7 +3,7 @@ use Std.Ops.Sub;
 struct Num { val: i32 }
 
 impl Sub(Num) for Num {
-    type Output = Num;
+    let Output :! type = Num;
     fn Sub(lhs: Num, rhs: Num) -> Num {
         make Num { val: lhs.val - rhs.val }
     }

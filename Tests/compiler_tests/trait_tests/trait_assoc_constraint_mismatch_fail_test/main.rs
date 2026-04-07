@@ -1,10 +1,10 @@
 trait Producer {
-    type Output;
+    let Output :! type;
     fn produce(input: Self) -> i32;
 }
 
 impl Producer for i32 {
-    type Output = bool;
+    let Output :! type = bool;
     fn produce(input: i32) -> i32 {
         input
     }

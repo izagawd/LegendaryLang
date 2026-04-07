@@ -1,6 +1,6 @@
 trait Processor {
-    type Input: Copy;
-    type Output: Copy;
+    let Input :! Copy;
+    let Output :! Copy;
     fn process(input: Self) -> i32;
 }
 
@@ -15,8 +15,8 @@ struct Foo {
 impl Copy for Foo {}
 
 impl Processor for Foo {
-    type Input = i32;
-    type Output = NonCopy;
+    let Input :! type = i32;
+    let Output :! type = NonCopy;
     fn process(input: Foo) -> i32 {
         input.val
     }

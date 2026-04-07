@@ -1,5 +1,5 @@
 trait Receiver {
-    type Target;
+    let Target :! type;
 }
 
 trait Deref: Receiver {
@@ -19,7 +19,7 @@ trait DerefUniq: Deref + DerefConst + DerefMut {
 }
 
 impl[T:! type] Receiver for &T {
-    type Target = T;
+    let Target :! type = T;
 }
 impl[T:! type] Deref for &T {
     fn deref(self: &Self) -> &Self.Target {
@@ -28,7 +28,7 @@ impl[T:! type] Deref for &T {
 }
 
 impl[T:! type] Receiver for &const T {
-    type Target = T;
+    let Target :! type = T;
 }
 impl[T:! type] Deref for &const T {
     fn deref(self: &Self) -> &Self.Target {
@@ -42,7 +42,7 @@ impl[T:! type] DerefConst for &const T {
 }
 
 impl[T:! type] Receiver for &mut T {
-    type Target = T;
+    let Target :! type = T;
 }
 impl[T:! type] Deref for &mut T {
     fn deref(self: &Self) -> &Self.Target {
@@ -56,7 +56,7 @@ impl[T:! type] DerefMut for &mut T {
 }
 
 impl[T:! type] Receiver for &uniq T {
-    type Target = T;
+    let Target :! type = T;
 }
 impl[T:! type] Deref for &uniq T {
     fn deref(self: &Self) -> &Self.Target {

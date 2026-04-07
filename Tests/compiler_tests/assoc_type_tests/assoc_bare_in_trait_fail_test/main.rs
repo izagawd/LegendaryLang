@@ -1,10 +1,10 @@
 trait Foo {
-    type Bruh;
+    let Bruh :! type;
     fn yo() -> Bruh;
 }
 
 impl Foo for i32 {
-    type Bruh = i32;
+    let Bruh :! type = i32;
     fn yo() -> i32 { 5 }
 }
 

@@ -40,5 +40,7 @@ public enum ParseType
     As,
     Enum,
     Match,
-    FatArrow
+    FatArrow,
+    ColonBang,
+    Type
 }

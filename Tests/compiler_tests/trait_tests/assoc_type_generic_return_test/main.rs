@@ -1,10 +1,10 @@
 trait Identity {
-    type Out;
+    let Out :! type;
     fn id(val: Self) -> Self.Out;
 }
 
 impl Identity for i32 {
-    type Out = Self;
+    let Out :! type = Self;
     fn id(val: i32) -> (i32 as Identity).Out {
         val
     }

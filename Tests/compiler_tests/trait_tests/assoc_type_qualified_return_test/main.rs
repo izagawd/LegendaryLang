@@ -1,10 +1,10 @@
 trait Converter {
-    type Output;
+    let Output :! type;
     fn convert(val: i32) -> (Self as Converter).Output;
 }
 
 impl Converter for i32 {
-    type Output = i32;
+    let Output :! type = i32;
     fn convert(val: i32) -> (Self as Converter).Output {
         val + 1
     }

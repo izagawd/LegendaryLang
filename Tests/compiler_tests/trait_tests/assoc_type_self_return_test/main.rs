@@ -1,12 +1,12 @@
 trait Foo {
-    type Bruh;
+    let Bruh :! type;
     fn dude() -> Self.Bruh;
 }
 
 trait Bar: Foo {}
 
 impl Foo for i32 {
-    type Bruh = Self;
+    let Bruh :! type = Self;
     fn dude() -> (Self as Foo).Bruh {
         4
     }

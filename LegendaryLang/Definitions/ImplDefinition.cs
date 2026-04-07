@@ -1050,11 +1050,16 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
         var associatedTypes = new List<ImplAssociatedType>();
         while (parser.Peek() is not RightCurlyBraceToken)
         {
-            if (parser.Peek() is TypeKeywordToken)
+            if (parser.Peek() is LetToken)
             {
-                // Parse: type Output = i32;
-                var typeTok = parser.Pop();
+                // Parse: let Output :! type = i32; or let Output :! Copy = i32;
+                parser.Pop(); // consume 'let'
                 var atName = Identifier.Parse(parser);
+                var colonBang = parser.Pop();
+                if (colonBang is not ColonBangToken)
+                    throw new ExpectedParserException(parser, ParseType.ColonBang, colonBang);
+                // Consume bounds (discarded — validation uses trait declaration bounds)
+                FunctionSignatureParser.ParseComptimeBounds(parser);
                 var eqTok = parser.Pop();
                 if (eqTok is not EqualityToken)
                     throw new ExpectedParserException(parser, ParseType.Equality, eqTok);

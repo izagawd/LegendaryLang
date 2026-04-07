@@ -1,11 +1,11 @@
 trait Producer {
-    type Output;
+    let Output :! type;
 }
 
 trait WantsString: Producer(Output = bool) {}
 
 impl Producer for i32 {
-    type Output = i32;
+    let Output :! type = i32;
 }
 
 impl WantsString for i32 {}

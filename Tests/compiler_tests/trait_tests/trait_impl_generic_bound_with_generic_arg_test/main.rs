@@ -6,7 +6,7 @@ struct Wrapper(T:! type) {
 impl[T:! Copy] Copy for Wrapper(T) {}
 
 impl[T:! Add(T, Output = T) + Copy] Add(Wrapper(T)) for Wrapper(T) {
-    type Output = Wrapper(T);
+    let Output :! type = Wrapper(T);
     fn Add(lhs: Wrapper(T), rhs: Wrapper(T)) -> Wrapper(T) {
         make Wrapper { val : lhs.val + rhs.val }
     }

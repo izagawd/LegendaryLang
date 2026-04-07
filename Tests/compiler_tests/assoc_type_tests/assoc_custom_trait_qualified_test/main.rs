@@ -1,9 +1,9 @@
 trait Maker {
-    type Product;
+    let Product :! type;
     fn make(x: i32) -> Self.Product;
 }
 impl Maker for i32 {
-    type Product = i32;
+    let Product :! type = i32;
     fn make(x: i32) -> i32 {
         x
     }

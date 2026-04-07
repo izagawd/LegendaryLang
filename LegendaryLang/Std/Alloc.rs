@@ -46,7 +46,7 @@ impl[T:! type] Drop for Box(T) {
 }
 
 impl[T:! type] Receiver for Box(T) {
-    type Target = T;
+    let Target :! type = T;
 }
 
 impl[T:! type] Deref for Box(T) {

@@ -34,6 +34,26 @@ public static class FunctionSignatureParser
     public record ReturnTypeResult(LangPath ReturnTypePath, string? ReturnLifetime);
 
     /// <summary>
+    /// Parse the bounds after :! — either 'type' (unconstrained) or TraitBound + TraitBound + ...
+    /// Shared by generic params, associated type declarations, and impl associated types.
+    /// </summary>
+    public static List<TraitBound> ParseComptimeBounds(Parser parser)
+    {
+        if (parser.Peek() is TypeKeywordToken)
+        {
+            parser.Pop(); // 'type' = unconstrained placeholder
+            return new List<TraitBound>();
+        }
+        var bounds = new List<TraitBound> { TraitBound.Parse(parser) };
+        while (parser.Peek() is OperatorToken { OperatorType: Operator.Add })
+        {
+            parser.Pop();
+            bounds.Add(TraitBound.Parse(parser));
+        }
+        return bounds;
+    }
+
+    /// <summary>
     /// Parse implicit/deduced generic parameters in bracket syntax: ['a, T:! type].
     /// Lifetimes must come first. Only :! (comptime) allowed in [].
     /// Returns null if next token is not [.
@@ -61,7 +81,6 @@ public static class FunctionSignatureParser
         while (parser.Peek() is not RightBracketToken)
         {
             var paramIdent = Identifier.Parse(parser);
-            var traitBounds = new List<TraitBound>();
 
             if (parser.Peek() is not ColonBangToken)
             {
@@ -72,19 +91,7 @@ public static class FunctionSignatureParser
             }
 
             parser.Pop(); // consume :!
-            if (parser.Peek() is TypeKeywordToken)
-            {
-                parser.Pop(); // consume 'type' — unconstrained comptime param
-            }
-            else
-            {
-                traitBounds.Add(TraitBound.Parse(parser));
-                while (parser.Peek() is OperatorToken { OperatorType: Operator.Add })
-                {
-                    parser.Pop();
-                    traitBounds.Add(TraitBound.Parse(parser));
-                }
-            }
+            var traitBounds = ParseComptimeBounds(parser);
 
             genericParams.Add(new GenericParameter(paramIdent, traitBounds));
             if (parser.Peek() is CommaToken) parser.Pop();
@@ -157,20 +164,7 @@ public static class FunctionSignatureParser
             {
                 var paramIdent = Identifier.Parse(parser);
                 parser.Pop(); // consume :!
-                var traitBounds = new List<TraitBound>();
-                if (parser.Peek() is TypeKeywordToken)
-                {
-                    parser.Pop(); // consume 'type' — unconstrained comptime param
-                }
-                else
-                {
-                    traitBounds.Add(TraitBound.Parse(parser));
-                    while (parser.Peek() is OperatorToken { OperatorType: Operator.Add })
-                    {
-                        parser.Pop();
-                        traitBounds.Add(TraitBound.Parse(parser));
-                    }
-                }
+                var traitBounds = ParseComptimeBounds(parser);
                 checkedParams.Add(new GenericParameter(paramIdent, traitBounds));
                 layout.Add(true);
                 if (parser.Peek() is CommaToken) parser.Pop();

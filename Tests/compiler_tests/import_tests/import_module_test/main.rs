@@ -8,7 +8,7 @@ struct Pair {
 impl Copy for Pair {}
 
 impl Ops.Add(Pair) for Pair {
-    type Output = i32;
+    let Output :! type = i32;
     fn Add(lhs: Pair, rhs: Pair) -> i32 {
         lhs.x + rhs.x + lhs.y + rhs.y
     }

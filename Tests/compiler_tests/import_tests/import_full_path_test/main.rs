@@ -3,7 +3,7 @@ struct Wrapper {
 }
 
 impl Std.Ops.Add(Wrapper) for Wrapper {
-    type Output = i32;
+    let Output :! type = i32;
     fn Add(lhs: Wrapper, rhs: Wrapper) -> i32 {
         lhs.inner + rhs.inner
     }

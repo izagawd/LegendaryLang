@@ -1,11 +1,11 @@
 trait Converter(T:! type) {
-    type Output;
+    let Output :! type;
 }
 
 trait IntConverter(T:! type): Converter(T, Output = i32) {}
 
 impl Converter(bool) for i32 {
-    type Output = bool;
+    let Output :! type = bool;
 }
 
 impl IntConverter(bool) for i32 {}

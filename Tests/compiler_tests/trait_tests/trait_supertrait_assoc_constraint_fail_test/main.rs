@@ -1,11 +1,11 @@
 trait Producer {
-    type Output;
+    let Output :! type;
 }
 
 trait IntProducer: Producer(Output = i32) {}
 
 impl Producer for i32 {
-    type Output = bool;
+    let Output :! type = bool;
 }
 
 impl IntProducer for i32 {}

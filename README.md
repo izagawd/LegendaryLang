@@ -586,12 +586,12 @@ Traits can declare associated types:
 
 ```
 trait Producer {
-    type Output;
+    let Output :! type;
     fn produce() -> Self.Output;
 }
 
 impl Producer for i32 {
-    type Output = i32;
+    let Output :! type = i32;
     fn produce() -> (Self as Producer).Output {
         42
     }
@@ -664,7 +664,7 @@ struct Vec2 { x: i32, y: i32 }
 impl Copy for Vec2 {}
 
 impl Add(Vec2) for Vec2 {
-    type Output = Vec2;
+    let Output :! type = Vec2;
     fn Add(lhs: Vec2, rhs: Vec2) -> Vec2 {
         make Vec2 { x: lhs.x + rhs.x, y: lhs.y + rhs.y }
     }
@@ -1038,7 +1038,7 @@ Note: `main.rs` files adopt their parent directory as the module name. A file at
 | Item  | Description |
 |-------|-------------|
 | `Drop` | Destructor trait — `fn Drop(self: &uniq Self)` runs on scope exit. |
-| `Add` | `+` operator — `trait Add(Rhs:! type) { type Output; fn Add(lhs: Self, rhs: Rhs) -> Self.Output; }` |
+| `Add` | `+` operator — `trait Add(Rhs:! type) { let Output :! type; fn Add(lhs: Self, rhs: Rhs) -> Self.Output; }` |
 | `Sub` | `-` operator — same shape as Add. |
 | `Mul` | `*` operator — same shape as Add. |
 | `Div` | `/` operator — same shape as Add. |
@@ -1082,7 +1082,7 @@ All four arithmetic traits are implemented for `i32` with `Output = i32`.
 
 | Item         | Description                                                  |
 |--------------|--------------------------------------------------------------|
-| `Receiver`   | Base trait for deref — declares `type Target`.               |
+| `Receiver`   | Base trait for deref — declares `let Target :! type`.               |
 | `Deref`      | `fn deref(self: &Self) -> &Self.Target`                      |
 | `DerefConst` | `fn deref_const(self: &const Self) -> &const Self.Target`    |
 | `DerefMut`   | `fn deref_mut(self: &mut Self) -> &mut Self.Target`          |

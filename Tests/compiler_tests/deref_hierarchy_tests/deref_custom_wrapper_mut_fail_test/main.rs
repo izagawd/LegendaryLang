@@ -4,7 +4,7 @@ struct Wrapper(T:! type) {
 }
 
 impl[T:! type] Receiver for Wrapper(T) {
-    type Target = T;
+    let Target :! type = T;
 }
 
 impl[T:! type] Deref for Wrapper(T) {
