@@ -4,7 +4,6 @@ using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
 using LegendaryLang.Parse.Expressions;
-using LegendaryLang.Parse.Statements;
 using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Definitions;
@@ -557,7 +556,7 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                     {
                         // If trait expects &T and impl provides T, auto-adjust the impl param
                         // to &T. The codegen passes references, and the body auto-derefs.
-                        if (LetStatement.IsReferenceType(resolvedTraitParamType)
+                        if (RefTypeDefinition.IsReferenceType(resolvedTraitParamType)
                             && resolvedTraitParamType is NormalLangPath nlpTraitParam)
                         {
                             var innerType = nlpTraitParam.GetFrontGenerics();

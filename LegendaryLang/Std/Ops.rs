@@ -194,3 +194,7 @@ impl[T:! PartialOrd(T)] PartialOrd(&uniq T) for &uniq T {
         (T as PartialOrd(T)).Gt(*lhs, *rhs)
     }
 }
+
+trait TryInto(T:! type) {
+    fn try_into(self: Self) -> Option(T);
+}

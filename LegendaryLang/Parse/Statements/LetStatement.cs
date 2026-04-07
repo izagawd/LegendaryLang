@@ -141,6 +141,10 @@ public class LetStatement : IStatement
             }
             else if (EqualsTo is not null && VariableDefinition.TypePath is not null)
             {
+                // Numeric literal type inference: coerce literal to match annotation
+                if (EqualsTo is NumberExpression numExpr)
+                    numExpr.TryCoerceToType(VariableDefinition.TypePath);
+
                 if (EqualsTo.TypePath != VariableDefinition.TypePath)
                 {
                     analyzer.AddException(new TypeMismatchException(
@@ -266,35 +270,13 @@ public class LetStatement : IStatement
             origin = GetVariableOrigin(arg);
 
         // If the argument is a variable holding a reference, trace to ultimate source
-        if (origin != null && IsReferenceType(arg.TypePath))
+        if (origin != null && RefTypeDefinition.IsReferenceType(arg.TypePath))
         {
             var ultimate = analyzer.GetBorrowSource(origin);
             if (ultimate != null) origin = ultimate;
         }
 
         return origin;
-    }
-
-    /// <summary>Check if a type path is a reference type (&amp;T).</summary>
-    internal static bool IsReferenceType(LangPath? typePath)
-    {
-        return typePath is NormalLangPath nlp
-               && nlp.Contains(RefTypeDefinition.GetRefModule());
-    }
-
-    /// <summary>Extract the RefKind from a reference type path.</summary>
-    internal static RefKind GetRefKindFromTypePath(LangPath typePath)
-    {
-        if (typePath is NormalLangPath nlp)
-        {
-            foreach (RefKind rk in Enum.GetValues(typeof(RefKind)))
-            {
-                var refName = RefTypeDefinition.GetRefName(rk);
-                if (nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == refName))
-                    return rk;
-            }
-        }
-        return RefKind.Shared;
     }
 
     /// <summary>
@@ -349,7 +331,7 @@ public class LetStatement : IStatement
         }
 
         // Case 2: Variable that already holds a reference — propagate its borrow source
-        if ((expr is ChainExpression || expr is PathExpression) && IsReferenceType(expr.TypePath))
+        if ((expr is ChainExpression || expr is PathExpression) && RefTypeDefinition.IsReferenceType(expr.TypePath))
         {
             var varName = GetVariableOrigin(expr);
             if (varName != null)
@@ -357,7 +339,7 @@ public class LetStatement : IStatement
                 var ultimateSource = analyzer.GetBorrowSource(varName);
                 if (ultimateSource != null)
                 {
-                    var refKind = GetRefKindFromTypePath(expr.TypePath!);
+                    var refKind = RefTypeDefinition.ExtractRefKindFromPath(expr.TypePath!);
                     results.Add((ultimateSource, refKind));
                 }
             }

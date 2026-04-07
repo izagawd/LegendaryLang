@@ -19,7 +19,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         BlockExpression? blockExpression, NormalLangPath module, IEnumerable<GenericParameter> genericParameters,
         Token lookUpToken, IEnumerable<string>? lifetimeParameters = null,
         Dictionary<int, string>? argumentLifetimes = null, string? returnLifetime = null,
-        ImmutableArray<bool>? callParamLayout = null)
+        ImmutableArray<bool>? callParamLayout = null, int implicitGenericCount = 0)
     {
         Arguments = variables.ToImmutableArray();
         Name = name;
@@ -32,9 +32,17 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         ArgumentLifetimes = argumentLifetimes ?? new();
         ReturnLifetime = returnLifetime;
         CallParamLayout = callParamLayout ?? [];
+        ImplicitGenericCount = implicitGenericCount;
     }
 
     public ImmutableArray<GenericParameter> GenericParameters { get; }
+
+    /// <summary>
+    /// Number of generic parameters from [] (implicit/inferred).
+    /// These come first in GenericParameters, before the () comptime params.
+    /// Used to correctly map explicit type args to () params during call resolution.
+    /// </summary>
+    public int ImplicitGenericCount { get; }
     
     /// <summary>
     /// Layout of params in () as seen by the caller.
@@ -446,6 +454,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         // Parse generic parameters (lifetimes + type params) from [] deduced params
         var generics = FunctionSignatureParser.ParseImplicitGenericParams(parser);
         var genericParameters = (generics?.GenericParameters ?? []).ToList();
+        var implicitGenericCount = genericParameters.Count;
         var lifetimeParameters = generics?.LifetimeParameters ?? [];
 
         // Parse function parameters — () is required for functions
@@ -475,7 +484,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
             returnResult.ReturnTypePath, body,
             module, genericParameters, nameToken, lifetimeParameters,
             paramsResult.ArgumentLifetimes, returnResult.ReturnLifetime,
-            paramsResult.CallParamLayout);
+            paramsResult.CallParamLayout, implicitGenericCount);
     }
 
     /// <summary>

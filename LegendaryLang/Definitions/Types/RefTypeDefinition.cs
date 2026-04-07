@@ -77,6 +77,15 @@ public class RefTypeDefinition : PointerTypeDefinitionBase
     }
 
     /// <summary>
+    /// Checks if a type path represents any reference type (&amp;, &amp;mut, &amp;const, &amp;uniq).
+    /// </summary>
+    public static bool IsReferenceType(LangPath? typePath)
+    {
+        return typePath is NormalLangPath nlp
+               && nlp.Contains(GetRefModule());
+    }
+
+    /// <summary>
     /// Extracts the RefKind from a type path that contains a reference module segment.
     /// Used across deref, method dispatch, and borrow checking.
     /// Returns Shared as default if no specific kind is found.

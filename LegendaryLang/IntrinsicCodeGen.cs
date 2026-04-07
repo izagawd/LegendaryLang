@@ -16,6 +16,7 @@ public static class IntrinsicCodeGen
     private static readonly NormalLangPath AllocModule = new(null, ["Std", "Alloc"]);
     private static readonly NormalLangPath MemModule = new(null, ["Std", "Mem"]);
     private static readonly NormalLangPath PtrModule = new(null, ["Std", "Ptr"]);
+    private static readonly NormalLangPath PrimitiveModule = new(null, ["Std", "Primitive"]);
 
     private static readonly Dictionary<string, NormalLangPath> IntrinsicModules = new()
     {
@@ -27,6 +28,7 @@ public static class IntrinsicCodeGen
         ["PtrWrite"] = PtrModule,
         ["PtrAsU8"] = PtrModule,
         ["DestructPtr"] = PtrModule,
+        ["TryCastPrimitive"] = PrimitiveModule,
     };
 
     public static bool IsIntrinsic(NormalLangPath module, string name)
@@ -52,6 +54,7 @@ public static class IntrinsicCodeGen
             "PtrWrite" => EmitPtrWrite(function, context),
             "PtrAsU8" => EmitPtrAsU8(function, context),
             "DestructPtr" => EmitDestructPtr(function, context),
+            "TryCastPrimitive" => EmitTryCastPrimitive(function, context),
             _ => false
         };
     }
@@ -235,6 +238,116 @@ public static class IntrinsicCodeGen
         LLVMValueRef existing = LLVM.GetNamedFunction(context.Module, "free".ToCString());
         if (existing.Handle != IntPtr.Zero) return existing;
         return context.Module.AddFunction("free", FreeFuncType);
+    }
+
+    // ── Primitive conversion intrinsic ──
+
+    /// <summary>
+    /// try_cast_primitive[From:! Primitive](To:! Primitive, input: From) -> Option(To)
+    /// Converts between primitive numeric types with range checking.
+    /// Returns Some(converted) if the value fits, None otherwise.
+    /// GenericArguments[0] = From, GenericArguments[1] = To.
+    /// </summary>
+    private static unsafe bool EmitTryCastPrimitive(Function function, CodeGenContext context)
+    {
+        if (function.GenericArguments.Length != 2 || function.Arguments.Length != 1) return false;
+
+        var fromType = (context.GetRefItemFor(function.GenericArguments[0]) as TypeRefItem)?.Type as PrimitiveType;
+        var toType = (context.GetRefItemFor(function.GenericArguments[1]) as TypeRefItem)?.Type as PrimitiveType;
+        if (fromType == null || toType == null) return false;
+
+        var returnType = function.ReturnType as EnumType;
+        if (returnType == null) return false;
+
+        var inputArg = function.Arguments[0];
+        var inputVal = fromType.LoadValue(context, new ValueRefItem { Type = fromType, ValueRef = inputArg.Alloca });
+
+        var fromRef = fromType.TypeRef;
+        var toRef = toType.TypeRef;
+        var fromBits = fromRef.IntWidth;
+        var toBits = toRef.IntWidth;
+        bool fromSigned = fromType.Name == "i32"; // i32 is signed; u8, usize, bool are unsigned
+
+        // Determine if conversion can fail
+        LLVMValueRef converted;
+        LLVMValueRef fits;
+
+        if (fromBits == toBits && fromType.Name == toType.Name)
+        {
+            // Same type — always succeeds
+            converted = inputVal;
+            fits = LLVMValueRef.CreateConstInt(LLVMTypeRef.Int1, 1, false);
+        }
+        else
+        {
+            // Convert to target width
+            if (toBits > fromBits)
+                converted = fromSigned
+                    ? context.Builder.BuildSExt(inputVal, toRef)
+                    : context.Builder.BuildZExt(inputVal, toRef);
+            else if (toBits < fromBits)
+                converted = context.Builder.BuildTrunc(inputVal, toRef);
+            else
+                converted = inputVal; // same width, different signedness
+
+            // Round-trip check: convert back and compare
+            LLVMValueRef roundTrip;
+            bool toSigned = toType.Name == "i32";
+            if (fromBits > toBits)
+                roundTrip = toSigned
+                    ? context.Builder.BuildSExt(converted, fromRef)
+                    : context.Builder.BuildZExt(converted, fromRef);
+            else if (fromBits < toBits)
+                roundTrip = context.Builder.BuildTrunc(converted, fromRef);
+            else
+                roundTrip = converted;
+
+            fits = context.Builder.BuildICmp(LLVMIntPredicate.LLVMIntEQ, inputVal, roundTrip);
+
+            // Extra check: signed-to-unsigned requires non-negative
+            if (fromSigned && !toSigned)
+            {
+                var nonNeg = context.Builder.BuildICmp(LLVMIntPredicate.LLVMIntSGE,
+                    inputVal, LLVMValueRef.CreateConstInt(fromRef, 0, false));
+                fits = context.Builder.BuildAnd(fits, nonNeg);
+            }
+        }
+
+        // Build Option enum result
+        var resultAlloca = context.Builder.BuildAlloca(returnType.TypeRef);
+
+        // Branch: if fits → Some(converted), else → None
+        var parentFunc = context.Builder.InsertBlock.Parent;
+        var someBB = parentFunc.AppendBasicBlock("trycast.some");
+        var noneBB = parentFunc.AppendBasicBlock("trycast.none");
+        var mergeBB = parentFunc.AppendBasicBlock("trycast.merge");
+
+        context.Builder.BuildCondBr(fits, someBB, noneBB);
+
+        // Some branch: tag=0, payload=converted
+        context.Builder.PositionAtEnd(someBB);
+        var someTagPtr = context.Builder.BuildStructGEP2(returnType.TypeRef, resultAlloca, 0);
+        context.Builder.BuildStore(LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, 0, false), someTagPtr);
+        if (returnType.HasPayloads)
+        {
+            var payloadPtr = context.Builder.BuildStructGEP2(returnType.TypeRef, resultAlloca, 1);
+            toType.AssignTo(context,
+                new ValueRefItem { Type = toType, ValueRef = converted },
+                new ValueRefItem { Type = toType, ValueRef = payloadPtr });
+        }
+        context.Builder.BuildBr(mergeBB);
+
+        // None branch: tag=1
+        context.Builder.PositionAtEnd(noneBB);
+        var noneTagPtr = context.Builder.BuildStructGEP2(returnType.TypeRef, resultAlloca, 0);
+        context.Builder.BuildStore(LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, 1, false), noneTagPtr);
+        context.Builder.BuildBr(mergeBB);
+
+        // Merge: load and return the Option enum
+        context.Builder.PositionAtEnd(mergeBB);
+        var loaded = returnType.LoadValue(context, new ValueRefItem { Type = returnType, ValueRef = resultAlloca });
+        context.Builder.BuildRet(loaded);
+        return true;
     }
 
     public static unsafe LLVMValueRef GetOrDeclareCalloc(CodeGenContext context)

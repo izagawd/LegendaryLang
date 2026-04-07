@@ -896,3 +896,248 @@ public class ComparisonBorrowTests
         AssertSuccess("trait_tests/all_six_comparison_ops_test", 255);
     }
 }
+
+public class ByValParamAutoAdjustTests
+{
+    [Test]
+    public void EqCustomByvalParamsTest()
+    {
+        // Point eq by val: ==→1, ==miss→0, !=hit→100, !=miss→0. Total 101
+        AssertSuccess("trait_tests/eq_custom_byval_params_test", 101);
+    }
+
+    [Test]
+    public void OrdCustomByvalParamsTest()
+    {
+        // Score all ops by val: <1, >2, <=4, <=8, >=16, >=32, ==64, !=128. Total 255
+        AssertSuccess("trait_tests/ord_custom_byval_params_test", 255);
+    }
+
+    [Test]
+    public void EqCustomRefParamsTest()
+    {
+        // Explicit &Num params: ==→1, !=→10. Total 11
+        AssertSuccess("trait_tests/eq_custom_ref_params_test", 11);
+    }
+
+    [Test]
+    public void EqNonCopyByvalMultiCompareTest()
+    {
+        // Non-copy struct compared 3 times — takes &Self so no move: ==→1, ==miss→0, !=→100. Total 101
+        AssertSuccess("trait_tests/eq_noncopy_byval_multi_compare_test", 101);
+    }
+
+    [Test]
+    public void AllOpsCustomByvalTest()
+    {
+        // All 6 comparison ops on custom type with by-value params. Total 255
+        AssertSuccess("trait_tests/all_ops_custom_byval_test", 255);
+    }
+
+    [Test]
+    public void GenericCustomByvalTest()
+    {
+        // Custom type with by-val params used through generic max_of → 200
+        AssertSuccess("trait_tests/generic_custom_byval_test", 200);
+    }
+}
+
+public class ComparisonBorrowVsArithmeticMoveTests
+{
+    [Test]
+    public void EqNonCopyNoMoveTest()
+    {
+        // Non-Copy struct compared 3 times — == borrows, doesn't move → 11
+        AssertSuccess("trait_tests/eq_noncopy_no_move_test", 11);
+    }
+
+    [Test]
+    public void AddNonCopyMovesFailTest()
+    {
+        // Non-Copy struct: a + b moves both, then a + b again → use after move
+        AssertFail<UseAfterMoveError>("trait_tests/add_noncopy_moves_fail_test");
+    }
+
+    [Test]
+    public void SubNonCopyMovesFailTest()
+    {
+        // Non-Copy struct: a - b moves both, then a - b again → use after move
+        AssertFail<UseAfterMoveError>("trait_tests/sub_noncopy_moves_fail_test");
+    }
+
+    [Test]
+    public void LtNonCopyNoMoveTest()
+    {
+        // Non-Copy struct: all 6 comparison ops used — none move → 11
+        AssertSuccess("trait_tests/lt_noncopy_no_move_test", 11);
+    }
+
+    [Test]
+    public void EqUniqBorrowNllReleasedTest()
+    {
+        // &uniq a exists but u is never used after == → NLL releases borrow → OK
+        AssertSuccess("trait_tests/eq_uniq_borrow_nll_released_test", 0);
+    }
+
+    [Test]
+    public void EqConflictsWithLiveUniqFailTest()
+    {
+        // &uniq a is used after a == 5 → shared borrow invalidates exclusive → *u fails
+        AssertFail<BorrowInvalidatedError>("trait_tests/eq_conflicts_with_live_uniq_fail_test");
+    }
+
+    [Test]
+    public void EqAfterUniqReleasedTest()
+    {
+        // &uniq borrow released, then a == 10 → OK
+        AssertSuccess("trait_tests/eq_after_uniq_released_test", 1);
+    }
+
+    [Test]
+    public void EqCoexistsWithSharedBorrowTest()
+    {
+        // a == 42 while &a exists — shared borrows coexist
+        AssertSuccess("trait_tests/eq_coexists_with_shared_borrow_test", 1);
+    }
+
+    [Test]
+    public void EqCoexistsWithMutBorrowTest()
+    {
+        // a == 42 while &mut a exists — shared and mut coexist
+        AssertSuccess("trait_tests/eq_coexists_with_mut_borrow_test", 1);
+    }
+}
+
+public class TryCastPrimitiveTests
+{
+    [Test]
+    public void TryCastI32ToU8SuccessTest()
+    {
+        AssertSuccess("trait_tests/try_cast_i32_to_u8_success_test", 1);
+    }
+
+    [Test]
+    public void TryCastI32ToU8OverflowTest()
+    {
+        // 256 doesn't fit in u8 → None → 1
+        AssertSuccess("trait_tests/try_cast_i32_to_u8_overflow_test", 1);
+    }
+
+    [Test]
+    public void TryCastI32ToU8NegativeTest()
+    {
+        // -1 doesn't fit in u8 → None → 1
+        AssertSuccess("trait_tests/try_cast_i32_to_u8_negative_test", 1);
+    }
+
+    [Test]
+    public void TryCastU8ToI32Test()
+    {
+        // u8 200 always fits in i32 → Some(200) → 200
+        AssertSuccess("trait_tests/try_cast_u8_to_i32_test", 200);
+    }
+
+    [Test]
+    public void TryCastI32ToUsizeTest()
+    {
+        // 100 fits in usize → Some → 1
+        AssertSuccess("trait_tests/try_cast_i32_to_usize_test", 1);
+    }
+
+    [Test]
+    public void TryCastI32NegativeToUsizeTest()
+    {
+        // -5 doesn't fit in usize → None → 1
+        AssertSuccess("trait_tests/try_cast_i32_negative_to_usize_test", 1);
+    }
+
+    [Test]
+    public void TryCastU8ToUsizeTest()
+    {
+        // u8 255 always fits in usize → Some → 1
+        AssertSuccess("trait_tests/try_cast_u8_to_usize_test", 1);
+    }
+
+    [Test]
+    public void TryCastI32BoundaryTest()
+    {
+        // 0→Some(+1), 255→Some(+10), 256→None(+100) = 111
+        AssertSuccess("trait_tests/try_cast_i32_boundary_test", 111);
+    }
+}
+
+public class TryIntoTests
+{
+    [Test]
+    public void TryIntoI32ToU8Test()
+    {
+        // 42.try_into() → Some → 1
+        AssertSuccess("trait_tests/try_into_i32_to_u8_test", 1);
+    }
+
+    [Test]
+    public void TryIntoI32ToUsizeTest()
+    {
+        // 100.try_into() → Some → 1
+        AssertSuccess("trait_tests/try_into_i32_to_usize_test", 1);
+    }
+
+    [Test]
+    public void TryIntoU8ToI32Test()
+    {
+        // 123.try_into() → Some(123) → 123
+        AssertSuccess("trait_tests/try_into_u8_to_i32_test", 123);
+    }
+
+    [Test]
+    public void TryIntoOverflowTest()
+    {
+        // 300.try_into() as u8 → None → 1
+        AssertSuccess("trait_tests/try_into_overflow_test", 1);
+    }
+
+    [Test]
+    public void TryIntoNegativeToUnsignedTest()
+    {
+        // -10 → u8 None(+1), usize None(+10) = 11
+        AssertSuccess("trait_tests/try_into_negative_to_unsigned_test", 11);
+    }
+}
+
+public class NumericLiteralInferenceTests
+{
+    [Test]
+    public void LiteralInferU8Test()
+    {
+        // let x: u8 = 200 — literal coerced to u8
+        AssertSuccess("trait_tests/literal_infer_u8_test", 1);
+    }
+
+    [Test]
+    public void LiteralInferUsizeTest()
+    {
+        // let x: usize = 1000 — literal coerced to usize
+        AssertSuccess("trait_tests/literal_infer_usize_test", 1);
+    }
+
+    [Test]
+    public void LiteralDefaultI32Test()
+    {
+        // let x = 42 — no annotation, stays i32
+        AssertSuccess("trait_tests/literal_default_i32_test", 42);
+    }
+
+    [Test]
+    public void LiteralInferU8ArithmeticTest()
+    {
+        // let x: u8 = 100 then TryCastPrimitive(i32, x) → 100
+        AssertSuccess("trait_tests/literal_infer_u8_arithmetic_test", 100);
+    }
+
+    [Test]
+    public void LiteralInferNoAnnotationTest()
+    {
+        // let x = 42; let y = 10; x + y → 52 (both default i32)
+        AssertSuccess("trait_tests/literal_infer_no_annotation_test", 52);
+    }
+}

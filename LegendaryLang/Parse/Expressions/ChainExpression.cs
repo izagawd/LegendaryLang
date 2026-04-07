@@ -233,7 +233,7 @@ public class FunctionCallKind : IChainKind
                 var origin = LetStatement.TraceArgToSource(Arguments[i], analyzer);
                 if (origin != null)
                 {
-                    var inputKind = LetStatement.GetRefKindFromTypePath(FuncDef.Arguments[i].TypePath);
+                    var inputKind = RefTypeDefinition.ExtractRefKindFromPath(FuncDef.Arguments[i].TypePath);
                     results.Add((origin, inputKind));
                 }
             }
@@ -243,7 +243,7 @@ public class FunctionCallKind : IChainKind
             // Implicit lifetime elision: only applies when the return type
             // can actually hold a borrow: references (&T) or types with
             // lifetime params (Wrapper['a]). Plain value types (i32) cannot.
-            bool returnCanHoldBorrow = LetStatement.IsReferenceType(TypePath);
+            bool returnCanHoldBorrow = RefTypeDefinition.IsReferenceType(TypePath);
             if (!returnCanHoldBorrow && TypePath != null)
             {
                 var retDef = analyzer.GetDefinition(LangPath.StripGenerics(TypePath));
@@ -257,11 +257,11 @@ public class FunctionCallKind : IChainKind
                 var refArgSources = new List<(string, RefKind)>();
                 for (int i = 0; i < FuncDef.Arguments.Length && i < Arguments.Length; i++)
                 {
-                    if (!LetStatement.IsReferenceType(FuncDef.Arguments[i].TypePath)) continue;
+                    if (!RefTypeDefinition.IsReferenceType(FuncDef.Arguments[i].TypePath)) continue;
                     var origin = LetStatement.TraceArgToSource(Arguments[i], analyzer);
                     if (origin != null)
                     {
-                        var inputKind = LetStatement.GetRefKindFromTypePath(FuncDef.Arguments[i].TypePath);
+                        var inputKind = RefTypeDefinition.ExtractRefKindFromPath(FuncDef.Arguments[i].TypePath);
                         refArgSources.Add((origin, inputKind));
                     }
                 }
@@ -277,7 +277,7 @@ public class FunctionCallKind : IChainKind
                     {
                         var argType = Arguments[i].TypePath;
                         if (argType == null || analyzer.IsTypeCopy(argType)) continue;
-                        if (LetStatement.IsReferenceType(argType)) continue;
+                        if (RefTypeDefinition.IsReferenceType(argType)) continue;
 
                         // Check if the argument's concrete type has lifetime parameters
                         var argDef = analyzer.GetDefinition(LangPath.StripGenerics(argType));
@@ -445,7 +445,7 @@ public class FunctionCallKind : IChainKind
 
             var providedGenerics = functionPath.GetFrontGenerics();
 
-            // Type inference
+            // Type inference: when no explicit generics provided, infer all
             if (fd.GenericParameters.Length > 0 && providedGenerics.Length == 0)
             {
                 var constraints = new List<(LangPath, LangPath)>();
@@ -459,6 +459,31 @@ public class FunctionCallKind : IChainKind
                 {
                     result.FunctionPath = functionPath.AppendGenerics(inferred.Value);
                     providedGenerics = inferred.Value;
+                }
+                else
+                {
+                    analyzer.AddException(new CannotInferGenericArgsException(fd.Name, tokenLoc));
+                    result.TypePath = fd.ReturnTypePath;
+                    return result;
+                }
+            }
+            // Partial inference: explicit () generics provided, [] generics need inference
+            else if (fd.ImplicitGenericCount > 0 && providedGenerics.Length > 0
+                && providedGenerics.Length == fd.GenericParameters.Length - fd.ImplicitGenericCount)
+            {
+                var implicitParams = fd.GenericParameters.Take(fd.ImplicitGenericCount).ToImmutableArray();
+                var constraints = new List<(LangPath, LangPath)>();
+                for (int i = 0; i < fd.Arguments.Length && i < arguments.Length; i++)
+                    if (fd.Arguments[i].TypePath != null && arguments[i].TypePath != null)
+                        constraints.Add((fd.Arguments[i].TypePath, arguments[i].TypePath));
+                if (expectedReturnType != null && fd.ReturnTypePath != null)
+                    constraints.Add((fd.ReturnTypePath, expectedReturnType));
+                var inferred = TypeInference.InferFromConstraints(implicitParams, constraints);
+                if (inferred != null)
+                {
+                    var allGenerics = inferred.Value.AddRange(providedGenerics);
+                    result.FunctionPath = functionPath.AppendGenerics(allGenerics);
+                    providedGenerics = allGenerics;
                 }
                 else
                 {
@@ -1088,8 +1113,8 @@ public class MethodCallKind : IChainKind
     public List<(string sourceName, RefKind refKind)> GetBorrowSources(SemanticAnalyzer analyzer)
     {
         var results = new List<(string, RefKind)>();
-        if (!LetStatement.IsReferenceType(TypePath)) return results;
-        var refKind = LetStatement.GetRefKindFromTypePath(TypePath!);
+        if (!RefTypeDefinition.IsReferenceType(TypePath)) return results;
+        var refKind = RefTypeDefinition.ExtractRefKindFromPath(TypePath!);
         if (RootVarName != null)
             results.Add((RootVarName, refKind));
         return results;
@@ -1473,26 +1498,8 @@ public class ChainExpression : IExpression
 
     private void CheckVariableUsage(SemanticAnalyzer analyzer, string varName)
     {
-        if (!analyzer.SuppressMoveChecks)
-        {
-            if (analyzer.IsMoved(varName))
-                analyzer.AddException(new UseAfterMoveException(
-                    new NormalLangPath(RootToken, [varName]),
-                    Token.GetLocationStringRepresentation()));
-        }
-
-        if (analyzer.IsBorrowInvalidated(varName))
-            analyzer.AddException(new BorrowInvalidatedException(
-                varName, Token.GetLocationStringRepresentation()));
-
-        if (!analyzer.SuppressUseWhileBorrowedChecks)
-        {
-            var exclusiveBorrow = analyzer.GetActiveExclusiveBorrow(varName);
-            if (exclusiveBorrow != null)
-                analyzer.AddException(new UseWhileBorrowedException(
-                    varName, exclusiveBorrow.Value.borrower, exclusiveBorrow.Value.kind,
-                    Token.GetLocationStringRepresentation()));
-        }
+        analyzer.CheckVariableUsage(varName, new NormalLangPath(RootToken, [varName]),
+            Token.GetLocationStringRepresentation());
     }
 
     private static ImmutableArray<LangPath> ExtractTypeArgs(

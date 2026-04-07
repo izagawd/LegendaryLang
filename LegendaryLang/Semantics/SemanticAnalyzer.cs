@@ -560,6 +560,27 @@ public class SemanticAnalyzer
     }
 
     /// <summary>
+    /// Checks a variable for use-after-move, borrow invalidation, and exclusive borrow conflicts.
+    /// Shared between ChainExpression and PathExpression variable access analysis.
+    /// </summary>
+    public void CheckVariableUsage(string varName, LangPath path, string locationString)
+    {
+        if (!SuppressMoveChecks && IsMoved(varName))
+            AddException(new UseAfterMoveException(path, locationString));
+
+        if (IsBorrowInvalidated(varName))
+            AddException(new BorrowInvalidatedException(varName, locationString));
+
+        if (!SuppressUseWhileBorrowedChecks)
+        {
+            var exclusiveBorrow = GetActiveExclusiveBorrow(varName);
+            if (exclusiveBorrow != null)
+                AddException(new UseWhileBorrowedException(
+                    varName, exclusiveBorrow.Value.borrower, exclusiveBorrow.Value.kind, locationString));
+        }
+    }
+
+    /// <summary>
     /// Returns the first active exclusive (&amp;uniq) borrow on the given source variable
     /// that is still active. For reference/Copy borrowers, NLL applies (borrow expires at last use).
     /// For non-Copy, non-reference borrowers, borrow persists until moved or scope exit
@@ -583,7 +604,7 @@ public class SemanticAnalyzer
                     { borrowerType = bt; break; }
 
                 bool isNllEligible = borrowerType != null
-                    && (LetStatement.IsReferenceType(borrowerType) || IsTypeCopy(borrowerType));
+                    && (RefTypeDefinition.IsReferenceType(borrowerType) || IsTypeCopy(borrowerType));
 
                 if (isNllEligible)
                 {

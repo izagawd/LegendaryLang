@@ -56,24 +56,20 @@ public class PointerGetterExpression : IExpression
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        // Suppress the "use while borrowed" check — re-borrowing is handled
-        // by borrow compatibility rules, not the source-use check.
-        var prevSuppress = analyzer.SuppressUseWhileBorrowedChecks;
-        analyzer.SuppressUseWhileBorrowedChecks = true;
-        PointingTo.Analyze(analyzer);
-        analyzer.SuppressUseWhileBorrowedChecks = prevSuppress;
+        // Core borrow analysis — shared with comparison operator sugar
+        AnalyzeBorrow(PointingTo, _refKind, analyzer);
+
+        // Extra validation specific to explicit & expressions
         if (PointingTo is not FieldAccessExpression && PointingTo is not PathExpression
             && PointingTo is not ChainExpression && PointingTo is not DerefExpression)
         {
             analyzer.AddException(new SemanticException("Reference target must be a field access, variable access, or dereference\n" + Token.GetLocationStringRepresentation()));
         }
 
-        // Track borrow origin for lifetime checking
         BorrowOriginName = ExtractBorrowOrigin(PointingTo);
 
         if (PointingTo is DerefExpression derefExpr)
         {
-            // Check deref capability: can this deref source produce the requested ref kind?
             if (derefExpr.SourceDerefKind != null
                 && !DerefExpression.CanProduceRefKind(derefExpr.SourceDerefKind.Value, _refKind))
             {
@@ -84,17 +80,30 @@ public class PointerGetterExpression : IExpression
                     $"\n{Token.GetLocationStringRepresentation()}"));
             }
         }
+    }
 
-        // Invalidate conflicting borrows even for standalone expressions like `&mut a;`
-        if (BorrowOriginName != null)
-            analyzer.InvalidateConflictingBorrows(BorrowOriginName, _refKind);
+    /// <summary>
+    /// Core borrow analysis: suppresses use-while-borrowed checks, analyzes the expression,
+    /// extracts the borrow origin, and invalidates conflicting borrows.
+    /// Shared between explicit &amp; expressions and comparison operator sugar.
+    /// </summary>
+    internal static void AnalyzeBorrow(IExpression expr, RefKind refKind, SemanticAnalyzer analyzer)
+    {
+        var prevSuppress = analyzer.SuppressUseWhileBorrowedChecks;
+        analyzer.SuppressUseWhileBorrowedChecks = true;
+        expr.Analyze(analyzer);
+        analyzer.SuppressUseWhileBorrowedChecks = prevSuppress;
+
+        var borrowOrigin = ExtractBorrowOrigin(expr);
+        if (borrowOrigin != null)
+            analyzer.InvalidateConflictingBorrows(borrowOrigin, refKind);
     }
 
     /// <summary>
     /// Walks through deref/field-access chains to find the root variable being borrowed.
     /// Skips raw pointer derefs (heap memory, not local stack).
     /// </summary>
-    private static string? ExtractBorrowOrigin(IExpression expr)
+    internal static string? ExtractBorrowOrigin(IExpression expr)
     {
         // Chain with steps: &f.val → root "f"
         if (expr is ChainExpression chain)

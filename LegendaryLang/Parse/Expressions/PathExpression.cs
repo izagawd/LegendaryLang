@@ -131,33 +131,7 @@ public class PathExpression : IExpression
         if (Path is NormalLangPath nlpMove && nlpMove.PathSegments.Length == 1)
         {
             var varName = nlpMove.PathSegments[0].ToString();
-
-            if (!analyzer.SuppressMoveChecks && analyzer.IsMoved(varName))
-            {
-                analyzer.AddException(new UseAfterMoveException(
-                    Path, Token.GetLocationStringRepresentation()));
-            }
-
-            // Check if this variable's borrow has been invalidated
-            if (analyzer.IsBorrowInvalidated(varName))
-            {
-                analyzer.AddException(new BorrowInvalidatedException(
-                    varName, Token.GetLocationStringRepresentation()));
-            }
-
-            // Check if this variable is currently exclusively borrowed.
-            // While a &uniq borrow is active, the source variable cannot be used directly.
-            // Suppressed inside PointerGetterExpression (re-borrowing is handled by compatibility rules).
-            if (!analyzer.SuppressUseWhileBorrowedChecks)
-            {
-                var exclusiveBorrow = analyzer.GetActiveExclusiveBorrow(varName);
-                if (exclusiveBorrow != null)
-                {
-                    analyzer.AddException(new UseWhileBorrowedException(
-                        varName, exclusiveBorrow.Value.borrower, exclusiveBorrow.Value.kind,
-                        Token.GetLocationStringRepresentation()));
-                }
-            }
+            analyzer.CheckVariableUsage(varName, Path, Token.GetLocationStringRepresentation());
         }
     }
 

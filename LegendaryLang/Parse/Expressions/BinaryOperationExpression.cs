@@ -187,10 +187,25 @@ public class BinaryOperationExpression : IExpression
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        CallExpressionHelper.AnalyzeExpressionWithReborrow(Left, analyzer);
-        CallExpressionHelper.AnalyzeExpressionWithReborrow(Right, analyzer);
-
         var op = OperatorToken.OperatorType;
+
+        if (IsComparisonOperator(op) || IsLogicalOperator(op))
+        {
+            // Comparison operators take &Self/&Rhs — operands are shared-borrowed.
+            // Uses the same borrow analysis as explicit & expressions.
+            PointerGetterExpression.AnalyzeBorrow(Left, RefKind.Shared, analyzer);
+            PointerGetterExpression.AnalyzeBorrow(Right, RefKind.Shared, analyzer);
+
+            // Check for conflicting borrows across both operands
+            CallExpressionHelper.CheckBorrowConflicts(
+                [Left, Right], analyzer, Left.Token);
+        }
+        else
+        {
+            // Arithmetic operators take values — may move non-Copy operands.
+            CallExpressionHelper.AnalyzeExpressionWithReborrow(Left, analyzer);
+            CallExpressionHelper.AnalyzeExpressionWithReborrow(Right, analyzer);
+        }
 
         // Logical operators: both sides must be bool
         if (IsLogicalOperator(op))

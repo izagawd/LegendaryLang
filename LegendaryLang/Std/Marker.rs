@@ -25,3 +25,9 @@ impl[T:! type] MutReassign for *shared T {}
 impl[T:! type] MutReassign for *const T {}
 impl[T:! type] MutReassign for *mut T {}
 impl[T:! type] MutReassign for *uniq T {}
+
+trait Primitive {}
+impl Primitive for i32 {}
+impl Primitive for u8 {}
+impl Primitive for usize {}
+impl Primitive for bool {}
