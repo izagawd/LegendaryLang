@@ -3,6 +3,7 @@ using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
 using LegendaryLang.Parse.Expressions;
 using LegendaryLang.Semantics;
+using LLVMSharp.Interop;
 using Type = LegendaryLang.ConcreteDefinition.Type;
 
 namespace LegendaryLang.Definitions.Types;
@@ -50,6 +51,12 @@ public abstract class TypeDefinition : IItem,  IMonomorphizable, IAnalyzable,  I
 
 
     public abstract void Analyze(SemanticAnalyzer analyzer);
+
+    /// <summary>
+    /// Returns the LLVM type of the pointer metadata for this type, or null if the type is sized (thin pointer).
+    /// Unsized types override this: str and [T] return usize, trait objects return ptr (vtable).
+    /// </summary>
+    public virtual LLVMTypeRef? GetMetadataLLVMType() => null;
 
 
 

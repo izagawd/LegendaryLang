@@ -12,8 +12,9 @@ public class RawPtrType : PointerLikeType
 {
     public RawPtrTypeDefinition RawPtrTypeDefinition { get; }
 
-    public RawPtrType(RawPtrTypeDefinition definition, Type pointingToType, LLVMTypeRef typeRef)
-        : base(definition, pointingToType, typeRef)
+    public RawPtrType(RawPtrTypeDefinition definition, Type pointingToType, LLVMTypeRef typeRef,
+        LLVMTypeRef? metadataTypeRef = null)
+        : base(definition, pointingToType, typeRef, metadataTypeRef)
     {
         RawPtrTypeDefinition = definition;
     }

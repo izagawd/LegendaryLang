@@ -8,8 +8,9 @@ public class RefType : PointerLikeType
 {
     public RefTypeDefinition RefTypeDefinition { get; }
 
-    public RefType(RefTypeDefinition definition, Type pointingToType, LLVMTypeRef typeRef)
-        : base(definition, pointingToType, typeRef)
+    public RefType(RefTypeDefinition definition, Type pointingToType, LLVMTypeRef typeRef,
+        LLVMTypeRef? metadataTypeRef = null)
+        : base(definition, pointingToType, typeRef, metadataTypeRef)
     {
         RefTypeDefinition = definition;
     }

@@ -164,6 +164,43 @@ public static class Lexer
                         index++;
                     }
                     break;
+                case '"':
+                {
+                    var startCol = column;
+                    var strBuilder = new StringBuilder();
+                    index++;
+                    column++;
+                    while (index < code.Length && code[index] != '"')
+                    {
+                        if (code[index] == '\\' && index + 1 < code.Length)
+                        {
+                            index++; column++;
+                            strBuilder.Append(code[index] switch
+                            {
+                                'n' => '\n',
+                                'r' => '\r',
+                                't' => '\t',
+                                '\\' => '\\',
+                                '"' => '"',
+                                '0' => '\0',
+                                _ => code[index]
+                            });
+                        }
+                        else if (code[index] == '\n')
+                        {
+                            line++; column = 0; last_line_break_pos = index;
+                            strBuilder.Append('\n');
+                        }
+                        else
+                        {
+                            strBuilder.Append(code[index]);
+                        }
+                        index++; column++;
+                    }
+                    // index now points at closing " (or end of code)
+                    file.AddToken(new StringLiteralToken(file, startCol, line, strBuilder.ToString()));
+                    break;
+                }
                 case '\r':
                     break;
                 case '\n':

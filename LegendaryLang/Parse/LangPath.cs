@@ -337,6 +337,13 @@ public abstract class LangPath
         {
             Parenthesis.ParseLeft(parser);
 
+            // Empty tuple: ()
+            if (parser.Peek() is RightParenthesisToken)
+            {
+                Parenthesis.ParseRight(parser);
+                return VoidBaseLangPath;
+            }
+
             var firstType = Parse(parser, true);
             
             // Check for (Type as Trait).AssocType — qualified associated type path
@@ -356,6 +363,14 @@ public abstract class LangPath
                 throw new ExpectedParserException(parser, ParseType.Dot, parser.Peek());
             }
 
+            // No comma after first type → grouping parens, not a tuple: (T) is just T
+            if (parser.Peek() is not CommaToken)
+            {
+                Parenthesis.ParseRight(parser);
+                return firstType;
+            }
+
+            // Comma seen → this is a tuple type
             var tuplePaths = new List<LangPath> { firstType };
 
             while (parser.Peek() is CommaToken)

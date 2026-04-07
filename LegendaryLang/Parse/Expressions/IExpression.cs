@@ -44,6 +44,14 @@ public interface IExpression : IStatement
     public static IExpression ParseBracketOrTuple(Parser parser)
     {
         var leftParenthesis = Parenthesis.ParseLeft(parser);
+
+        // Empty tuple: ()
+        if (parser.Peek() is RightParenthesisToken)
+        {
+            Parenthesis.ParseRight(parser);
+            return new TupleCreationExpression(leftParenthesis, []);
+        }
+
         var exprs = new List<IExpression> { Parse(parser) };
         var next = parser.Peek();
 
