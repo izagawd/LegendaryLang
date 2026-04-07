@@ -161,7 +161,11 @@ public class Compiler
 
         var mainFile = parseResults.First(i => i.File != null && Path.GetFullPath(i.File.Path) == Path.GetFullPath(mainFileDir));
 
-        var analysis = new SemanticAnalyzer(parseResults).Analyze();
+        // Compute crate root — the package directory as a module path
+        var crateRoot = new NormalLangPath(null, codeDirectory.Split(new[] { '\\', '/' })
+            .Select(s => (NormalLangPath.PathSegment)s));
+
+        var analysis = new SemanticAnalyzer(parseResults, crateRoot).Analyze();
         if (analysis.Any())
         {
             Console.WriteLine("SEMANTIC ERRORS FOUND\n");
@@ -198,7 +202,7 @@ public class Compiler
 
         var mainModuleSegments = codeDirectory.Split(new[] { '\\', '/' })
             .Select(s => (NormalLangPath.PathSegment)s)
-            .Append((NormalLangPath.PathSegment)"main");
+            .ToList();
         var mainModule = new NormalLangPath(null, mainModuleSegments);
 
         return (parseResults, mainModule);

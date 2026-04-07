@@ -486,7 +486,8 @@ public class FunctionCallKind : IChainKind
                 for (int i = 0; i < fd.Arguments.Length && i < arguments.Length; i++)
                     if (fd.Arguments[i].TypePath != null && arguments[i].TypePath != null)
                         constraints.Add((fd.Arguments[i].TypePath, arguments[i].TypePath));
-                if (expectedReturnType != null && fd.ReturnTypePath != null)
+                // Only add return type constraint if both sides are concrete (not associated types)
+                if (expectedReturnType is NormalLangPath && fd.ReturnTypePath is NormalLangPath)
                     constraints.Add((fd.ReturnTypePath, expectedReturnType));
 
                 // Use ALL generic params as free vars for unification (so To in return type

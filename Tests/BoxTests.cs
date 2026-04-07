@@ -730,6 +730,20 @@ public class ImportTests
         // use Dir.Up; then bare Up in match
         AssertSuccess("import_tests/import_valid_variant_test", 1);
     }
+
+    [Test]
+    public void ImportCrateNoMainFailTest()
+    {
+        // crate does not include 'main' — use crate.main.Foo should fail
+        AssertFail<GenericSemanticError>("import_tests/import_crate_no_main_fail_test");
+    }
+
+    [Test]
+    public void ImportCrateCorrectTest()
+    {
+        // crate expands to module path without 'main'
+        AssertSuccess("import_tests/import_crate_correct_test", 1);
+    }
 }
 
 public class ArgTypeTests

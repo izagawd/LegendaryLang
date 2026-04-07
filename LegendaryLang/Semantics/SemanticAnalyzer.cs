@@ -813,10 +813,17 @@ public class SemanticAnalyzer
 
     public Stack<ParseResult> ParseResults = new();
 
-    public SemanticAnalyzer(IEnumerable<ParseResult> parseResults)
+    public SemanticAnalyzer(IEnumerable<ParseResult> parseResults, NormalLangPath? crateRoot = null)
     {
         ParseResults = new Stack<ParseResult>(parseResults);
+        CrateRoot = crateRoot;
     }
+
+    /// <summary>
+    /// The package root module path (e.g., "code" for a package in code/).
+    /// Used by the 'crate' keyword in use statements.
+    /// </summary>
+    public NormalLangPath? CrateRoot { get; }
 
     public void PushTraitBounds(IEnumerable<(LangPath traitPath, string genericParamName, Dictionary<string, LangPath>? assocConstraints)> bounds)
     {
@@ -1579,6 +1586,9 @@ public class SemanticAnalyzer
         var pathShortcutContext = new PathResolver();
         
         pathShortcutContext.AddScope();
+        // Register 'crate' as a shortcut to the package root module path
+        if (CrateRoot != null)
+            pathShortcutContext.AddToDeepestScope("crate", CrateRoot);
         var primitiveParsed = ParseResults.First(i => i.Items.Any(j => j is I32TypeDefinition));
         foreach (var i in primitiveParsed.Items.OfType<PrimitiveTypeDefinition>())
         {
@@ -1602,9 +1612,6 @@ public class SemanticAnalyzer
         foreach (var result in ParseResults)
         {
             pathShortcutContext.AddScope();
-            // Register 'pkg' as a shortcut to the current file's module path
-            if (result.File?.Module is NormalLangPath fileMod)
-                pathShortcutContext.AddToDeepestScope("pkg", fileMod);
             foreach (var i in result.Items.OfType<IDefinition>())
             {
                 var usings = new UseDefinition((NormalLangPath) i.TypePath, null);

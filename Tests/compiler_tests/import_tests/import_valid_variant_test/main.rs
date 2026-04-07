@@ -1,5 +1,5 @@
 enum Dir { Up, Down }
-use pkg.Dir.Up;
+use crate.Dir.Up;
 
 fn main() -> i32 {
     match Dir.Up {

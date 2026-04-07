@@ -1,6 +1,6 @@
 enum Wrapper { Val(i32), Empty }
-use pkg.Wrapper.Val;
-use pkg.Wrapper.Empty;
+use crate.Wrapper.Val;
+use crate.Wrapper.Empty;
 
 fn main() -> i32 {
     let w = Wrapper.Val(99);

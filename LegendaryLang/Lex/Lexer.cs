@@ -289,6 +289,9 @@ public static class Lexer
                         case "match":
                             file.AddToken(new MatchToken(file, column, line));
                             break;
+                        case "crate":
+                            file.AddToken(new CrateToken(file, column, line));
+                            break;
                         default:
                             file.AddToken(new IdentifierToken(file, column, line, ident));
                             break;

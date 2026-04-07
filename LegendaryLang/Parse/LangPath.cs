@@ -371,7 +371,17 @@ public abstract class LangPath
             return new TupleLangPath(tuplePaths);
         }
 
-        var firstIdent = Identifier.Parse(parser);
+        // Handle 'crate' keyword as first path segment
+        IdentifierToken firstIdent;
+        if (next is CrateToken crateToken)
+        {
+            parser.Pop();
+            firstIdent = new IdentifierToken(crateToken.File, crateToken.Column, crateToken.Line, "crate");
+        }
+        else
+        {
+            firstIdent = Identifier.Parse(parser);
+        }
         var segments = new List<NormalLangPath.PathSegment> { firstIdent.Identity };
 
         // Path separator: . (Carbon-like)

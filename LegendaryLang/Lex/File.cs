@@ -15,8 +15,19 @@ public class File
         Path = path;
     }
 
-    public NormalLangPath Module => new(null,
-        Path.Split(new[] { '\\', '/' }).Select(i => (NormalLangPath.PathSegment)i.Replace($".{Compiler.extension}", "")));
+    public NormalLangPath Module
+    {
+        get
+        {
+            var segments = Path.Split(new[] { '\\', '/' })
+                .Select(i => (NormalLangPath.PathSegment)i.Replace($".{Compiler.extension}", ""))
+                .ToList();
+            // Strip trailing 'main' — main.rs adopts its parent directory as the module
+            if (segments.Count > 1 && segments[^1].ToString() == "main")
+                segments.RemoveAt(segments.Count - 1);
+            return new(null, segments);
+        }
+    }
 
     public string Path { get; }
 

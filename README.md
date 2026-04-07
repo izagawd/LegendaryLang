@@ -375,12 +375,12 @@ fn main() -> i32 {
 
 LegendaryLang uses Carbon-style generics with two parameter categories:
 
-- **`[]` — Implicit / Deduced**: Lifetimes and compile-time parameters that are inferred. Lifetimes must come first.
+- **`[]` — Implicit / Deduced**: Lifetimes and compile-time parameters that are **always inferred** from call arguments. The caller never provides these directly — the compiler deduces them. Lifetimes must come first.
 - **`()` — Explicit**: Compile-time and runtime parameters that are passed at the call site.
 
 ### Deduced Parameters
 
-When placed in `[]`, compile-time parameters are inferred from usage:
+Parameters in `[]` are invisible to the caller — they are inferred from the types of the runtime arguments:
 
 ```
 fn identity[T:! type](x: T) -> T {
@@ -388,9 +388,11 @@ fn identity[T:! type](x: T) -> T {
 }
 
 fn main() -> i32 {
-    identity(42)        // T inferred as i32
+    identity(42)        // T inferred as i32 from the argument
 }
 ```
+
+The caller writes `identity(42)`, not `identity[i32](42)` — `[]` parameters can never be specified explicitly.
 
 ### Explicit Parameters
 
@@ -996,6 +998,26 @@ impl Std.Ops.Add(i32) for MyType {
 
 `Copy`, `Box`, `MutReassign`, and `Option` are auto-imported and always available without a `use` statement.
 
+### The `crate` Keyword
+
+`crate` expands to the package root — the top-level directory passed to the compiler. For a package at `code/`, `crate` equals `code`. Use it to reference items by their full path within the package:
+
+```
+enum Dir { Left, Right }
+use crate.Dir.Left;
+use crate.Dir.Right;
+
+fn main() -> i32 {
+    match Dir.Left {
+        Left => 1,
+        Right => 2,
+        _ => 0
+    }
+}
+```
+
+Note: `main.rs` files adopt their parent directory as the module name. A file at `code/main.rs` has module `code`, not `code.main`.
+
 ## Standard Library
 
 ### `Std.Core`
@@ -1020,8 +1042,19 @@ impl Std.Ops.Add(i32) for MyType {
 | `Sub` | `-` operator — same shape as Add. |
 | `Mul` | `*` operator — same shape as Add. |
 | `Div` | `/` operator — same shape as Add. |
+| `PartialEq` | `==` and `!=` operators — `fn Eq(lhs: &Self, rhs: &Rhs) -> bool`. |
+| `PartialOrd` | `<`, `>`, `<=`, `>=` operators — extends PartialEq. |
+| `TryInto` | Fallible type conversion — `fn try_into(self: Self) -> Option(T)`. |
 
 All four arithmetic traits are implemented for `i32` with `Output = i32`.
+
+### `Std.Primitive`
+
+| Item               | Description                                        |
+|--------------------|-----------------------------------------------------|
+| `TryCastPrimitive` | Intrinsic for safe numeric casts with overflow checking. Used internally by `TryInto` impls. |
+
+`TryInto` conversions are provided between `i32`, `u8`, and `usize`:
 
 ### `Std.Alloc`
 

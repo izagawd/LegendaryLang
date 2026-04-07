@@ -320,6 +320,10 @@ public class BlockExpression : IExpression
     /// Recursively resolves ChainExpression roots within a syntax tree.
     /// ChainExpression doesn't implement IPathResolvable, so it's skipped
     /// by the standard ResolvePaths walk. This fixes bare function name resolution.
+    /// Skips BlockExpression children — they already ran their own ResolvePaths
+    /// (which includes their own ResolveChainExpressions call with correct scoping).
+    /// Other IPathResolvable nodes (LetStatement, MatchExpression, etc.) are recursed
+    /// into because they don't resolve chains themselves.
     /// </summary>
     private static void ResolveChainExpressions(ISyntaxNode node, PathResolver resolver)
     {
@@ -331,8 +335,10 @@ public class BlockExpression : IExpression
                 // Also recurse into chain's children (call arguments may contain chains)
                 ResolveChainExpressions(chain, resolver);
             }
-            else
+            else if (child is not BlockExpression)
             {
+                // Skip BlockExpression children — they handle their own chain resolution
+                // via their own ResolvePaths → ResolveChainExpressions call with proper scope.
                 ResolveChainExpressions(child, resolver);
             }
         }

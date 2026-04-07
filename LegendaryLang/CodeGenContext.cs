@@ -122,6 +122,20 @@ public class CodeGenContext
     /// if the LangPath key differs slightly between calls).
     /// </summary>
     private readonly Dictionary<LangPath, IRefItem> _typeRefCache = new();
+    private readonly Stack<Dictionary<LangPath, IRefItem>> _functionRefCache = new();
+
+    private IRefItem? GetCachedFunction(LangPath key)
+    {
+        foreach (var scope in _functionRefCache)
+            if (scope.TryGetValue(key, out var val))
+                return val;
+        return null;
+    }
+
+    private void CacheFunction(LangPath key, IRefItem value)
+    {
+        _functionRefCache.Peek()[key] = value;
+    }
 
     /// <summary>
     /// Gets or creates an LLVM named struct type. If a struct with this path was already created,
@@ -501,6 +515,14 @@ public class CodeGenContext
             }
         }
 
+        // Check function cache
+        if (GetCachedFunction(implMethodPath) is FunctionRefItem cdr)
+        {
+            AddToScope(implMethodPath, cdr, 0);
+            Builder.BuildCall2(cdr.Function.FunctionType, cdr.Function.FunctionValueRef, [valuePtr]);
+            return;
+        }
+
         // Set up the scope for generic resolution
         PushImplBindingsScope(implBindings, typePath);
 
@@ -546,6 +568,7 @@ public class CodeGenContext
                 funcRef.Function.ImplGenericParameters = dropImpl.GenericParameters;
             }
             UnimplementedFunctions.Push(funcRef);
+            CacheFunction(implMethodPath, refItem);
             AddToScope(implMethodPath, refItem, 0);
 
             Builder.BuildCall2(funcRef.Function.FunctionType, funcRef.Function.FunctionValueRef, [valuePtr]);
@@ -670,6 +693,14 @@ public class CodeGenContext
             if (scope.TryGetValue(implMethodPath, out var existing))
                 return existing;
 
+        // Check function cache
+        var cachedImpl = GetCachedFunction(implMethodPath);
+        if (cachedImpl != null)
+        {
+            AddToScope(implMethodPath, cachedImpl, 0);
+            return cachedImpl;
+        }
+
         var implMethod = impl.GetMethod(methodName);
         if (implMethod == null) return null;
 
@@ -685,6 +716,7 @@ public class CodeGenContext
                 functionRefItem.Function.ImplGenericParameters = impl.GenericParameters;
             }
             UnimplementedFunctions.Push(functionRefItem);
+            CacheFunction(implMethodPath, refItem);
         }
 
         AddToScope(implMethodPath, refItem, 0);
@@ -948,6 +980,16 @@ public class CodeGenContext
             return cached;
         }
 
+        // Check function cache — reuse already-compiled monomorphized functions
+        var cachedFn = GetCachedFunction(ident);
+        if (cachedFn != null)
+        {
+            var scope = GetScope(ident);
+            if (scope != null)
+                AddToScope(ident, cachedFn, scope.Value);
+            return cachedFn;
+        }
+
         var first = DefinitionsCollection.OfType<IMonomorphizable>().FirstOrDefault(i =>
         {
             
@@ -967,9 +1009,11 @@ public class CodeGenContext
             if (refItem is FunctionRefItem functionRefItem)
             {
                 UnimplementedFunctions.Push(functionRefItem);
+                // Cache function definitions persistently by their comptime params
+                CacheFunction(ident, refItem);
             }
 
-            // Cache type definitions persistently (not functions — those need per-monomorphization instances)
+            // Cache type definitions persistently
             if (refItem is TypeRefItem)
                 _typeRefCache[ident] = refItem;
 
@@ -1049,6 +1093,7 @@ public class CodeGenContext
         ScopeItems.Push(new Dictionary<LangPath, IRefItem>());
         ScopeDropFlags.Push(new List<(string, LLVMValueRef, LangPath, LLVMValueRef)>());
         _implDefinitionsStack.Push(new List<ImplDefinition>());
+        _functionRefCache.Push(new Dictionary<LangPath, IRefItem>());
     }
 
     public void PopScope()
@@ -1057,6 +1102,7 @@ public class CodeGenContext
         DefinitionsStack.Pop();
         ScopeDropFlags.Pop();
         _implDefinitionsStack.Pop();
+        _functionRefCache.Pop();
     }
 
 
