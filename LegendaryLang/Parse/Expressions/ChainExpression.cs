@@ -529,54 +529,8 @@ public class FunctionCallKind : IChainKind
                 if (result.TypePath != null)
                     result.TypePath = analyzer.ResolveQualifiedTypePath(result.TypePath);
                 var genericArgs = result.FunctionPath.GetFrontGenerics();
-                for (int i = 0; i < fd.GenericParameters.Length; i++)
-                {
-                    var gp = fd.GenericParameters[i];
-                    foreach (var bound in gp.TraitBounds)
-                    {
-                        var argType = genericArgs[i];
-                        var resolvedBound = FieldAccessExpression.SubstituteGenerics(
-                            bound.TraitPath, fd.GenericParameters, genericArgs);
-                        if (!analyzer.TypeImplementsTrait(argType, resolvedBound))
-                        {
-                            var traitDef = analyzer.GetDefinition(LangPath.StripGenerics(resolvedBound));
-                            if (traitDef == null || traitDef is not TraitDefinition)
-                                analyzer.AddException(new TraitNotFoundException(resolvedBound, tokenLoc));
-                            else
-                                analyzer.AddException(new TraitBoundViolationException(argType, resolvedBound));
-                        }
-                        foreach (var (atName, atType) in bound.AssociatedTypeConstraints)
-                        {
-                            var resolvedAtType = FieldAccessExpression.SubstituteGenerics(atType, fd.GenericParameters, genericArgs);
-                            var actualAt = analyzer.ResolveAssociatedType(argType, resolvedBound, atName);
-                            if (actualAt != null && actualAt != resolvedAtType)
-                                analyzer.AddException(new SemanticException(
-                                    $"Associated type constraint '{atName} = {resolvedAtType}' not satisfied: actual '{atName}' is '{actualAt}'\n{tokenLoc}"));
-                        }
-                    }
-                }
-                for (int ai = 0; ai < fd.Arguments.Length && ai < arguments.Length; ai++)
-                {
-                    var paramType = fd.Arguments[ai].TypePath;
-                    var argActualType = arguments[ai].TypePath;
-                    if (paramType == null || argActualType == null) continue;
-                    if (fd.GenericParameters.Length > 0 && providedGenerics.Length > 0)
-                        paramType = FieldAccessExpression.SubstituteGenerics(paramType, fd.GenericParameters, providedGenerics);
-                    // Skip type check when arg is a generic param — it'll be verified at monomorphization
-                    if (argActualType is NormalLangPath nlpArg && nlpArg.PathSegments.Length == 1
-                        && analyzer.IsGenericParam(nlpArg.PathSegments[0].ToString()))
-                        continue;
-                    if (paramType is NormalLangPath nlpParam && nlpParam.PathSegments.Length == 1
-                        && analyzer.IsGenericParam(nlpParam.PathSegments[0].ToString()))
-                        continue;
-                    if (paramType != argActualType)
-                        analyzer.AddException(new TypeMismatchException(
-                            paramType, argActualType, $"argument '{fd.Arguments[ai].Name}'", tokenLoc));
-                }
-                // Check argument count mismatch
-                if (arguments.Length != fd.Arguments.Length)
-                    analyzer.AddException(new SemanticException(
-                        $"Function '{fd.Name}' expects {fd.Arguments.Length} argument(s) but {arguments.Length} were provided\n{tokenLoc}"));
+                CallExpressionHelper.ValidateGenericBounds(fd, genericArgs, analyzer, tokenLoc);
+                CallExpressionHelper.ValidateCallArguments(fd, arguments, genericArgs, analyzer, tokenLoc);
             }
         }
         else
@@ -960,6 +914,9 @@ public class MethodCallKind : IChainKind
         {
             var (cImpl, cMethod, cBindings, cAutoRefKind) = chosen.Value;
             CheckImplicitBorrow(cAutoRefKind, rootVarName, analyzer);
+            CallExpressionHelper.CheckSelfMove(cAutoRefKind, rootVarName, receiverType, analyzer);
+            CallExpressionHelper.ValidateCallArguments(cMethod, arguments,
+                ImmutableArray<LangPath>.Empty, analyzer, tokenLoc, selfOffset: 1);
             var dispatchPath = cImpl.IsInherent ? cImpl.ForTypePath : cImpl.TraitPath;
             if (dispatchPath is NormalLangPath nlpTrait)
                 return new MethodCallKind
@@ -983,6 +940,7 @@ public class MethodCallKind : IChainKind
                 if (method == null || method.Parameters.Length == 0 || method.Parameters[0].Name != "self") continue;
                 var autoRefKind = DetectAutoRefKind(method.Parameters[0].TypePath);
                 CheckImplicitBorrow(autoRefKind, rootVarName, analyzer);
+                CallExpressionHelper.CheckSelfMove(autoRefKind, rootVarName, receiverType, analyzer);
                 var traitPath = (td as IDefinition).TypePath;
                 if (traitPath is NormalLangPath nlpTrait)
                     return new MethodCallKind
@@ -1037,6 +995,9 @@ public class MethodCallKind : IChainKind
                         return null;
                     }
 
+                    CallExpressionHelper.CheckSelfMove(autoRefKind, rootVarName, receiverType, analyzer);
+                    CallExpressionHelper.ValidateCallArguments(method, arguments,
+                        ImmutableArray<LangPath>.Empty, analyzer, tokenLoc, selfOffset: 1);
                     var dispatchPath = impl.IsInherent ? impl.ForTypePath : impl.TraitPath;
                     if (dispatchPath is NormalLangPath nlpTrait)
                         return new MethodCallKind

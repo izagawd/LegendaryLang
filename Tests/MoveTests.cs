@@ -127,4 +127,25 @@ public class MoveTests
         // Box (non-Copy) used as struct field initializer → moved into struct → can't reuse
         AssertFail<UseAfterMoveError>("move_tests/struct_field_moves_noncopy_fail_test");
     }
+
+    [Test]
+    public void MethodByValueMovesFailTest()
+    {
+        // self: Self on non-Copy type consumes receiver — second call is use-after-move
+        AssertFail<UseAfterMoveError>("move_tests/method_by_value_moves_fail_test");
+    }
+
+    [Test]
+    public void MethodByValueCopyOkTest()
+    {
+        // self: Self on Copy type — receiver is copied, not moved
+        AssertSuccess("move_tests/method_by_value_copy_ok_test", 10);
+    }
+
+    [Test]
+    public void MethodByRefNoMoveTest()
+    {
+        // self: &Self — receiver is borrowed, not moved
+        AssertSuccess("move_tests/method_by_ref_no_move_test", 10);
+    }
 }

@@ -196,4 +196,89 @@ public static class CallExpressionHelper
 
         return BuildCallReturnValue(callResult, funcRef.Function.ReturnType, context);
     }
+
+    /// <summary>
+    /// Validates call arguments against function definition parameters.
+    /// Shared by function calls and method calls.
+    /// selfOffset: number of leading params to skip (1 for methods where self is implicit).
+    /// </summary>
+    public static void ValidateCallArguments(
+        FunctionDefinition fd, ImmutableArray<IExpression> arguments,
+        ImmutableArray<LangPath> genericArgs, SemanticAnalyzer analyzer,
+        string tokenLoc, int selfOffset = 0)
+    {
+        int expectedArgs = fd.Arguments.Length - selfOffset;
+
+        // Type check each argument against its parameter
+        for (int ai = 0; ai < expectedArgs && ai < arguments.Length; ai++)
+        {
+            var paramType = fd.Arguments[ai + selfOffset].TypePath;
+            var argActualType = arguments[ai].TypePath;
+            if (paramType == null || argActualType == null) continue;
+            if (fd.GenericParameters.Length > 0 && genericArgs.Length > 0)
+                paramType = FieldAccessExpression.SubstituteGenerics(paramType, fd.GenericParameters, genericArgs);
+            // Skip type check when arg is a generic param — it'll be verified at monomorphization
+            if (argActualType is NormalLangPath nlpArg && nlpArg.PathSegments.Length == 1
+                && analyzer.IsGenericParam(nlpArg.PathSegments[0].ToString()))
+                continue;
+            if (paramType is NormalLangPath nlpParam && nlpParam.PathSegments.Length == 1
+                && analyzer.IsGenericParam(nlpParam.PathSegments[0].ToString()))
+                continue;
+            if (paramType != argActualType)
+                analyzer.AddException(new TypeMismatchException(
+                    paramType, argActualType, $"argument '{fd.Arguments[ai + selfOffset].Name}'", tokenLoc));
+        }
+
+        // Argument count check
+        if (arguments.Length != expectedArgs)
+            analyzer.AddException(new SemanticException(
+                $"Function '{fd.Name}' expects {expectedArgs} argument(s) but {arguments.Length} were provided\n{tokenLoc}"));
+    }
+
+    /// <summary>
+    /// Validates generic type arguments satisfy their trait bounds and associated type constraints.
+    /// Shared by function calls and method calls.
+    /// </summary>
+    public static void ValidateGenericBounds(
+        FunctionDefinition fd, ImmutableArray<LangPath> genericArgs,
+        SemanticAnalyzer analyzer, string tokenLoc)
+    {
+        for (int i = 0; i < fd.GenericParameters.Length && i < genericArgs.Length; i++)
+        {
+            var gp = fd.GenericParameters[i];
+            foreach (var bound in gp.TraitBounds)
+            {
+                var argType = genericArgs[i];
+                var resolvedBound = FieldAccessExpression.SubstituteGenerics(
+                    bound.TraitPath, fd.GenericParameters, genericArgs);
+                if (!analyzer.TypeImplementsTrait(argType, resolvedBound))
+                {
+                    var traitDef = analyzer.GetDefinition(LangPath.StripGenerics(resolvedBound));
+                    if (traitDef == null || traitDef is not TraitDefinition)
+                        analyzer.AddException(new TraitNotFoundException(resolvedBound, tokenLoc));
+                    else
+                        analyzer.AddException(new TraitBoundViolationException(argType, resolvedBound));
+                }
+                foreach (var (atName, atType) in bound.AssociatedTypeConstraints)
+                {
+                    var resolvedAtType = FieldAccessExpression.SubstituteGenerics(atType, fd.GenericParameters, genericArgs);
+                    var actualAt = analyzer.ResolveAssociatedType(argType, resolvedBound, atName);
+                    if (actualAt != null && actualAt != resolvedAtType)
+                        analyzer.AddException(new SemanticException(
+                            $"Associated type constraint '{atName} = {resolvedAtType}' not satisfied: actual '{atName}' is '{actualAt}'\n{tokenLoc}"));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Handles by-value self move tracking for method calls.
+    /// If self is by-value (not a reference) and the receiver type isn't Copy, marks the receiver as moved.
+    /// </summary>
+    public static void CheckSelfMove(
+        RefKind? autoRefKind, string? rootVarName, LangPath? receiverType, SemanticAnalyzer analyzer)
+    {
+        if (autoRefKind == null && rootVarName != null && !analyzer.IsTypeCopy(receiverType))
+            analyzer.MarkAsMoved(rootVarName);
+    }
 }
