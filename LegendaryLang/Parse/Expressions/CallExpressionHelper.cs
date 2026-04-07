@@ -178,6 +178,18 @@ public static class CallExpressionHelper
     }
 
     /// <summary>
+    /// Codegens call arguments: marks each as drop-moved and produces ValueRefItems.
+    /// Shared by FunctionCallKind and MethodCallKind — both are "call a function with some arguments".
+    /// </summary>
+    public static ValueRefItem[] CodeGenArguments(
+        ImmutableArray<IExpression> arguments, CodeGenContext ctx)
+    {
+        foreach (var arg in arguments)
+            ctx.TryMarkExpressionDropMoved(arg);
+        return arguments.Select(a => a.CodeGen(ctx)).ToArray();
+    }
+
+    /// <summary>
     /// Emits a function call: loads each argument value, calls the function, and wraps the result.
     /// This is the core shared codegen for function calls, method calls, and operator overloading —
     /// all three are just "call a function with some arguments".

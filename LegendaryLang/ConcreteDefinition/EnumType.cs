@@ -1,6 +1,7 @@
 ﻿using System.Collections.Immutable;
 using LegendaryLang.Definitions.Types;
 using LegendaryLang.Parse;
+using LegendaryLang.Parse.Expressions;
 using LLVMSharp.Interop;
 
 namespace LegendaryLang.ConcreteDefinition;
@@ -89,6 +90,68 @@ public class EnumType : Type
     }
 
     public override int GetPrimitivesCompositeCount(CodeGenContext context) => 1;
+
+    /// <summary>
+    /// Emits a unit enum variant (tag only, no payload).
+    /// Shared by PathExpression, EnumVariantKind, and any other unit variant construction.
+    /// </summary>
+    public ValueRefItem EmitUnitVariant(CodeGenContext ctx, EnumVariant variant)
+    {
+        var alloca = ctx.Builder.BuildAlloca(TypeRef);
+        var tagPtr = ctx.Builder.BuildStructGEP2(TypeRef, alloca, 0);
+        ctx.Builder.BuildStore(
+            LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, (ulong)variant.Tag, false),
+            tagPtr);
+        return new ValueRefItem { Type = this, ValueRef = alloca };
+    }
+
+    /// <summary>
+    /// Emits a tuple enum variant (tag + payload fields).
+    /// Shared by EnumVariantCreationKind and any other tuple variant construction.
+    /// </summary>
+    public ValueRefItem EmitTupleVariant(CodeGenContext ctx, EnumVariant variant,
+        ImmutableArray<IExpression> arguments)
+    {
+        var alloca = ctx.Builder.BuildAlloca(TypeRef);
+        var tagPtr = ctx.Builder.BuildStructGEP2(TypeRef, alloca, 0);
+        ctx.Builder.BuildStore(
+            LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, (ulong)variant.Tag, false),
+            tagPtr);
+
+        if (arguments.Length > 0 && HasPayloads)
+        {
+            var payloadPtr = ctx.Builder.BuildStructGEP2(TypeRef, alloca, 1);
+            var resolved = GetResolvedVariant(variant.Name);
+            if (resolved != null)
+            {
+                ulong offset = 0;
+                for (int i = 0; i < arguments.Length && i < resolved.Value.fieldTypes.Length; i++)
+                {
+                    var fieldType = resolved.Value.fieldTypes[i];
+                    var argVal = arguments[i].CodeGen(ctx);
+
+                    var fieldPtr = payloadPtr;
+                    if (offset > 0)
+                    {
+                        fieldPtr = ctx.Builder.BuildGEP2(
+                            LLVMTypeRef.Int8, payloadPtr,
+                            [LLVMValueRef.CreateConstInt(LLVMTypeRef.Int64, offset, false)]);
+                    }
+
+                    fieldType.AssignTo(ctx, argVal,
+                        new ValueRefItem { Type = fieldType, ValueRef = fieldPtr });
+
+                    unsafe
+                    {
+                        var dataLayout = LLVM.GetModuleDataLayout(ctx.Module);
+                        offset += LLVM.StoreSizeOfType(dataLayout, fieldType.TypeRef);
+                    }
+                }
+            }
+        }
+
+        return new ValueRefItem { Type = this, ValueRef = alloca };
+    }
 
     public override unsafe LLVMValueRef LoadValue(CodeGenContext context, ValueRefItem valueRef)
     {

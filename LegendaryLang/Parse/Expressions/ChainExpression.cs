@@ -123,13 +123,8 @@ public class EnumVariantKind : IChainKind
     public ValueRefItem CodeGen(CodeGenContext ctx)
     {
         var typeRef = ctx.GetRefItemFor(EnumTypePath) as TypeRefItem;
-        var enumType = typeRef?.Type as EnumType;
-        var alloca = ctx.Builder.BuildAlloca(enumType!.TypeRef);
-        var tagPtr = ctx.Builder.BuildStructGEP2(enumType.TypeRef, alloca, 0);
-        ctx.Builder.BuildStore(
-            LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, (ulong)Variant.Tag, false),
-            tagPtr);
-        return new ValueRefItem { Type = enumType, ValueRef = alloca };
+        var enumType = (typeRef?.Type as EnumType)!;
+        return enumType.EmitUnitVariant(ctx, Variant);
     }
 }
 
@@ -159,48 +154,7 @@ public class EnumVariantCreationKind : IChainKind
         if (enumType == null)
             throw new InvalidOperationException(
                 $"Cannot resolve enum type '{EnumTypePath}' during codegen.");
-
-        var alloca = ctx.Builder.BuildAlloca(enumType.TypeRef);
-        // Store tag
-        var tagPtr = ctx.Builder.BuildStructGEP2(enumType.TypeRef, alloca, 0);
-        ctx.Builder.BuildStore(
-            LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, (ulong)Variant.Tag, false),
-            tagPtr);
-
-        // Store payload fields
-        if (Arguments.Length > 0 && enumType.HasPayloads)
-        {
-            var payloadPtr = ctx.Builder.BuildStructGEP2(enumType.TypeRef, alloca, 1);
-            var resolved = enumType.GetResolvedVariant(Variant.Name);
-            if (resolved != null)
-            {
-                ulong offset = 0;
-                for (int i = 0; i < Arguments.Length && i < resolved.Value.fieldTypes.Length; i++)
-                {
-                    var fieldType = resolved.Value.fieldTypes[i];
-                    var argVal = Arguments[i].CodeGen(ctx);
-
-                    var fieldPtr = payloadPtr;
-                    if (offset > 0)
-                    {
-                        fieldPtr = ctx.Builder.BuildGEP2(
-                            LLVMTypeRef.Int8, payloadPtr,
-                            [LLVMValueRef.CreateConstInt(LLVMTypeRef.Int64, offset, false)]);
-                    }
-
-                    fieldType.AssignTo(ctx, argVal,
-                        new ValueRefItem { Type = fieldType, ValueRef = fieldPtr });
-
-                    unsafe
-                    {
-                        var dataLayout = LLVM.GetModuleDataLayout(ctx.Module);
-                        offset += LLVM.StoreSizeOfType(dataLayout, fieldType.TypeRef);
-                    }
-                }
-            }
-        }
-
-        return new ValueRefItem { Type = enumType, ValueRef = alloca };
+        return enumType.EmitTupleVariant(ctx, Variant, Arguments);
     }
 }
 
@@ -801,15 +755,12 @@ public class FunctionCallKind : IChainKind
         else
             funcRef = ctx.GetRefItemFor(FunctionPath) as FunctionRefItem;
 
-        foreach (var arg in Arguments)
-            ctx.TryMarkExpressionDropMoved(arg);
-
         if (funcRef == null)
             throw new InvalidOperationException(
                 $"Cannot resolve function '{FunctionPath}' during codegen. " +
                 $"The function path may not be fully monomorphized.");
 
-        var argVals = Arguments.Select(a => a.CodeGen(ctx)).ToArray();
+        var argVals = CallExpressionHelper.CodeGenArguments(Arguments, ctx);
         return CallExpressionHelper.EmitCall(funcRef, argVals, ctx);
     }
 }
@@ -1117,10 +1068,10 @@ public class MethodCallKind : IChainKind
             throw new InvalidOperationException(
                 $"Cannot resolve method '{MethodName}' during codegen");
 
-        // self + explicit args
+        // self + explicit args (shared codegen handles drop-move tracking)
+        var argVals = CallExpressionHelper.CodeGenArguments(Arguments, ctx);
         var allArgs = new List<ValueRefItem> { selfArg };
-        foreach (var arg in Arguments)
-            allArgs.Add(arg.CodeGen(ctx));
+        allArgs.AddRange(argVals);
 
         return CallExpressionHelper.EmitCall(funcRef, allArgs, ctx);
     }

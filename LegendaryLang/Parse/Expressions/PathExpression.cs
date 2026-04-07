@@ -36,14 +36,7 @@ public class PathExpression : IExpression
             var typeRef = context.GetRefItemFor(EnumTypePath) as TypeRefItem;
             var enumType = typeRef?.Type as EnumType;
             if (enumType != null)
-            {
-                var alloca = context.Builder.BuildAlloca(enumType.TypeRef);
-                var tagPtr = context.Builder.BuildStructGEP2(enumType.TypeRef, alloca, 0);
-                context.Builder.BuildStore(
-                    LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, (ulong)EnumVariant.Tag, false),
-                    tagPtr);
-                return new ValueRefItem { Type = enumType, ValueRef = alloca };
-            }
+                return enumType.EmitUnitVariant(context, EnumVariant);
         }
 
         if (TypePath is null) TypePath = (context.GetRefItemFor(Path) as IHasType).Type.TypePath;
