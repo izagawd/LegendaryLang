@@ -156,7 +156,14 @@ public class BlockExpression : IExpression
 
         void SetExpectedReturnTypesRecursively(ISyntaxNode syntaxNode)
         {
-            if (syntaxNode is BlockExpression block) block.ExpectedReturnType = ExpectedReturnType;
+            if (syntaxNode is BlockExpression block)
+            {
+                block.ExpectedReturnType = ExpectedReturnType;
+                // Propagate to the last expression if it's a chain (for enum variant inference)
+                var lastItem = block.BlockSyntaxNodeContainers.Cast<BlockSyntaxNodeContainer?>().LastOrDefault();
+                if (lastItem is { HasSemiColonAfter: false, Node: ChainExpression lastChain })
+                    lastChain.ExpectedReturnType ??= ExpectedReturnType;
+            }
             foreach (var i in syntaxNode.Children.Where(i => i is not IItem)) SetExpectedReturnTypesRecursively(i);
         }
 
@@ -302,7 +309,33 @@ public class BlockExpression : IExpression
         {
             i.ResolvePaths(resolver);
         }
+        // Resolve chain expression roots that aren't IPathResolvable.
+        // Without this, bare function names like TryCastPrimitive stay unresolved
+        // and can't be found by GetDefinition during analysis.
+        ResolveChainExpressions(this, resolver);
         resolver.PopScope();
+    }
+
+    /// <summary>
+    /// Recursively resolves ChainExpression roots within a syntax tree.
+    /// ChainExpression doesn't implement IPathResolvable, so it's skipped
+    /// by the standard ResolvePaths walk. This fixes bare function name resolution.
+    /// </summary>
+    private static void ResolveChainExpressions(ISyntaxNode node, PathResolver resolver)
+    {
+        foreach (var child in node.Children)
+        {
+            if (child is ChainExpression chain)
+            {
+                chain.ResolvePaths(resolver);
+                // Also recurse into chain's children (call arguments may contain chains)
+                ResolveChainExpressions(chain, resolver);
+            }
+            else
+            {
+                ResolveChainExpressions(child, resolver);
+            }
+        }
     }
 
 

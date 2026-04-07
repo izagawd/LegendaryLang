@@ -102,4 +102,82 @@ public class EnumTests
         // Enum holds &uniq x, x never used, different var returned — OK
         AssertSuccess("enum_tests/enum_borrow_source_untouched_pass_test", 99);
     }
+
+    [Test]
+    public void EnumBareVariantFailTest()
+    {
+        // Bare `Up` instead of `Dir.Up` → error
+        AssertFail<GenericSemanticError>("enum_tests/enum_bare_variant_fail_test");
+    }
+
+    [Test]
+    public void EnumBareTupleVariantFailTest()
+    {
+        // Bare `Val(x)` instead of `Wrapper.Val(x)` → error
+        AssertFail<GenericSemanticError>("enum_tests/enum_bare_tuple_variant_fail_test");
+    }
+
+    [Test]
+    public void EnumQualifiedVariantTest()
+    {
+        // Dir.Left → 3
+        AssertSuccess("enum_tests/enum_qualified_variant_test", 3);
+    }
+
+    [Test]
+    public void EnumQualifiedWithWildcardTest()
+    {
+        // Color.Red → 1, _ → 99. Green matches _ → 99
+        AssertSuccess("enum_tests/enum_qualified_with_wildcard_test", 99);
+    }
+
+    [Test]
+    public void EnumOptionQualifiedTest()
+    {
+        // maybe(5) → Some(5), maybe(-3) → None(-1). Total: 5 + (-1) = 4
+        AssertSuccess("enum_tests/enum_option_qualified_test", 4);
+    }
+
+    [Test]
+    public void EnumFullyQualifiedOptionTest()
+    {
+        // Std.Core.Option.Some(v) and Std.Core.Option.None in match arms
+        AssertSuccess("enum_tests/enum_fully_qualified_option_test", 42);
+    }
+
+    [Test]
+    public void EnumImportedVariantTest()
+    {
+        // use Dir.Left; then bare `Left` in match works → 1
+        AssertSuccess("enum_tests/enum_imported_variant_test", 1);
+    }
+
+    [Test]
+    public void EnumImportedTupleVariantTest()
+    {
+        // use Wrapper.Val; then bare `Val(x)` in match works → 99
+        AssertSuccess("enum_tests/enum_imported_tuple_variant_test", 99);
+    }
+
+    [Test]
+    public void EnumOptionPartialQualifiedTest()
+    {
+        // Option.Some(v) and Option.None — Option is auto-imported
+        // Some(10) → 10, None → -1. Total: 10 + (-1) = 9
+        AssertSuccess("enum_tests/enum_option_partial_qualified_test", 9);
+    }
+
+    [Test]
+    public void EnumBareSomeFailTest()
+    {
+        // Bare `Some(v)` without import → error
+        AssertFail<GenericSemanticError>("enum_tests/enum_bare_some_fail_test");
+    }
+
+    [Test]
+    public void EnumBareUnitVariantFailTest()
+    {
+        // Bare `Ok` without import → error
+        AssertFail<GenericSemanticError>("enum_tests/enum_bare_unit_variant_fail_test");
+    }
 }

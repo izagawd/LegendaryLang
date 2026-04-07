@@ -1,5 +1,6 @@
 use Std.Marker.Primitive;
 use Std.Ops.TryInto;
+use Std.Primitive.TryCastPrimitive;
 
 fn TryCastPrimitive[From:! Primitive](To:! Primitive, input: From) -> Option(To);
 

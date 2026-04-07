@@ -355,12 +355,21 @@ public class FunctionCallKind : IChainKind
                                 genericArgs = nlpParent.GetFrontGenerics();
                             if (genericArgs.Length == 0 && enumDef.GenericParameters.Length > 0)
                             {
+                                // Try to infer from variant field types (e.g., Option.Some(42) → T=i32)
                                 var constraints = new List<(LangPath, LangPath)>();
                                 for (int i = 0; i < variant.FieldTypes.Length && i < arguments.Length; i++)
                                     if (arguments[i].TypePath != null)
                                         constraints.Add((variant.FieldTypes[i], arguments[i].TypePath));
                                 var inferred = TypeInference.InferFromConstraints(enumDef.GenericParameters, constraints);
-                                if (inferred != null) genericArgs = inferred.Value;
+                                if (inferred != null)
+                                    genericArgs = inferred.Value;
+                                // Fallback: infer from expected return type (e.g., Option.None in context expecting Option(i32))
+                                else if (expectedReturnType is NormalLangPath nlpExpected)
+                                {
+                                    var expectedGenerics = nlpExpected.GetFrontGenerics();
+                                    if (expectedGenerics.Length == enumDef.GenericParameters.Length)
+                                        genericArgs = expectedGenerics;
+                                }
                             }
                             LangPath enumTypePath;
                             if (genericArgs.Length > 0)
@@ -452,7 +461,8 @@ public class FunctionCallKind : IChainKind
                 for (int i = 0; i < fd.Arguments.Length && i < arguments.Length; i++)
                     if (fd.Arguments[i].TypePath != null && arguments[i].TypePath != null)
                         constraints.Add((fd.Arguments[i].TypePath, arguments[i].TypePath));
-                if (expectedReturnType != null && fd.ReturnTypePath != null)
+                // Only add return type constraint if both are concrete (not associated types)
+                if (expectedReturnType is NormalLangPath && fd.ReturnTypePath is NormalLangPath)
                     constraints.Add((fd.ReturnTypePath, expectedReturnType));
                 var inferred = TypeInference.InferFromConstraints(fd.GenericParameters, constraints);
                 if (inferred != null)
@@ -478,7 +488,20 @@ public class FunctionCallKind : IChainKind
                         constraints.Add((fd.Arguments[i].TypePath, arguments[i].TypePath));
                 if (expectedReturnType != null && fd.ReturnTypePath != null)
                     constraints.Add((fd.ReturnTypePath, expectedReturnType));
-                var inferred = TypeInference.InferFromConstraints(implicitParams, constraints);
+
+                // Use ALL generic params as free vars for unification (so To in return type
+                // can unify with the concrete type), but only build args for the implicit ones.
+                var allFreeVars = fd.GenericParameters.Select(gp => gp.Name).ToHashSet();
+                var bindings = new Dictionary<string, LangPath>();
+                bool unified = true;
+                foreach (var (pattern, concrete) in constraints)
+                    if (!TypeInference.TryUnify(pattern, concrete, allFreeVars, bindings))
+                    { unified = false; break; }
+
+                var inferred = unified
+                    ? TypeInference.BuildGenericArgs(implicitParams, bindings)
+                    : null;
+
                 if (inferred != null)
                 {
                     var allGenerics = inferred.Value.AddRange(providedGenerics);
@@ -869,7 +892,8 @@ public class MethodCallKind : IChainKind
     public static MethodCallKind? AnalyzeCall(
         IChainKind receiver, LangPath receiverType, string methodName,
         ImmutableArray<IExpression> arguments, Token? errorToken,
-        string? rootVarName, SemanticAnalyzer analyzer, RefKind? maxCapability = null)
+        string? rootVarName, SemanticAnalyzer analyzer, RefKind? maxCapability = null,
+        LangPath? expectedReturnType = null)
     {
         CallExpressionHelper.AnalyzeArgumentsWithReborrow(arguments, analyzer);
         
@@ -882,7 +906,10 @@ public class MethodCallKind : IChainKind
             return null;
         }
 
-        // Search impl definitions for matching method
+        // Collect all matching impls for disambiguation
+        var candidates = new List<(ImplDefinition impl, FunctionDefinition method,
+            Dictionary<string, LangPath> bindings, RefKind? autoRefKind)>();
+
         foreach (var impl in analyzer.ImplDefinitions)
         {
             var method = impl.GetMethod(methodName);
@@ -893,29 +920,55 @@ public class MethodCallKind : IChainKind
 
             var autoRefKind = DetectAutoRefKind(method.Arguments[0].TypePath);
 
-            // Check field access chain capability — e.g., through &shared, can't call &uniq methods
             if (autoRefKind != null && maxCapability != null
                 && !DerefExpression.CanProduceRefKind(maxCapability.Value, autoRefKind.Value))
+                continue;
+
+            candidates.Add((impl, method, bindings, autoRefKind));
+        }
+
+        // Disambiguate: if multiple candidates, prefer one whose return type matches expected
+        (ImplDefinition impl, FunctionDefinition method,
+            Dictionary<string, LangPath> bindings, RefKind? autoRefKind)? chosen = null;
+
+        if (candidates.Count == 1)
+        {
+            chosen = candidates[0];
+        }
+        else if (candidates.Count > 1 && expectedReturnType != null)
+        {
+            foreach (var c in candidates)
             {
-                analyzer.AddException(new SemanticException(
-                    $"Cannot call method '{methodName}' taking '&{RefTypeDefinition.GetRefName(autoRefKind.Value)} Self' " +
-                    $"through field access chain (access limited to " +
-                    $"'&{RefTypeDefinition.GetRefName(maxCapability.Value)}')\n{tokenLoc}"));
-                return null;
+                var resolvedReturn = CallExpressionHelper.ResolveReturnTypeFromImpl(
+                    c.method.ReturnTypePath, receiverType, c.bindings, c.impl.GenericParameters, analyzer);
+                if (resolvedReturn == expectedReturnType)
+                {
+                    chosen = c;
+                    break;
+                }
             }
+            // Fallback to first if no return type match
+            chosen ??= candidates[0];
+        }
+        else if (candidates.Count > 1)
+        {
+            chosen = candidates[0];
+        }
 
-            CheckImplicitBorrow(autoRefKind, rootVarName, analyzer);
-
-            var dispatchPath = impl.IsInherent ? impl.ForTypePath : impl.TraitPath;
+        if (chosen != null)
+        {
+            var (cImpl, cMethod, cBindings, cAutoRefKind) = chosen.Value;
+            CheckImplicitBorrow(cAutoRefKind, rootVarName, analyzer);
+            var dispatchPath = cImpl.IsInherent ? cImpl.ForTypePath : cImpl.TraitPath;
             if (dispatchPath is NormalLangPath nlpTrait)
                 return new MethodCallKind
                 {
                     Receiver = receiver, MethodName = methodName, Arguments = arguments,
                     ResolvedFunctionPath = nlpTrait.Append(methodName),
-                    ResolvedQualifiedType = receiverType as NormalLangPath, AutoRefKind = autoRefKind,
+                    ResolvedQualifiedType = receiverType as NormalLangPath, AutoRefKind = cAutoRefKind,
                     ReceiverTypePath = receiverType, RootVarName = rootVarName,
                     TypePath = CallExpressionHelper.ResolveReturnTypeFromImpl(
-                        method.ReturnTypePath, receiverType, bindings, impl.GenericParameters, analyzer),
+                        cMethod.ReturnTypePath, receiverType, cBindings, cImpl.GenericParameters, analyzer),
                 };
         }
 
@@ -1277,6 +1330,13 @@ public class ChainExpression : IExpression
         // ── Resolve root ──
         var varType = analyzer.GetVariableTypePath(rootPath);
         var definition = analyzer.GetDefinition(rootPath);
+        // Fallback: if root is a bare name (unresolved) and not found, search by name.
+        if (definition == null && rootPath is NormalLangPath { PathSegments.Length: 1 } bareRoot)
+        {
+            definition = analyzer.FindDefinitionByName(bareRoot.PathSegments[0].ToString());
+            if (definition != null)
+                rootPath = (NormalLangPath)(definition as IDefinition)!.TypePath;
+        }
         var isGenericParam = analyzer.IsGenericParam(RootName);
 
         ResolveState state;
@@ -1471,7 +1531,7 @@ public class ChainExpression : IExpression
                     var rootVarName = LetStatement.GetVariableOrigin(RootExpression);
                     var kind = MethodCallKind.AnalyzeCall(
                         currentKind, RootExpression!.TypePath!, access.Name, callStep.Arguments,
-                        access.Token, rootVarName, analyzer);
+                        access.Token, rootVarName, analyzer, expectedReturnType: ExpectedReturnType);
                     if (kind != null) ResolvedKind = kind;
                     return;
                 }
@@ -1609,9 +1669,11 @@ public class ChainExpression : IExpression
         RefKind? maxCap = null;
         if (receiver is FieldAccessKind fak) maxCap = fak.MaxCapability;
 
+        // Pass expected return type for disambiguation when multiple impls match
+        // (e.g., i32 implements TryInto(u8) and TryInto(usize) — need return type to pick)
         var kind = MethodCallKind.AnalyzeCall(
             receiver, receiverType, access.Name, call.Arguments,
-            access.Token, RootName, analyzer, maxCap);
+            access.Token, RootName, analyzer, maxCap, ExpectedReturnType);
 
         if (kind == null) return;
 
@@ -1803,6 +1865,18 @@ public class ChainExpression : IExpression
                 var typeArgs = ExtractTypeArgs(genericArgs, analyzer);
                 if (typeArgs.Length > 0 && finalEnumTypePath is NormalLangPath nlpEnum)
                     finalEnumTypePath = nlpEnum.AppendGenerics(typeArgs);
+            }
+
+            // If enum has unresolved generics, infer from expected return type
+            // e.g., Option.None in context expecting Option(i32) → T=i32
+            if (finalEnumTypePath is NormalLangPath nlpFinal
+                && nlpFinal.GetFrontGenerics().Length == 0
+                && enumDef.GenericParameters.Length > 0
+                && ExpectedReturnType is NormalLangPath nlpExpected)
+            {
+                var expectedGenerics = nlpExpected.GetFrontGenerics();
+                if (expectedGenerics.Length == enumDef.GenericParameters.Length)
+                    finalEnumTypePath = nlpFinal.AppendGenerics(expectedGenerics);
             }
 
             ResolvedKind = new EnumVariantKind

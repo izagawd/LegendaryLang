@@ -36,14 +36,14 @@ public class WildcardPattern : MatchPattern
 /// <summary>Unit variant pattern: Foo.A or A</summary>
 public class VariantPattern : MatchPattern
 {
-    public required NormalLangPath VariantPath { get; init; }
+    public required NormalLangPath VariantPath { get; set; }
     public override Token Token => VariantPath.FirstIdentifierToken!;
 }
 
 /// <summary>Tuple variant pattern: Foo.C(x, y)</summary>
 public class TupleVariantPattern : MatchPattern
 {
-    public required NormalLangPath VariantPath { get; init; }
+    public required NormalLangPath VariantPath { get; set; }
     public required ImmutableArray<string> Bindings { get; init; }
     public override Token Token => VariantPath.FirstIdentifierToken!;
 }
@@ -135,15 +135,25 @@ public class MatchExpression : IExpression
                 var variantName = vp.VariantPath.GetLastPathSegment()?.ToString();
                 if (variantName != null && enumDef != null)
                 {
-                    var variant = enumDef.GetVariant(variantName);
-                    if (variant == null)
+                    // Require qualified path: bare names like `A` must be imported or qualified as `Bruh.A`
+                    if (vp.VariantPath.PathSegments.Length == 1 && enumDef.GetVariant(variantName) != null)
+                    {
                         analyzer.AddException(new SemanticException(
-                            $"Enum '{enumDef.Name}' has no variant '{variantName}'\n{vp.Token.GetLocationStringRepresentation()}"));
-                    else if (variant.FieldTypes.Length > 0)
-                        analyzer.AddException(new SemanticException(
-                            $"Variant '{variantName}' has fields — use '{variantName}(...)' pattern\n{vp.Token.GetLocationStringRepresentation()}"));
+                            $"Pattern '{variantName}' is named the same as a variant of '{enumDef.Name}'. " +
+                            $"To match on the variant, qualify the path: '{enumDef.Name}.{variantName}'\n{vp.Token.GetLocationStringRepresentation()}"));
+                    }
                     else
-                        coveredVariants.Add(variantName);
+                    {
+                        var variant = enumDef.GetVariant(variantName);
+                        if (variant == null)
+                            analyzer.AddException(new SemanticException(
+                                $"Enum '{enumDef.Name}' has no variant '{variantName}'\n{vp.Token.GetLocationStringRepresentation()}"));
+                        else if (variant.FieldTypes.Length > 0)
+                            analyzer.AddException(new SemanticException(
+                                $"Variant '{variantName}' has fields — use '{variantName}(...)' pattern\n{vp.Token.GetLocationStringRepresentation()}"));
+                        else
+                            coveredVariants.Add(variantName);
+                    }
                 }
             }
             else if (arm.Pattern is TupleVariantPattern tvp)
@@ -151,6 +161,15 @@ public class MatchExpression : IExpression
                 var variantName = tvp.VariantPath.GetLastPathSegment()?.ToString();
                 if (variantName != null && enumDef != null)
                 {
+                    // Same check for tuple variant patterns
+                    if (tvp.VariantPath.PathSegments.Length == 1 && enumDef.GetVariant(variantName) != null)
+                    {
+                        analyzer.AddException(new SemanticException(
+                            $"Pattern '{variantName}' is named the same as a variant of '{enumDef.Name}'. " +
+                            $"To match on the variant, qualify the path: '{enumDef.Name}.{variantName}(...)'\n{tvp.Token.GetLocationStringRepresentation()}"));
+                    }
+                    else
+                    {
                     var variant = enumDef.GetVariant(variantName);
                     if (variant == null)
                     {
@@ -185,6 +204,7 @@ public class MatchExpression : IExpression
                                     new NormalLangPath(null, [tvp.Bindings[i]]), fieldType);
                         }
                         coveredVariants.Add(variantName);
+                    }
                     }
                 }
             }
@@ -410,10 +430,12 @@ public class MatchExpression : IExpression
         if (Scrutinee is IPathResolvable pr) pr.ResolvePaths(resolver);
         foreach (var arm in Arms)
         {
-            // Resolve variant paths in patterns
+            // Resolve variant paths in patterns (e.g., Option.Some → Std.Core.Option.Some)
             if (arm.Pattern is VariantPattern vp)
-                vp.VariantPath.Resolve(resolver); // NormalLangPath is immutable so this doesn't help...
-            // For bodies
+                vp.VariantPath = (NormalLangPath)vp.VariantPath.Resolve(resolver);
+            else if (arm.Pattern is TupleVariantPattern tvp)
+                tvp.VariantPath = (NormalLangPath)tvp.VariantPath.Resolve(resolver);
+            // Resolve bodies
             if (arm.Body is IPathResolvable bodyPr) bodyPr.ResolvePaths(resolver);
         }
     }

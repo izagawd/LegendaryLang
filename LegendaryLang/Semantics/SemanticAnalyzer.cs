@@ -1479,6 +1479,19 @@ public class SemanticAnalyzer
         return null;
     }
 
+    /// <summary>
+    /// Searches all registered definitions for one whose last path segment matches the given name.
+    /// Used as a fallback when ChainExpression roots aren't resolved during path resolution.
+    /// </summary>
+    public IDefinition? FindDefinitionByName(string name)
+    {
+        foreach (var scope in DefinitionsStackMap)
+            foreach (var (path, def) in scope)
+                if (path is NormalLangPath nlp && nlp.GetLastPathSegment()?.ToString() == name)
+                    return def;
+        return null;
+    }
+
     public LangPath? GetVariableTypePath(LangPath variableLangPath)
     {
         foreach (var scope in VariableToTypeMapper)
