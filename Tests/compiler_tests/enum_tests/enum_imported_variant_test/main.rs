@@ -1,6 +1,6 @@
 enum Dir { Up, Down, Left, Right }
-use Dir.Left;
-use Dir.Right;
+use pkg.Dir.Left;
+use pkg.Dir.Right;
 
 fn main() -> i32 {
     let d = Dir.Left;

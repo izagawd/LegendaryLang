@@ -1,5 +1,5 @@
 enum Color { Red, Green, Blue }
-use Color.Yellow;
+use pkg.Color.Yellow;
 
 fn main() -> i32 {
     0

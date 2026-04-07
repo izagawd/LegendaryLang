@@ -703,6 +703,33 @@ public class ImportTests
         // use Std.Marker.Drop — Drop is in Ops, not Marker
         AssertFail("import_tests/import_wrong_path_fail_test");
     }
+
+    [Test]
+    public void ImportNonexistentFailTest()
+    {
+        // use Std.Nonexistent.Foo — path doesn't exist
+        AssertFail<GenericSemanticError>("import_tests/import_nonexistent_fail_test");
+    }
+
+    [Test]
+    public void ImportWrongVariantFailTest()
+    {
+        // use Color.Yellow — Yellow is not a variant of Color
+        AssertFail<GenericSemanticError>("import_tests/import_wrong_variant_fail_test");
+    }
+
+    [Test]
+    public void ImportValidFunctionTest()
+    {
+        AssertSuccess("import_tests/import_valid_function_test", 1);
+    }
+
+    [Test]
+    public void ImportValidVariantTest()
+    {
+        // use Dir.Up; then bare Up in match
+        AssertSuccess("import_tests/import_valid_variant_test", 1);
+    }
 }
 
 public class ArgTypeTests

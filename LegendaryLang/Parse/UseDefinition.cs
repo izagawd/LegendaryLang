@@ -1,9 +1,10 @@
-﻿using LegendaryLang.Lex.Tokens;
+﻿using LegendaryLang.Definitions.Types;
+using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse;
 
-public class UseDefinition : IItem
+public class UseDefinition : IItem, IAnalyzable
 {
 
 
@@ -15,11 +16,49 @@ public class UseDefinition : IItem
 
     public NormalLangPath PathToUse { get; }
 
+    /// <summary>
+    /// The fully resolved version of PathToUse (after pkg expansion etc.).
+    /// Set during RegisterUsings when a PathResolver is available.
+    /// </summary>
+    public NormalLangPath ResolvedPathToUse { get; private set; }
+
 
     public Token Token { get; }
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        // Skip validation for auto-generated UseDefinitions (no token = internal registration).
+        if (Token == null) return;
+
+        var path = ResolvedPathToUse ?? PathToUse;
+
+        // Check 1: Direct definition match (full path)
+        var def = analyzer.GetDefinition(path);
+        if (def != null) return;
+
+        // Check 2: Enum variant — parent is an enum, last segment is a variant
+        if (path.PathSegments.Length >= 2)
+        {
+            var parentPath = path.Pop();
+            if (parentPath != null)
+            {
+                var parentDef = analyzer.GetDefinition(parentPath);
+                if (parentDef is EnumTypeDefinition enumDef)
+                {
+                    var variantName = path.GetLastPathSegment()?.ToString();
+                    if (variantName != null && enumDef.GetVariant(variantName) != null)
+                        return; // Valid enum variant import
+                }
+            }
+        }
+
+        // Check 3: Module import — path is a prefix of some registered definition
+        if (analyzer.IsModulePath(path))
+            return;
+
+        analyzer.AddException(new SemanticException(
+            $"Cannot find '{PathToUse}' — the imported path does not exist\n" +
+            Token.GetLocationStringRepresentation()));
     }
 
     public IEnumerable<ISyntaxNode> Children => [];
@@ -42,7 +81,8 @@ public class UseDefinition : IItem
 
     public void RegisterUsings(PathResolver resolver)
     {
-        resolver.AddToDeepestScope(PathToUse.PathSegments.Last(), PathToUse);
+        ResolvedPathToUse = (NormalLangPath)PathToUse.Resolve(resolver);
+        resolver.AddToDeepestScope(ResolvedPathToUse.PathSegments.Last(), ResolvedPathToUse);
     }
 
 }

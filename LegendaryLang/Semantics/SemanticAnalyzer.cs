@@ -1492,6 +1492,20 @@ public class SemanticAnalyzer
         return null;
     }
 
+    /// <summary>
+    /// Checks if the given path is a valid module prefix (i.e., some registered definition
+    /// has a path that starts with this prefix). Used to validate module-level imports like "use Std.Ops;".
+    /// </summary>
+    public bool IsModulePath(NormalLangPath modulePath)
+    {
+        var prefix = modulePath.ToString() + ".";
+        foreach (var scope in DefinitionsStackMap)
+            foreach (var (path, _) in scope)
+                if (path.ToString().StartsWith(prefix))
+                    return true;
+        return false;
+    }
+
     public LangPath? GetVariableTypePath(LangPath variableLangPath)
     {
         foreach (var scope in VariableToTypeMapper)
@@ -1588,6 +1602,9 @@ public class SemanticAnalyzer
         foreach (var result in ParseResults)
         {
             pathShortcutContext.AddScope();
+            // Register 'pkg' as a shortcut to the current file's module path
+            if (result.File?.Module is NormalLangPath fileMod)
+                pathShortcutContext.AddToDeepestScope("pkg", fileMod);
             foreach (var i in result.Items.OfType<IDefinition>())
             {
                 var usings = new UseDefinition((NormalLangPath) i.TypePath, null);
