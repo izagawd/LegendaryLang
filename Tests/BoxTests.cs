@@ -892,4 +892,11 @@ public class ManuallyDropTests
         // Box.Leak uses ManuallyDrop internally → no use-after-free = 42
         AssertSuccess("drop_tests/manually_drop_box_leak_test", 42);
     }
+
+    [Test]
+    public void DropMutBorrowVisibleInCopyReturnTest()
+    {
+        // Drop increments &mut a from 5 to 6, Copy return reads AFTER drop
+        AssertSuccess("drop_tests/drop_mut_borrow_visible_in_copy_return_test", 6);
+    }
 }

@@ -25,6 +25,11 @@ public class BlockExpression : IExpression
     public ImmutableArray<ISyntaxNode> SyntaxNodes => BlockSyntaxNodeContainers.Select(i => i.Node).ToImmutableArray();
 
     public LangPath? ExpectedReturnType { get; set; }
+    /// <summary>
+    /// Set during Analyze: true if the block's implicit return is a Copy type.
+    /// Used in CodeGen to read the return value AFTER drops (so Drop side effects are visible).
+    /// </summary>
+    public bool IsCopyReturn { get; private set; }
 
     public ImmutableArray<BlockSyntaxNodeContainer> BlockSyntaxNodeContainers { get; }
     public IEnumerable<ISyntaxNode> Children => SyntaxNodes;
@@ -129,8 +134,10 @@ public class BlockExpression : IExpression
         // Save the return value to a temp BEFORE drops run.
         // Drops may free memory the return value points to (e.g., *box returns a heap pointer
         // that Box.Drop will free). Saving the value to the stack prevents use-after-free.
+        // Exception: Copy returns are read AFTER drops so Drop side effects are visible.
         ValueRefItem savedReturnValue = lastValue;
-        if (lastValue.Type.TypePath != LangPath.VoidBaseLangPath)
+
+        if (lastValue.Type.TypePath != LangPath.VoidBaseLangPath && !IsCopyReturn)
         {
             var returnVal = lastValue.Type.LoadValue(context, lastValue);
             var returnTemp = context.Builder.BuildAlloca(lastValue.Type.TypeRef, "block_ret_tmp");
@@ -146,6 +153,17 @@ public class BlockExpression : IExpression
 
         // Emit drop calls for droppable variables before exiting scope
         context.EmitDropCalls();
+
+        // For Copy returns, read the value AFTER drops so we see side effects
+        // (e.g., Drop incrementing a borrowed mut variable). This is safe because
+        // Copy types live on the stack and aren't freed by drops.
+        if (IsCopyReturn)
+        {
+            var returnVal = lastValue.Type.LoadValue(context, lastValue);
+            var returnTemp = context.Builder.BuildAlloca(lastValue.Type.TypeRef, "block_ret_tmp");
+            context.Builder.BuildStore(returnVal, returnTemp);
+            savedReturnValue = new ValueRefItem { Type = lastValue.Type, ValueRef = returnTemp };
+        }
 
         context.PopScope();
 
@@ -277,6 +295,8 @@ public class BlockExpression : IExpression
             }
 
             TypePath = possibleTypePath ?? LangPath.VoidBaseLangPath;
+            IsCopyReturn = TypePath != LangPath.VoidBaseLangPath
+                && analyzer.IsTypeCopy(TypePath);
         }
 
         // Cannot return a non-Copy value out of a dereference.

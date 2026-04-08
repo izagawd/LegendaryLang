@@ -212,29 +212,6 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
         }
     }
 
-    private static bool GenericParamUsedInType(string paramName, LangPath? typePath)
-    {
-        if (typePath is NormalLangPath nlp)
-        {
-            foreach (var seg in nlp.PathSegments)
-            {
-                if (seg is NormalLangPath.NormalPathSegment ns)
-                {
-                    if (ns.Text == paramName) return true;
-                    if (ns.HasGenericArgs)
-                        foreach (var tp in ns.GenericArgs!.Value)
-                            if (GenericParamUsedInType(paramName, tp)) return true;
-                }
-            }
-        }
-        if (typePath is TupleLangPath tlp)
-        {
-            foreach (var tp in tlp.TypePaths)
-                if (GenericParamUsedInType(paramName, tp)) return true;
-        }
-        return false;
-    }
-
     /// <summary>
     /// Substitutes 'Self' with the concrete implementing type in a LangPath.
     /// E.g., Add&lt;Self&gt; with forType=i32 becomes Add&lt;i32&gt;.
@@ -409,7 +386,7 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             // Check for unused impl generic parameters
             foreach (var gp in GenericParameters)
             {
-                if (!GenericParamUsedInType(gp.Name, ForTypePath))
+                if (!LangPath.GenericParamUsedInType(gp.Name, ForTypePath))
                     analyzer.AddException(new SemanticException(
                         $"Generic parameter '{gp.Name}' is never used in the implementing type '{ForTypePath}'\n{Token.GetLocationStringRepresentation()}"));
             }
@@ -437,7 +414,7 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
         // Check for unused impl generic parameters
         foreach (var gp in GenericParameters)
         {
-            if (!GenericParamUsedInType(gp.Name, ForTypePath))
+            if (!LangPath.GenericParamUsedInType(gp.Name, ForTypePath))
                 analyzer.AddException(new SemanticException(
                     $"Generic parameter '{gp.Name}' is never used in the implementing type '{ForTypePath}'\n{Token.GetLocationStringRepresentation()}"));
         }

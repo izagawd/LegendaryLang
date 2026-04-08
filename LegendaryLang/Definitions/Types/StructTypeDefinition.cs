@@ -64,7 +64,7 @@ public class StructTypeDefinition : ComposableTypeDefinition
         // Check that every generic parameter is used in at least one field type
         foreach (var gp in GenericParameters)
         {
-            var used = Fields.Any(f => GenericParamUsedInType(gp.Name, f.TypePath));
+            var used = Fields.Any(f => LangPath.GenericParamUsedInType(gp.Name, f.TypePath));
             if (!used)
                 analyzer.AddException(new SemanticException(
                     $"Generic parameter '{gp.Name}' is never used in struct '{Name}'\n{Token.GetLocationStringRepresentation()}"));
@@ -200,34 +200,6 @@ public class StructTypeDefinition : ComposableTypeDefinition
     {
         if (typePath is NormalLangPath nlp && nlp.LifetimeArgs.Length > 0)
             return true;
-        return false;
-    }
-
-    private static bool GenericParamUsedInType(string paramName, LangPath? typePath)
-    {
-        if (typePath is NormalLangPath nlp)
-        {
-            foreach (var seg in nlp.PathSegments)
-            {
-                if (seg is NormalLangPath.NormalPathSegment ns)
-                {
-                    if (ns.Text == paramName) return true;
-                    if (ns.HasGenericArgs)
-                        foreach (var tp in ns.GenericArgs!.Value)
-                            if (GenericParamUsedInType(paramName, tp)) return true;
-                }
-            }
-        }
-        if (typePath is TupleLangPath tlp)
-        {
-            foreach (var tp in tlp.TypePaths)
-                if (GenericParamUsedInType(paramName, tp)) return true;
-        }
-        if (typePath is QualifiedAssocTypePath qap)
-        {
-            if (GenericParamUsedInType(paramName, qap.ForType)) return true;
-            if (GenericParamUsedInType(paramName, qap.TraitPath)) return true;
-        }
         return false;
     }
 

@@ -1472,6 +1472,8 @@ public class ChainExpression : IExpression
         }
 
         // General expression root: (expr).field or (expr).method(args)
+        // Analyze the root expression first so its children are resolved
+        RootExpression!.Analyze(analyzer);
         // Start in Value state with the root expression as the initial kind
         var currentKind = (IChainKind)new ExpressionRefKind { Expression = RootExpression! };
         var currentTypePath = RootExpression!.TypePath;

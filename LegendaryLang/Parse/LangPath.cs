@@ -477,6 +477,34 @@ public abstract class LangPath
     }
 
     public abstract override bool Equals(object? obj);
+    /// <summary>
+    /// Checks if a generic parameter name appears anywhere in a type path.
+    /// Shared by StructTypeDefinition, EnumTypeDefinition, and ImplDefinition.
+    /// </summary>
+    public static bool GenericParamUsedInType(string paramName, LangPath? typePath)
+    {
+        if (typePath is NormalLangPath nlp)
+        {
+            foreach (var seg in nlp.PathSegments)
+                if (seg is NormalLangPath.NormalPathSegment ns)
+                {
+                    if (ns.Text == paramName) return true;
+                    if (ns.HasGenericArgs)
+                        foreach (var tp in ns.GenericArgs!.Value)
+                            if (GenericParamUsedInType(paramName, tp)) return true;
+                }
+        }
+        if (typePath is TupleLangPath tlp)
+            foreach (var tp in tlp.TypePaths)
+                if (GenericParamUsedInType(paramName, tp)) return true;
+        if (typePath is QualifiedAssocTypePath qap)
+        {
+            if (GenericParamUsedInType(paramName, qap.ForType)) return true;
+            if (GenericParamUsedInType(paramName, qap.TraitPath)) return true;
+        }
+        return false;
+    }
+
     public abstract override string ToString();
 
 
