@@ -793,7 +793,8 @@ public class MethodCallKind : IChainKind
 
     /// <summary>
     /// Factory: analyze a method call and return a fully resolved MethodCallKind.
-    /// Handles auto-deref, auto-ref, impl dispatch, trait bound dispatch.
+    /// Resolution priority: inherent methods → in-scope trait methods → trait bounds.
+    /// If no match, auto-deref and repeat. Errors on ambiguous trait methods.
     /// </summary>
     public static MethodCallKind? AnalyzeCall(
         IChainKind receiver, LangPath receiverType, string methodName,
@@ -812,163 +813,204 @@ public class MethodCallKind : IChainKind
             return null;
         }
 
-        // Collect all matching impls for disambiguation
-        var candidates = new List<(ImplDefinition impl, FunctionDefinition method,
-            Dictionary<string, LangPath> bindings, RefKind? autoRefKind)>();
+        // 1. Try direct type (no deref)
+        var result = TryResolveMethod(receiver, receiverType, receiverType, methodName, arguments,
+            rootVarName, maxCapability, expectedReturnType, analyzer, tokenLoc);
+        if (result != null) return result;
 
-        foreach (var impl in analyzer.ImplDefinitions)
+        // 2. Auto-deref chain: deref receiver, repeat search at each level
+        var receiverTraitPath = SemanticAnalyzer.ReceiverTraitPath;
+        var currentType = receiverType;
+        var visited = new HashSet<LangPath>();
+        int derefDepth = 0;
+        RefKind? chainCap = maxCapability;
+
+        while (derefDepth < 10 && analyzer.TypeImplementsTrait(currentType, receiverTraitPath))
         {
-            var method = impl.GetMethod(methodName);
-            if (method == null || method.Arguments.Length == 0 || method.Arguments[0].Name != "self") continue;
-            var bindings = impl.TryMatchConcreteType(receiverType);
-            if (bindings != null && !impl.CheckBounds(bindings, analyzer)) bindings = null;
-            if (bindings == null) continue;
+            if (!visited.Add(currentType)) break;
+            var targetType = analyzer.ResolveAssociatedType(currentType, receiverTraitPath, "Target");
+            if (targetType == null) break;
+            var levelCap = GetDerefCapability(currentType, analyzer);
+            if (levelCap != null)
+                chainCap = chainCap == null ? levelCap.Value : MinRefKindCapability(chainCap.Value, levelCap.Value);
+            derefDepth++;
 
-            var autoRefKind = DetectAutoRefKind(method.Arguments[0].TypePath);
+            result = TryResolveMethod(receiver, targetType, receiverType, methodName, arguments,
+                rootVarName, chainCap, expectedReturnType, analyzer, tokenLoc,
+                needsAutoDeref: true, autoDerefDepth: derefDepth);
+            if (result != null) return result;
 
-            if (autoRefKind != null && maxCapability != null
-                && !DerefExpression.CanProduceRefKind(maxCapability.Value, autoRefKind.Value))
-                continue;
-
-            candidates.Add((impl, method, bindings, autoRefKind));
+            currentType = targetType;
         }
 
-        // Disambiguate: if multiple candidates, prefer one whose return type matches expected
-        (ImplDefinition impl, FunctionDefinition method,
-            Dictionary<string, LangPath> bindings, RefKind? autoRefKind)? chosen = null;
+        analyzer.AddException(new SemanticException(
+            $"No method '{methodName}' found for type '{receiverType}'\n{tokenLoc}"));
+        return null;
+    }
 
-        if (candidates.Count == 1)
+    /// <summary>
+    /// Tries to resolve a method on a specific type. Checks inherent → trait → trait bounds.
+    /// Returns null if no method found at this level.
+    /// </summary>
+    private static MethodCallKind? TryResolveMethod(
+        IChainKind receiver, LangPath targetType, LangPath originalReceiverType,
+        string methodName, ImmutableArray<IExpression> arguments,
+        string? rootVarName, RefKind? maxCapability, LangPath? expectedReturnType,
+        SemanticAnalyzer analyzer, string tokenLoc,
+        bool needsAutoDeref = false, int autoDerefDepth = 0)
+    {
+        // Priority 1: Inherent impls
+        var inherent = CollectImplCandidates(targetType, methodName, maxCapability, analyzer,
+            filter: impl => impl.IsInherent);
+        if (inherent.Count > 0)
         {
-            chosen = candidates[0];
+            var chosen = Disambiguate(inherent, targetType, expectedReturnType, analyzer);
+            return BuildImplResult(chosen!.Value, receiver, targetType, originalReceiverType, methodName,
+                arguments, rootVarName, analyzer, tokenLoc, needsAutoDeref, autoDerefDepth);
         }
-        else if (candidates.Count > 1 && expectedReturnType != null)
+
+        // Priority 2: In-scope trait impls
+        var traits = CollectImplCandidates(targetType, methodName, maxCapability, analyzer,
+            filter: impl => !impl.IsInherent && analyzer.IsTraitInScope(impl.TraitPath));
+        if (traits.Count > 1)
         {
-            foreach (var c in candidates)
+            var chosen = Disambiguate(traits, targetType, expectedReturnType, analyzer);
+            if (chosen == null)
             {
-                var resolvedReturn = CallExpressionHelper.ResolveReturnTypeFromImpl(
-                    c.method.ReturnTypePath, receiverType, c.bindings, c.impl.GenericParameters, analyzer);
-                if (resolvedReturn == expectedReturnType)
-                {
-                    chosen = c;
-                    break;
-                }
+                var traitNames = string.Join(", ", traits.Select(c => $"'{c.impl.TraitPath}'"));
+                analyzer.AddException(new SemanticException(
+                    $"Method '{methodName}' is ambiguous — found in multiple in-scope traits: {traitNames}. " +
+                    $"Use qualified syntax to disambiguate.\n{tokenLoc}"));
+                return null;
             }
-            // Fallback to first if no return type match
-            chosen ??= candidates[0];
+            return BuildImplResult(chosen.Value, receiver, targetType, originalReceiverType, methodName,
+                arguments, rootVarName, analyzer, tokenLoc, needsAutoDeref, autoDerefDepth);
         }
-        else if (candidates.Count > 1)
-        {
-            chosen = candidates[0];
-        }
+        if (traits.Count == 1)
+            return BuildImplResult(traits[0], receiver, targetType, originalReceiverType, methodName,
+                arguments, rootVarName, analyzer, tokenLoc, needsAutoDeref, autoDerefDepth);
 
-        if (chosen != null)
+        // Priority 3: Trait bounds (for generic type parameters)
+        if (targetType is NormalLangPath nlpTarget && nlpTarget.PathSegments.Length == 1)
         {
-            var (cImpl, cMethod, cBindings, cAutoRefKind) = chosen.Value;
-            CheckImplicitBorrow(cAutoRefKind, rootVarName, analyzer);
-            CallExpressionHelper.CheckSelfMove(cAutoRefKind, rootVarName, receiverType, analyzer);
-            CallExpressionHelper.ValidateCallArguments(cMethod, arguments,
-                ImmutableArray<LangPath>.Empty, analyzer, tokenLoc, selfOffset: 1);
-            var dispatchPath = cImpl.IsInherent ? cImpl.ForTypePath : cImpl.TraitPath;
-            if (dispatchPath is NormalLangPath nlpTrait)
-                return new MethodCallKind
-                {
-                    Receiver = receiver, MethodName = methodName, Arguments = arguments,
-                    ResolvedFunctionPath = nlpTrait.Append(methodName),
-                    ResolvedQualifiedType = receiverType as NormalLangPath, AutoRefKind = cAutoRefKind,
-                    ReceiverTypePath = receiverType, RootVarName = rootVarName,
-                    TypePath = CallExpressionHelper.ResolveReturnTypeFromImpl(
-                        cMethod.ReturnTypePath, receiverType, cBindings, cImpl.GenericParameters, analyzer),
-                };
-        }
-
-        // Search trait bounds for generic types
-        if (receiverType is NormalLangPath nlpReceiver && nlpReceiver.PathSegments.Length == 1)
-        {
-            var paramName = nlpReceiver.PathSegments[0].ToString();
+            var paramName = nlpTarget.PathSegments[0].ToString();
             foreach (var td in analyzer.GetTraitBoundsFor(paramName))
             {
                 var method = td.GetMethod(methodName);
                 if (method == null || method.Parameters.Length == 0 || method.Parameters[0].Name != "self") continue;
                 var autoRefKind = DetectAutoRefKind(method.Parameters[0].TypePath);
                 CheckImplicitBorrow(autoRefKind, rootVarName, analyzer);
-                CallExpressionHelper.CheckSelfMove(autoRefKind, rootVarName, receiverType, analyzer);
+                CallExpressionHelper.CheckSelfMove(autoRefKind, rootVarName, originalReceiverType, analyzer);
                 var traitPath = (td as IDefinition).TypePath;
                 if (traitPath is NormalLangPath nlpTrait)
                     return new MethodCallKind
                     {
                         Receiver = receiver, MethodName = methodName, Arguments = arguments,
                         ResolvedFunctionPath = nlpTrait.Append(methodName),
-                        ResolvedQualifiedType = receiverType as NormalLangPath, AutoRefKind = autoRefKind,
-                        ReceiverTypePath = receiverType, RootVarName = rootVarName,
+                        ResolvedQualifiedType = targetType as NormalLangPath, AutoRefKind = autoRefKind,
+                        NeedsAutoDeref = needsAutoDeref, AutoDerefDepth = autoDerefDepth,
+                        ReceiverTypePath = originalReceiverType, RootVarName = rootVarName,
                         TypePath = CallExpressionHelper.IsSelfReturnType(method.ReturnTypePath)
-                            ? receiverType : analyzer.ResolveQualifiedTypePath(method.ReturnTypePath),
+                            ? targetType : analyzer.ResolveQualifiedTypePath(method.ReturnTypePath),
                     };
             }
         }
 
-        // Auto-deref chain
-        if (receiverType != null)
+        return null;
+    }
+
+    /// <summary>
+    /// Collects impl candidates matching a method name on a type, filtered by a predicate on the impl.
+    /// Shared by inherent and trait searches — only the filter differs.
+    /// </summary>
+    private static List<(ImplDefinition impl, FunctionDefinition method,
+        Dictionary<string, LangPath> bindings, RefKind? autoRefKind)> CollectImplCandidates(
+        LangPath targetType, string methodName, RefKind? maxCapability,
+        SemanticAnalyzer analyzer, Func<ImplDefinition, bool> filter)
+    {
+        var results = new List<(ImplDefinition, FunctionDefinition, Dictionary<string, LangPath>, RefKind?)>();
+        foreach (var impl in analyzer.ImplDefinitions)
         {
-            var receiverTraitPath = SemanticAnalyzer.ReceiverTraitPath;
-            var currentType = receiverType;
-            var visited = new HashSet<LangPath>();
-            int derefDepth = 0;
-            // Start with the field access chain's capability if present —
-            // accessing through &shared narrows what the deref chain can produce
-            RefKind? chainCap = maxCapability;
+            if (!filter(impl)) continue;
+            var method = impl.GetMethod(methodName);
+            if (method == null || method.Arguments.Length == 0 || method.Arguments[0].Name != "self") continue;
+            var bindings = impl.TryMatchConcreteType(targetType);
+            if (bindings != null && !impl.CheckBounds(bindings, analyzer)) bindings = null;
+            if (bindings == null) continue;
 
-            while (derefDepth < 10 && analyzer.TypeImplementsTrait(currentType, receiverTraitPath))
+            var autoRefKind = DetectAutoRefKind(method.Arguments[0].TypePath);
+            if (autoRefKind != null && maxCapability != null
+                && !DerefExpression.CanProduceRefKind(maxCapability.Value, autoRefKind.Value))
+                continue;
+
+            results.Add((impl, method, bindings, autoRefKind));
+        }
+        return results;
+    }
+
+    /// <summary>
+    /// Disambiguates multiple candidates by expected return type.
+    /// Returns the chosen candidate, or null if disambiguation fails.
+    /// </summary>
+    private static (ImplDefinition impl, FunctionDefinition method,
+        Dictionary<string, LangPath> bindings, RefKind? autoRefKind)? Disambiguate(
+        List<(ImplDefinition impl, FunctionDefinition method,
+            Dictionary<string, LangPath> bindings, RefKind? autoRefKind)> candidates,
+        LangPath targetType, LangPath? expectedReturnType, SemanticAnalyzer analyzer)
+    {
+        if (candidates.Count == 1) return candidates[0];
+        if (candidates.Count == 0) return null;
+
+        if (expectedReturnType != null)
+        {
+            foreach (var c in candidates)
             {
-                if (!visited.Add(currentType)) break;
-                var targetType = analyzer.ResolveAssociatedType(currentType, receiverTraitPath, "Target");
-                if (targetType == null) break;
-                var levelCap = GetDerefCapability(currentType, analyzer);
-                if (levelCap != null)
-                    chainCap = chainCap == null ? levelCap.Value : MinRefKindCapability(chainCap.Value, levelCap.Value);
-                derefDepth++;
-
-                foreach (var impl in analyzer.ImplDefinitions)
-                {
-                    var method = impl.GetMethod(methodName);
-                    if (method == null || method.Arguments.Length == 0 || method.Arguments[0].Name != "self") continue;
-                    var bindings = impl.TryMatchConcreteType(targetType);
-                    if (bindings != null && !impl.CheckBounds(bindings, analyzer)) bindings = null;
-                    if (bindings == null) continue;
-
-                    var autoRefKind = DetectAutoRefKind(method.Arguments[0].TypePath);
-                    if (autoRefKind != null && chainCap != null
-                        && !DerefExpression.CanProduceRefKind(chainCap.Value, autoRefKind.Value))
-                    {
-                        analyzer.AddException(new SemanticException(
-                            $"Cannot call method '{methodName}' taking '&{RefTypeDefinition.GetRefName(autoRefKind.Value)} Self' " +
-                            $"through receiver of type '{receiverType}' (deref chain supports up to " +
-                            $"'&{RefTypeDefinition.GetRefName(chainCap.Value)}')\n{tokenLoc}"));
-                        return null;
-                    }
-
-                    CallExpressionHelper.CheckSelfMove(autoRefKind, rootVarName, receiverType, analyzer);
-                    CallExpressionHelper.ValidateCallArguments(method, arguments,
-                        ImmutableArray<LangPath>.Empty, analyzer, tokenLoc, selfOffset: 1);
-                    var dispatchPath = impl.IsInherent ? impl.ForTypePath : impl.TraitPath;
-                    if (dispatchPath is NormalLangPath nlpTrait)
-                        return new MethodCallKind
-                        {
-                            Receiver = receiver, MethodName = methodName, Arguments = arguments,
-                            ResolvedFunctionPath = nlpTrait.Append(methodName),
-                            ResolvedQualifiedType = targetType as NormalLangPath, AutoRefKind = autoRefKind,
-                            NeedsAutoDeref = true, AutoDerefDepth = derefDepth,
-                            ReceiverTypePath = receiverType, RootVarName = rootVarName,
-                            TypePath = CallExpressionHelper.ResolveReturnTypeFromImpl(
-                                method.ReturnTypePath, targetType, bindings, impl.GenericParameters, analyzer),
-                        };
-                }
-                currentType = targetType;
+                var resolvedReturn = CallExpressionHelper.ResolveReturnTypeFromImpl(
+                    c.method.ReturnTypePath, targetType, c.bindings, c.impl.GenericParameters, analyzer);
+                if (resolvedReturn == expectedReturnType)
+                    return c;
             }
         }
 
-        analyzer.AddException(new SemanticException(
-            $"No method '{methodName}' found for type '{receiverType}'\n{tokenLoc}"));
+        // For inherent impls, multiple matches shouldn't happen — take the first
+        if (candidates.All(c => c.impl.IsInherent))
+            return candidates[0];
+
+        // For traits, multiple = ambiguous — return null to signal error
         return null;
+    }
+
+    /// <summary>
+    /// Builds a MethodCallKind from a resolved impl candidate.
+    /// Shared by inherent methods, trait methods, and auto-deref dispatch.
+    /// </summary>
+    private static MethodCallKind BuildImplResult(
+        (ImplDefinition impl, FunctionDefinition method,
+            Dictionary<string, LangPath> bindings, RefKind? autoRefKind) candidate,
+        IChainKind receiver, LangPath targetType, LangPath originalReceiverType,
+        string methodName, ImmutableArray<IExpression> arguments,
+        string? rootVarName, SemanticAnalyzer analyzer, string tokenLoc,
+        bool needsAutoDeref, int autoDerefDepth)
+    {
+        var (impl, method, bindings, autoRefKind) = candidate;
+        CheckImplicitBorrow(autoRefKind, rootVarName, analyzer);
+        CallExpressionHelper.CheckSelfMove(autoRefKind, rootVarName, originalReceiverType, analyzer);
+        CallExpressionHelper.ValidateCallArguments(method, arguments,
+            ImmutableArray<LangPath>.Empty, analyzer, tokenLoc, selfOffset: 1);
+
+        var dispatchPath = impl.IsInherent ? impl.ForTypePath : impl.TraitPath;
+        if (dispatchPath is not NormalLangPath nlpDispatch) return null!;
+
+        return new MethodCallKind
+        {
+            Receiver = receiver, MethodName = methodName, Arguments = arguments,
+            ResolvedFunctionPath = nlpDispatch.Append(methodName),
+            ResolvedQualifiedType = targetType as NormalLangPath, AutoRefKind = autoRefKind,
+            NeedsAutoDeref = needsAutoDeref, AutoDerefDepth = autoDerefDepth,
+            ReceiverTypePath = originalReceiverType, RootVarName = rootVarName,
+            TypePath = CallExpressionHelper.ResolveReturnTypeFromImpl(
+                method.ReturnTypePath, targetType, bindings, impl.GenericParameters, analyzer),
+        };
     }
 
     private static RefKind? DetectAutoRefKind(LangPath? selfParamType)

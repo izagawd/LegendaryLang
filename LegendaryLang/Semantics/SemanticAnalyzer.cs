@@ -323,20 +323,22 @@ public class SemanticAnalyzer
     /// Trait methods can only be called when their trait is in scope.
     /// Scoped so that inner blocks can import traits without leaking to outer scope.
     /// Stores base paths (generics stripped).
+    /// Uses List because NormalLangPath overrides Equals but not GetHashCode.
     /// </summary>
-    private readonly Stack<HashSet<LangPath>> _traitsInScope = new();
+    private readonly Stack<List<LangPath>> _traitsInScope = new();
 
     public void ImportTrait(LangPath traitPath)
     {
-        if (_traitsInScope.Count > 0)
-            _traitsInScope.Peek().Add(LangPath.StripGenerics(traitPath));
+        var stripped = LangPath.StripGenerics(traitPath);
+        if (_traitsInScope.Count > 0 && !IsTraitInScope(stripped))
+            _traitsInScope.Peek().Add(stripped);
     }
 
     public bool IsTraitInScope(LangPath traitPath)
     {
         var stripped = LangPath.StripGenerics(traitPath);
         foreach (var scope in _traitsInScope)
-            if (scope.Contains(stripped))
+            if (scope.Any(p => p.Equals(stripped)))
                 return true;
         return false;
     }
@@ -1572,7 +1574,7 @@ public class SemanticAnalyzer
         _referencesToLocalsStack.Push(new HashSet<string>());
         _implDefinitionsStack.Push(new List<ImplDefinition>());
         _borrowScopes.Push(new BorrowScope());
-        _traitsInScope.Push(new HashSet<LangPath>());
+        _traitsInScope.Push(new List<LangPath>());
         CurrentScopeDepth++;
     }
 

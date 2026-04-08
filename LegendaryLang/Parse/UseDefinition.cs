@@ -1,4 +1,5 @@
-﻿using LegendaryLang.Definitions.Types;
+﻿using LegendaryLang.Definitions;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Semantics;
 
@@ -27,13 +28,17 @@ public class UseDefinition : IItem, IAnalyzable
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        var path = ResolvedPathToUse ?? PathToUse;
+
+        // Register trait imports — if the target is a trait, make it available for method dispatch
+        var def = analyzer.GetDefinition(path);
+        if (def is TraitDefinition)
+            analyzer.ImportTrait(path);
+
         // Skip validation for auto-generated UseDefinitions (no token = internal registration).
         if (Token == null) return;
 
-        var path = ResolvedPathToUse ?? PathToUse;
-
         // Check 1: Direct definition match (full path)
-        var def = analyzer.GetDefinition(path);
         if (def != null) return;
 
         // Check 2: Enum variant — parent is an enum, last segment is a variant
