@@ -1,4 +1,4 @@
-trait Doubler {
+trait Doubler: Sized {
     fn double(self: &Self, other: Self) -> Self;
 }
 impl Doubler for i32 {

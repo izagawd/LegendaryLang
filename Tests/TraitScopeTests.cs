@@ -97,4 +97,11 @@ public class TraitScopeTests
         // Self by reference without Sized — works (references are always sized)
         AssertSuccess("trait_scope_tests/trait_self_ref_unsized_ok_test", 10);
     }
+
+    [Test]
+    public void TraitSelfByValueDefaultFailTest()
+    {
+        // Self by value with default body, no Sized supertrait — error
+        AssertFail<GenericSemanticError>("trait_scope_tests/trait_self_by_value_default_fail_test");
+    }
 }

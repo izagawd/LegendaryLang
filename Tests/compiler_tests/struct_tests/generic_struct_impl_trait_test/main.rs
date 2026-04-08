@@ -2,7 +2,7 @@ struct Wrapper(T:! type) {
     val: T
 }
 
-trait HasValue {
+trait HasValue: Sized {
     fn get_value(self_val: Self) -> i32;
 }
 

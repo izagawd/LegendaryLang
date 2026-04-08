@@ -1,4 +1,4 @@
-trait Processor {
+trait Processor: Sized {
     let Input :! Copy;
     let Output :! Copy;
     fn process(input: Self) -> i32;

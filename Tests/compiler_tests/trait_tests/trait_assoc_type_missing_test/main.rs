@@ -1,4 +1,4 @@
-trait Maker {
+trait Maker: Sized {
     let Product :! type;
     fn make(input: Self) -> i32;
 }

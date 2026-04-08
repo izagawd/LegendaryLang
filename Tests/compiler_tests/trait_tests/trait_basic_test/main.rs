@@ -1,4 +1,4 @@
-trait Addable {
+trait Addable: Sized {
     fn Add(a: Self, b: Self) -> Self;
 }
 
@@ -13,7 +13,7 @@ struct Point {
     y: i32
 }
 
-trait HasValue {
+trait HasValue: Sized {
     fn get_value(self_val: Self) -> i32;
 }
 

@@ -1,4 +1,4 @@
-trait Default {
+trait Default: Sized {
     fn default() -> Self;
 }
 

@@ -1670,7 +1670,12 @@ public class SemanticAnalyzer
     {
         var usizePath = LangPath.PrimitivePath.Append("usize");
 
-        foreach (var def in ParseResults.SelectMany(r => r.Items.OfType<TypeDefinition>()))
+        // Collect ALL type definitions recursively — including those inside function bodies
+        var allTypeDefs = new List<TypeDefinition>();
+        foreach (var item in ParseResults.SelectMany(r => r.Items))
+            CollectTypeDefinitions(item, allTypeDefs);
+
+        foreach (var def in allTypeDefs)
         {
             // Skip traits — they don't get MetaSized/Sized impls
             if (def is TraitDefinition) continue;
@@ -1771,6 +1776,18 @@ public class SemanticAnalyzer
             genericParameters: [],
             associatedTypes: []);
         AddImplDefinition(voidSized);
+    }
+
+    /// <summary>
+    /// Recursively collects all TypeDefinitions from a syntax tree node,
+    /// including those nested inside function bodies and block expressions.
+    /// </summary>
+    private static void CollectTypeDefinitions(ISyntaxNode node, List<TypeDefinition> results)
+    {
+        if (node is TypeDefinition td)
+            results.Add(td);
+        foreach (var child in node.Children)
+            CollectTypeDefinitions(child, results);
     }
 
     private void ResolvePaths()

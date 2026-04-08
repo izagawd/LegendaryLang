@@ -3,7 +3,7 @@ struct Wrapper(T:! type) {
     val: T
 }
 
-trait Summable {
+trait Summable: Sized {
     fn sum(a: Self, b: Self) -> Self;
 }
 

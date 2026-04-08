@@ -1,10 +1,10 @@
 use Std.Ops.Add;
 use Std.Ops.Mul;
-trait Adder {
+trait Adder: Sized {
     fn Add(a: Self, b: Self) -> Self;
 }
 
-trait Multiplier {
+trait Multiplier: Sized {
     fn Mul(a: Self, b: Self) -> Self;
 }
 

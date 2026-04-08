@@ -2,7 +2,7 @@ struct Wrapper(T:! type) {
     val: T
 }
 
-trait Something {
+trait Something: Sized {
     fn bruh(input: Self) -> i32;
 }
 

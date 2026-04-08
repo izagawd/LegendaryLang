@@ -1,4 +1,4 @@
-trait Idk {
+trait Idk: Sized {
     fn add(self_val: Self, input: Self) -> Self;
 }
 impl Idk for i32 {

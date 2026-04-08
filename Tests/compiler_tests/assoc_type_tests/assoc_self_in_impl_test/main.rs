@@ -1,5 +1,5 @@
 use Std.Ops.Add;
-trait Doubler {
+trait Doubler: Sized {
     fn double(x: Self) -> (Self as Add(Self)).Output;
 }
 impl Doubler for i32 {

@@ -1,4 +1,4 @@
-trait Converter(Target:! type) {
+trait Converter(Target:! type): Sized {
     fn convert(input: Self) -> Target;
 }
 

@@ -1,4 +1,4 @@
-trait Producer {
+trait Producer: Sized {
     let Output :! type;
     fn produce(input: Self) -> i32;
 }

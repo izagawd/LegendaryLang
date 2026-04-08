@@ -1,4 +1,4 @@
-trait Transformer {
+trait Transformer: Sized {
     let Input :! type;
     let Output :! type;
     fn transform(input: Self) -> i32;
