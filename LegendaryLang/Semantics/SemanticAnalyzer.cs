@@ -1154,6 +1154,41 @@ public class SemanticAnalyzer
             }
         }
 
+        // Handle struct/enum types: Sized if all fields/variant payloads are Sized.
+        // This handles generics, recursion, associated types — all cases.
+        if (LangPath.StripGenerics(traitPath).Equals(SizedTraitPath)
+            || LangPath.StripGenerics(traitPath).Equals(MetaSizedTraitPath))
+        {
+            var (typeBase, typeGenericArgs) = LangPath.SplitGenerics(typePath);
+            var typeDef = GetDefinition(typeBase);
+            if (typeDef is StructTypeDefinition std)
+            {
+                // Guard against infinite recursion (e.g., struct A { b: A })
+                _sizedCheckVisited ??= [];
+                if (!_sizedCheckVisited.Add(typePath)) return false;
+                try
+                {
+                    var subs = BuildGenericSubstitutions(std.GenericParameters, typeGenericArgs);
+                    return std.Fields.All(f =>
+                        f.TypePath == null || TypeImplementsTrait(SubstituteType(f.TypePath, subs), traitPath));
+                }
+                finally { _sizedCheckVisited.Remove(typePath); }
+            }
+            if (typeDef is EnumTypeDefinition etd)
+            {
+                _sizedCheckVisited ??= [];
+                if (!_sizedCheckVisited.Add(typePath)) return false;
+                try
+                {
+                    var subs = BuildGenericSubstitutions(etd.GenericParameters, typeGenericArgs);
+                    return etd.Variants.All(v =>
+                        v.FieldTypes.All(ft =>
+                            ft == null || TypeImplementsTrait(SubstituteType(ft, subs), traitPath)));
+                }
+                finally { _sizedCheckVisited.Remove(typePath); }
+            }
+        }
+
         // Strip generics from traitPath for base comparison
         var (traitBase, traitGenericArgs) = LangPath.SplitGenerics(traitPath);
 
@@ -1682,6 +1717,60 @@ public class SemanticAnalyzer
         new(null, new NormalLangPath.PathSegment[] { "Std", "Marker", "Sized" });
 
     /// <summary>
+    /// Recursion guard for struct/enum Sized checks in TypeImplementsTrait.
+    /// Prevents infinite loops from recursive type definitions.
+    /// </summary>
+    private HashSet<LangPath>? _sizedCheckVisited;
+
+    /// <summary>
+    /// Builds a substitution map from generic parameter names to concrete type arguments.
+    /// </summary>
+    private static Dictionary<string, LangPath> BuildGenericSubstitutions(
+        ImmutableArray<GenericParameter> genericParams, ImmutableArray<LangPath> genericArgs)
+    {
+        var subs = new Dictionary<string, LangPath>();
+        for (int i = 0; i < genericParams.Length && i < genericArgs.Length; i++)
+            subs[genericParams[i].Name] = genericArgs[i];
+        return subs;
+    }
+
+    /// <summary>
+    /// Substitutes generic parameters in a type path using the given substitution map.
+    /// E.g., with {T → i32}, substitutes T → i32 in field types.
+    /// </summary>
+    private static LangPath SubstituteType(LangPath typePath, Dictionary<string, LangPath> subs)
+    {
+        if (subs.Count == 0) return typePath;
+        if (typePath is NormalLangPath nlp)
+        {
+            // Direct substitution: T → i32
+            if (nlp.PathSegments.Length == 1 && subs.TryGetValue(nlp.PathSegments[0].ToString(), out var sub))
+                return sub;
+            // Shorthand associated type: T.Output → (T_substituted).Output
+            // Stays as a 2-segment path for TypeImplementsTrait to resolve via bounds
+            if (nlp.PathSegments.Length == 2 && subs.TryGetValue(nlp.PathSegments[0].ToString(), out _))
+            {
+                // Keep as-is — TypeImplementsTrait handles "T.Output" via bounds stack
+                return typePath;
+            }
+            // Substitute in generics: Wrapper(T) → Wrapper(i32)
+            if (nlp.GetFrontGenerics().Length > 0)
+            {
+                var newGenerics = nlp.GetFrontGenerics().Select(g => SubstituteType(g, subs)).ToImmutableArray();
+                return nlp.PopGenerics()!.AppendGenerics(newGenerics);
+            }
+        }
+        if (typePath is TupleLangPath tlp)
+            return new TupleLangPath(tlp.TypePaths.Select(t => SubstituteType(t, subs)).ToImmutableArray());
+        if (typePath is QualifiedAssocTypePath qap)
+            return new QualifiedAssocTypePath(
+                SubstituteType(qap.ForType, subs),
+                SubstituteType(qap.TraitPath, subs),
+                qap.AssociatedTypeName);
+        return typePath;
+    }
+
+    /// <summary>
     /// Builds the trait bounds list for a set of generic parameters, adding implicit Sized
     /// where needed. If a generic param has no explicit MetaSized bound, Sized is added
     /// implicitly (T:! type → T: Sized). If MetaSized is explicit, Sized is NOT added
@@ -1791,51 +1880,16 @@ public class SemanticAnalyzer
                 }]);
             AddImplDefinition(metaSizedImpl);
 
-            // impl Sized for T {} — only if all fields are guaranteed Sized.
-            // For generic types, require Sized on params used directly as field types.
-            if (!isUnsized)
+            // impl Sized for T {} — for structs/enums, Sized is determined by field types
+            // at check time in TypeImplementsTrait (handles generics, recursion, assoc types).
+            // For primitives and other non-composite types, generate directly.
+            if (!isUnsized && def is not StructTypeDefinition && def is not EnumTypeDefinition)
             {
-                // Compute which generic params appear directly as field types (not behind references)
-                var fieldTypes = def switch
-                {
-                    StructTypeDefinition std => std.Fields.Select(f => f.TypePath).ToList(),
-                    EnumTypeDefinition etd => etd.Variants.SelectMany(v => v.FieldTypes).ToList(),
-                    _ => new List<LangPath?>()
-                };
-                var genericParamNames = genericParams.Select(gp => gp.Name).ToHashSet();
-                var paramsUsedByValue = new HashSet<string>();
-                foreach (var ft in fieldTypes)
-                {
-                    if (ft is NormalLangPath ftNlp && ftNlp.PathSegments.Length == 1
-                        && genericParamNames.Contains(ftNlp.PathSegments[0].ToString()))
-                        paramsUsedByValue.Add(ftNlp.PathSegments[0].ToString());
-                }
-
-                // Build generic params for the Sized impl: params used by value need Sized bound
-                var sizedGenericParams = genericParams.Select(gp =>
-                {
-                    if (paramsUsedByValue.Contains(gp.Name))
-                    {
-                        // Ensure this param has Sized bound (add if only MetaSized)
-                        bool hasSized = gp.TraitBounds.Any(tb =>
-                            LangPath.StripGenerics(tb.TraitPath).Equals(SizedTraitPath));
-                        if (!hasSized)
-                        {
-                            var newGp = new GenericParameter(gp.Name)
-                            {
-                                TraitBounds = [..gp.TraitBounds, new TraitBound(SizedTraitPath)]
-                            };
-                            return newGp;
-                        }
-                    }
-                    return gp;
-                }).ToImmutableArray();
-
                 var sizedImpl = new ImplDefinition(
                     SizedTraitPath, forTypePath,
                     methods: [],
                     token: null!,
-                    genericParameters: sizedGenericParams,
+                    genericParameters: genericParams,
                     associatedTypes: []);
                 AddImplDefinition(sizedImpl);
             }

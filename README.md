@@ -450,11 +450,30 @@ fn get_metadata[T:! MetaSized](ptr: *shared T) -> (T as MetaSized).Metadata {
 }
 ```
 
+If you need both `MetaSized` and `Sized`, the explicit `Sized` wins — `T` is always sized:
+
+```
+fn example[T:! MetaSized + Sized](x: T) -> T { x }  // OK: Sized is explicit
+```
+
 Every type implements `MetaSized`. The associated type `Metadata` is:
 - `()` for sized types (structs, enums, primitives)
 - `usize` for `str` and `[T]` (byte length / element count)
 
 The `Sized` trait has `MetaSized` as a supertrait. Both are compiler-implemented — manual impls are rejected.
+
+**Structs, enums, and tuples** are `Sized` if and only if all their fields / variant payloads / components are `Sized`. If any field is unsized, the entire type becomes unsized. This propagates recursively:
+
+```
+struct Inner[T:! MetaSized] { val: T }
+struct Outer[T:! MetaSized] { inner: Inner(T) }
+
+// Outer(i32) is Sized — Inner(i32) is Sized — i32 is Sized
+// Outer(str) is unsized — Inner(str) is unsized — str is unsized
+
+struct RefWrapper[T:! MetaSized] { ptr: &T }
+// RefWrapper(str) IS Sized — &str is a fat pointer, always sized
+```
 
 In **trait definitions**, `Self` is assumed potentially unsized by default. To require `Self` to be sized (e.g., to take `self` by value), add `Sized` as a supertrait:
 
