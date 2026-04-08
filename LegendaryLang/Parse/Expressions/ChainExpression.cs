@@ -961,15 +961,18 @@ public class MethodCallKind : IChainKind
         if (candidates.Count == 1) return candidates[0];
         if (candidates.Count == 0) return null;
 
+        // Try narrowing by expected return type
         if (expectedReturnType != null)
         {
-            foreach (var c in candidates)
+            var matching = candidates.Where(c =>
             {
                 var resolvedReturn = CallExpressionHelper.ResolveReturnTypeFromImpl(
                     c.method.ReturnTypePath, targetType, c.bindings, c.impl.GenericParameters, analyzer);
-                if (resolvedReturn == expectedReturnType)
-                    return c;
-            }
+                return resolvedReturn == expectedReturnType;
+            }).ToList();
+
+            // Only disambiguates if exactly one candidate matches
+            if (matching.Count == 1) return matching[0];
         }
 
         // For inherent impls, multiple matches shouldn't happen — take the first
