@@ -319,6 +319,29 @@ public class SemanticAnalyzer
     public bool SuppressUseWhileBorrowedChecks { get; set; }
 
     /// <summary>
+    /// Tracks which traits are in scope (imported via `use` or defined in the current file).
+    /// Trait methods can only be called when their trait is in scope.
+    /// Scoped so that inner blocks can import traits without leaking to outer scope.
+    /// Stores base paths (generics stripped).
+    /// </summary>
+    private readonly Stack<HashSet<LangPath>> _traitsInScope = new();
+
+    public void ImportTrait(LangPath traitPath)
+    {
+        if (_traitsInScope.Count > 0)
+            _traitsInScope.Peek().Add(LangPath.StripGenerics(traitPath));
+    }
+
+    public bool IsTraitInScope(LangPath traitPath)
+    {
+        var stripped = LangPath.StripGenerics(traitPath);
+        foreach (var scope in _traitsInScope)
+            if (scope.Contains(stripped))
+                return true;
+        return false;
+    }
+
+    /// <summary>
     /// NLL: stack of live-variable sets, one per block scope.
     /// Each entry tracks variables referenced from the current analysis point onward
     /// within that block. A variable is considered live if it appears in ANY scope on the stack.
@@ -1549,6 +1572,7 @@ public class SemanticAnalyzer
         _referencesToLocalsStack.Push(new HashSet<string>());
         _implDefinitionsStack.Push(new List<ImplDefinition>());
         _borrowScopes.Push(new BorrowScope());
+        _traitsInScope.Push(new HashSet<LangPath>());
         CurrentScopeDepth++;
     }
 
@@ -1563,6 +1587,7 @@ public class SemanticAnalyzer
         MovedVariablesStack.Pop();
         _referencesToLocalsStack.Pop();
         _implDefinitionsStack.Pop();
+        _traitsInScope.Pop();
         CurrentScopeDepth--;
 
         // Invalidate borrows from variables going out of scope
@@ -1664,7 +1689,11 @@ public class SemanticAnalyzer
         foreach (var result in ParseResults)
         {
             AddScope();
-      
+
+            // Register traits defined in this file as in-scope
+            foreach (var trait in result.Items.OfType<TraitDefinition>())
+                ImportTrait(trait.TypePath);
+
             foreach (var i in result.Items.OfType<IAnalyzable>())
             {
                 i.Analyze(this);
