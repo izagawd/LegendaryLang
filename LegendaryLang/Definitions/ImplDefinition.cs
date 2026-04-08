@@ -388,6 +388,20 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        // Reject manual implementations of compiler-only traits
+        if (Token != null && !IsInherent)
+        {
+            var traitBase = LangPath.StripGenerics(TraitPath);
+            if (traitBase.Equals(SemanticAnalyzer.MetaSizedTraitPath) ||
+                traitBase.Equals(SemanticAnalyzer.SizedTraitPath))
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Cannot manually implement '{traitBase}' — it is automatically implemented by the compiler\n" +
+                    Token.GetLocationStringRepresentation()));
+                return;
+            }
+        }
+
         // For inherent impls, skip all trait validation — just analyze method bodies
         if (IsInherent)
         {
@@ -400,12 +414,7 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             }
 
             // Push impl generic bounds for method body analysis
-            var bounds = GenericParameters
-                .SelectMany(gp => gp.TraitBounds.Count > 0
-                    ? gp.TraitBounds.Select(tb => (tb.TraitPath, gp.Name, (Dictionary<string, LangPath>?)(tb.AssociatedTypeConstraints.Count > 0 ? tb.AssociatedTypeConstraints : null)))
-                    : [(((LangPath)LangPath.VoidBaseLangPath), gp.Name, (Dictionary<string, LangPath>?)null)] // dummy entry for unconstrained T:! type
-                )
-                .ToList();
+            var bounds = SemanticAnalyzer.BuildGenericBoundsWithImplicitSized(GenericParameters);
             analyzer.PushTraitBounds(bounds);
 
             foreach (var method in Methods)
@@ -474,12 +483,7 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
 
         // Push impl generic bounds so TypeImplementsTrait can verify supertrait impls
         // for generic types (e.g., impl[T:! Copy] A for Wrapper(T) where trait A: B)
-        var implBounds = GenericParameters
-            .SelectMany(gp => gp.TraitBounds.Count > 0
-                ? gp.TraitBounds.Select(tb => (tb.TraitPath, gp.Name, (Dictionary<string, LangPath>?)(tb.AssociatedTypeConstraints.Count > 0 ? tb.AssociatedTypeConstraints : null)))
-                : [(((LangPath)LangPath.VoidBaseLangPath), gp.Name, (Dictionary<string, LangPath>?)null)]
-            )
-            .ToList();
+        var implBounds = SemanticAnalyzer.BuildGenericBoundsWithImplicitSized(GenericParameters);
         analyzer.PushTraitBounds(implBounds);
 
         // Validate that all supertraits (transitively) are implemented for the type.

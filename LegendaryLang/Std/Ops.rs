@@ -4,22 +4,22 @@ trait Drop {
     fn Drop(self: &uniq Self);
 }
 
-trait Add(Rhs:! type) {
+trait Add(Rhs:! type): Sized {
     let Output :! type;
     fn Add(lhs: Self, rhs: Rhs) -> Self.Output;
 }
 
-trait Sub(Rhs:! type) {
+trait Sub(Rhs:! type): Sized {
     let Output :! type;
     fn Sub(lhs: Self, rhs: Rhs) -> Self.Output;
 }
 
-trait Mul(Rhs:! type) {
+trait Mul(Rhs:! type): Sized {
     let Output :! type;
     fn Mul(lhs: Self, rhs: Rhs) -> Self.Output;
 }
 
-trait Div(Rhs:! type) {
+trait Div(Rhs:! type): Sized {
     let Output :! type;
     fn Div(lhs: Self, rhs: Rhs) -> Self.Output;
 }
@@ -195,6 +195,6 @@ impl[T:! PartialOrd(T)] PartialOrd(&uniq T) for &uniq T {
     }
 }
 
-trait TryInto(T:! type) {
+trait TryInto(T:! type): Sized {
     fn TryInto(self: Self) -> Option(T);
 }

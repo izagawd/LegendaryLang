@@ -222,33 +222,43 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
                 }
             }
 
-            // Analyze default method bodies with Self: ThisTrait bound.
-            // This catches errors at the trait definition, not at each impl site.
+            // Push bounds for Self + trait generics + method generics
+            // Used both for Sized param checks and default body analysis
+            analyzer.AddScope();
+            var traitBounds = new List<(LangPath traitPath, string typeName, Dictionary<string, LangPath>? assocConstraints)>();
+            var selfTraitPath = GenericParameters.Length > 0
+                ? ((NormalLangPath)TypePath).AppendGenerics(
+                    GenericParameters.Select(gp => (LangPath)new NormalLangPath(null, [gp.Name])).ToArray())
+                : TypePath;
+            traitBounds.Add((selfTraitPath, "Self", null));
+            // Self always implements MetaSized (it's universal — even unsized types have it)
+            traitBounds.Add(((LangPath)SemanticAnalyzer.MetaSizedTraitPath, "Self", null));
+            foreach (var gp in GenericParameters)
+            {
+                foreach (var tb in gp.TraitBounds)
+                    traitBounds.Add((tb.TraitPath, gp.Name, tb.AssociatedTypeConstraints.Count > 0 ? tb.AssociatedTypeConstraints : null));
+                bool hasMetaSized = gp.TraitBounds.Any(tb =>
+                    LangPath.StripGenerics(tb.TraitPath).Equals(SemanticAnalyzer.MetaSizedTraitPath));
+                if (!hasMetaSized)
+                    traitBounds.Add(((LangPath)SemanticAnalyzer.SizedTraitPath, gp.Name, null));
+            }
+            foreach (var mgp in method.GenericParameters)
+            {
+                foreach (var tb in mgp.TraitBounds)
+                    traitBounds.Add((tb.TraitPath, mgp.Name, tb.AssociatedTypeConstraints.Count > 0 ? tb.AssociatedTypeConstraints : null));
+                bool hasMetaSized = mgp.TraitBounds.Any(tb =>
+                    LangPath.StripGenerics(tb.TraitPath).Equals(SemanticAnalyzer.MetaSizedTraitPath));
+                if (!hasMetaSized)
+                    traitBounds.Add(((LangPath)SemanticAnalyzer.SizedTraitPath, mgp.Name, null));
+            }
+            analyzer.PushTraitBounds(traitBounds);
+
+            // All parameters must be Sized (can't pass unsized types by value)
+            analyzer.ValidateParamsSized(method.Parameters, method.Token.GetLocationStringRepresentation());
+
+            // Analyze default method bodies
             if (method.HasDefault)
             {
-                analyzer.AddScope();
-
-                // Build the trait bound: Self: ThisTrait(Generics).
-                // e.g., for trait PartialEq(Rhs), push Self: PartialEq(Rhs).
-                var traitBounds = new List<(LangPath traitPath, string typeName, Dictionary<string, LangPath>? assocConstraints)>();
-                // Self is bounded by this trait
-                var selfTraitPath = GenericParameters.Length > 0
-                    ? ((NormalLangPath)TypePath).AppendGenerics(
-                        GenericParameters.Select(gp => (LangPath)new NormalLangPath(null, [gp.Name])).ToArray())
-                    : TypePath;
-                traitBounds.Add((selfTraitPath, "Self", null));
-                // Trait generic params (Rhs, etc.) are unconstrained types
-                foreach (var gp in GenericParameters)
-                    traitBounds.Add(((LangPath)LangPath.VoidBaseLangPath, gp.Name, null));
-                // Method generic params
-                foreach (var mgp in method.GenericParameters)
-                    traitBounds.Add(mgp.TraitBounds.Count > 0
-                        ? (mgp.TraitBounds[0].TraitPath, mgp.Name, null)
-                        : ((LangPath)LangPath.VoidBaseLangPath, mgp.Name, null));
-
-                analyzer.PushTraitBounds(traitBounds);
-
-                // Register parameters as variables
                 foreach (var param in method.Parameters)
                     analyzer.RegisterVariableType(
                         new NormalLangPath(param.IdentifierToken, [param.Name]), param.TypePath);
@@ -256,10 +266,10 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
                 analyzer.SetFunctionParameters(method.Parameters.Select(p => p.Name));
 
                 method.DefaultBody!.Analyze(analyzer);
-
-                analyzer.PopTraitBounds();
-                analyzer.PopScope();
             }
+
+            analyzer.PopTraitBounds();
+            analyzer.PopScope();
         }
     }
 

@@ -1,5 +1,5 @@
-using LegendaryLang;
 using NUnit.Framework;
+using LegendaryLang;
 using static Tests.CompilerTestHelper;
 
 namespace Tests;

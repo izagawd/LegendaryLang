@@ -1122,7 +1122,7 @@ public class SemanticAnalyzer
     /// Checks if <paramref name="traitDef"/> has <paramref name="targetTrait"/> as a supertrait (transitively).
     /// Substitutes the trait's generic params with the provided args in supertrait paths.
     /// </summary>
-    private bool HasSupertraitTransitive(TraitDefinition traitDef, LangPath targetTrait,
+    public bool HasSupertraitTransitive(TraitDefinition traitDef, LangPath targetTrait,
         ImmutableArray<GenericParameter> genericParams = default, ImmutableArray<LangPath> genericArgs = default)
     {
         foreach (var supertrait in traitDef.Supertraits)
@@ -1608,6 +1608,171 @@ public class SemanticAnalyzer
             _borrowScopes.Pop();
     }
 
+    public static readonly NormalLangPath MetaSizedTraitPath =
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Marker", "MetaSized" });
+
+    public static readonly NormalLangPath SizedTraitPath =
+        new(null, new NormalLangPath.PathSegment[] { "Std", "Marker", "Sized" });
+
+    /// <summary>
+    /// Builds the trait bounds list for a set of generic parameters, adding implicit Sized
+    /// where needed. If a generic param has no explicit MetaSized bound, Sized is added
+    /// implicitly (T:! type → T: Sized). If MetaSized is explicit, Sized is NOT added
+    /// (the user opted out, allowing unsized types).
+    /// Shared by FunctionDefinition and ImplDefinition — no duplication.
+    /// </summary>
+    /// <summary>
+    /// Validates that all parameters have Sized types. Unsized types cannot be passed by value.
+    /// Shared by FunctionDefinition and TraitDefinition — no duplication.
+    /// </summary>
+    public void ValidateParamsSized(IEnumerable<VariableDefinition> parameters, string locationString)
+    {
+        foreach (var param in parameters)
+        {
+            if (param.TypePath != null
+                && !TypeImplementsTrait(param.TypePath, SizedTraitPath))
+            {
+                AddException(new SemanticException(
+                    $"Parameter '{param.Name}' has unsized type '{param.TypePath}' — " +
+                    $"cannot pass unsized types by value\n" + locationString));
+            }
+        }
+    }
+
+    public static List<(LangPath traitPath, string paramName, Dictionary<string, LangPath>? assocConstraints)>
+        BuildGenericBoundsWithImplicitSized(ImmutableArray<GenericParameter> genericParams)
+    {
+        var result = new List<(LangPath, string, Dictionary<string, LangPath>?)>();
+        foreach (var gp in genericParams)
+        {
+            foreach (var tb in gp.TraitBounds)
+            {
+                var assocConstraints = tb.AssociatedTypeConstraints.Count > 0
+                    ? tb.AssociatedTypeConstraints : null;
+                result.Add((tb.TraitPath, gp.Name, assocConstraints));
+            }
+
+            // Implicit Sized unless MetaSized is explicitly specified (opt-out)
+            bool hasMetaSized = gp.TraitBounds.Any(tb =>
+                LangPath.StripGenerics(tb.TraitPath).Equals(MetaSizedTraitPath));
+            if (!hasMetaSized)
+                result.Add(((LangPath)SizedTraitPath, gp.Name, null));
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Generates synthetic MetaSized and Sized impls for all registered type definitions.
+    /// Called after ResolvePaths so all paths are fully resolved.
+    /// Sized types get Metadata = (), unsized types get Metadata = usize.
+    /// </summary>
+    private void GenerateMetaSizedAndSizedImpls()
+    {
+        var usizePath = LangPath.PrimitivePath.Append("usize");
+
+        foreach (var def in ParseResults.SelectMany(r => r.Items.OfType<TypeDefinition>()))
+        {
+            // Skip traits — they don't get MetaSized/Sized impls
+            if (def is TraitDefinition) continue;
+            // Skip pointer types — handled separately with generic T:! MetaSized param
+            if (def is PointerTypeDefinitionBase) continue;
+            // Skip tuple types — void tuple handled explicitly below
+            if (def is TupleTypeDefinition) continue;
+
+            var typePath = def.TypePath;
+            var isUnsized = def.IsUnsized;
+            var metadataType = isUnsized ? (LangPath)usizePath : LangPath.VoidBaseLangPath;
+
+            // Determine generic params from the type definition
+            var genericParams = def switch
+            {
+                StructTypeDefinition std => std.GenericParameters,
+                EnumTypeDefinition etd => etd.GenericParameters,
+                _ => ImmutableArray<GenericParameter>.Empty
+            };
+
+            // For generic types, the ForTypePath needs generics applied: Wrapper(T)
+            var forTypePath = typePath;
+            if (genericParams.Length > 0 && forTypePath is NormalLangPath nlp)
+                forTypePath = nlp.AppendGenerics(
+                    genericParams.Select(gp => (LangPath)new NormalLangPath(null, [gp.Name]))
+                        .ToImmutableArray());
+
+            // impl MetaSized for T { let Metadata :! Copy = <metadata_type>; }
+            var metaSizedImpl = new ImplDefinition(
+                MetaSizedTraitPath, forTypePath,
+                methods: [],
+                token: null!,
+                genericParameters: genericParams,
+                associatedTypes: [new ImplAssociatedType
+                {
+                    Name = "Metadata", ConcreteType = metadataType, Token = null!
+                }]);
+            AddImplDefinition(metaSizedImpl);
+
+            // impl Sized for T {} (only for sized types)
+            if (!isUnsized)
+            {
+                var sizedImpl = new ImplDefinition(
+                    SizedTraitPath, forTypePath,
+                    methods: [],
+                    token: null!,
+                    genericParameters: genericParams,
+                    associatedTypes: []);
+                AddImplDefinition(sizedImpl);
+            }
+        }
+
+        // Generate MetaSized/Sized for pointer-like types (refs and raw ptrs)
+        // All pointers are Sized with Metadata = () — T needs no bounds
+        foreach (var def in ParseResults.SelectMany(r => r.Items.OfType<PointerTypeDefinitionBase>()))
+        {
+            var unboundedGP = new GenericParameter("T");
+
+            var innerTypePath = new NormalLangPath(null, ["T"]);
+            var forTypePath = ((NormalLangPath)def.TypePath).AppendGenerics([innerTypePath]);
+
+            var metaSizedImpl = new ImplDefinition(
+                MetaSizedTraitPath, forTypePath,
+                methods: [],
+                token: null!,
+                genericParameters: [unboundedGP],
+                associatedTypes: [new ImplAssociatedType
+                {
+                    Name = "Metadata", ConcreteType = LangPath.VoidBaseLangPath, Token = null!
+                }]);
+            AddImplDefinition(metaSizedImpl);
+
+            var sizedImpl = new ImplDefinition(
+                SizedTraitPath, forTypePath,
+                methods: [],
+                token: null!,
+                genericParameters: [unboundedGP],
+                associatedTypes: []);
+            AddImplDefinition(sizedImpl);
+        }
+
+        // Generate MetaSized/Sized for tuple types — void tuple () is always available
+        var voidMetaSized = new ImplDefinition(
+            MetaSizedTraitPath, LangPath.VoidBaseLangPath,
+            methods: [],
+            token: null!,
+            genericParameters: [],
+            associatedTypes: [new ImplAssociatedType
+            {
+                Name = "Metadata", ConcreteType = LangPath.VoidBaseLangPath, Token = null!
+            }]);
+        AddImplDefinition(voidMetaSized);
+
+        var voidSized = new ImplDefinition(
+            SizedTraitPath, LangPath.VoidBaseLangPath,
+            methods: [],
+            token: null!,
+            genericParameters: [],
+            associatedTypes: []);
+        AddImplDefinition(voidSized);
+    }
+
     private void ResolvePaths()
     {
         var pathShortcutContext = new PathResolver();
@@ -1630,6 +1795,8 @@ public class SemanticAnalyzer
             new NormalLangPath(null, new NormalLangPath.PathSegment[] { "Std", "Alloc", "Box" }),
             new NormalLangPath(null, new NormalLangPath.PathSegment[] { "Std", "Marker", "Copy" }),
             new NormalLangPath(null, new NormalLangPath.PathSegment[] { "Std", "Marker", "MutReassign" }),
+            new NormalLangPath(null, new NormalLangPath.PathSegment[] { "Std", "Marker", "MetaSized" }),
+            new NormalLangPath(null, new NormalLangPath.PathSegment[] { "Std", "Marker", "Sized" }),
             new NormalLangPath(null, new NormalLangPath.PathSegment[] { "Std", "Core", "Option" }),
         };
         foreach (var path in autoImportPaths)
@@ -1687,6 +1854,7 @@ public class SemanticAnalyzer
         }
 
         ResolvePaths();
+        GenerateMetaSizedAndSizedImpls();
 
         foreach (var result in ParseResults)
         {

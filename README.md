@@ -438,6 +438,36 @@ fn add_twice[T:! Add(T) + Copy](a: T, b: T) -> (T as Add(T)).Output {
 }
 ```
 
+### Sized and MetaSized
+
+By default, `T:! type` implies `T: Sized` — only types with a known compile-time size are accepted. This means unsized types like `str` and slices (`[T]`) cannot be used where `T:! type` is expected.
+
+To accept both sized and unsized types, use `T:! MetaSized`:
+
+```
+fn get_metadata[T:! MetaSized](ptr: *shared T) -> (T as MetaSized).Metadata {
+    // T can be sized (metadata = ()) or unsized (metadata = usize)
+}
+```
+
+Every type implements `MetaSized`. The associated type `Metadata` is:
+- `()` for sized types (structs, enums, primitives)
+- `usize` for `str` and `[T]` (byte length / element count)
+
+The `Sized` trait has `MetaSized` as a supertrait. Both are compiler-implemented — manual impls are rejected.
+
+In **trait definitions**, `Self` is assumed potentially unsized by default. To require `Self` to be sized (e.g., to take `self` by value), add `Sized` as a supertrait:
+
+```
+trait Foo {
+    fn Bro(input: Self) {} // Error: Self might be unsized
+}
+
+trait Foo: Sized {
+    fn Bro(input: Self) {} // OK: Self is guaranteed Sized
+}
+```
+
 ## Traits
 
 ### Defining Traits

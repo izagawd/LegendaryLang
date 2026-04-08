@@ -1,5 +1,5 @@
-using LegendaryLang;
 using NUnit.Framework;
+using LegendaryLang;
 using static Tests.CompilerTestHelper;
 
 namespace Tests;
@@ -54,5 +54,47 @@ public class TraitScopeTests
     {
         // Only TryInto imported, no ambiguity
         AssertSuccess("trait_scope_tests/one_trait_in_scope_no_ambiguity_test", 1);
+    }
+
+    [Test]
+    public void AmbiguousCrossFileFailTest()
+    {
+        // Local trait + imported trait from another file — both define .doit() → ambiguous
+        AssertFail<GenericSemanticError>("trait_scope_tests/ambiguous_cross_file_fail_test");
+    }
+
+    [Test]
+    public void CrossFileImportedWorksTest()
+    {
+        // Trait from another file imported with use — method call works
+        AssertSuccess("trait_scope_tests/cross_file_imported_works_test", 77);
+    }
+
+    [Test]
+    public void CrossFileNotImportedFailTest()
+    {
+        // Impl uses full path but trait not imported — .doit() method call fails
+        AssertFail<GenericSemanticError>("trait_scope_tests/cross_file_not_imported_fail_test");
+    }
+
+    [Test]
+    public void TraitSelfUnsizedFailTest()
+    {
+        // Self by value without Sized supertrait — error
+        AssertFail<GenericSemanticError>("trait_scope_tests/trait_self_unsized_fail_test");
+    }
+
+    [Test]
+    public void TraitSelfSizedOkTest()
+    {
+        // Self by value WITH Sized supertrait — works
+        AssertSuccess("trait_scope_tests/trait_self_sized_ok_test", 42);
+    }
+
+    [Test]
+    public void TraitSelfRefUnsizedOkTest()
+    {
+        // Self by reference without Sized — works (references are always sized)
+        AssertSuccess("trait_scope_tests/trait_self_ref_unsized_ok_test", 10);
     }
 }

@@ -52,10 +52,15 @@ public class U8TypeDefinition : PrimitiveTypeDefinition
 public class UsizeTypeDefinition : PrimitiveTypeDefinition
 {
     /// <summary>
-    /// The LLVM integer type matching pointer size. Referenced directly by intrinsics.
+    /// Target pointer size in bits. Set by the compiler based on the target architecture.
+    /// Defaults to 64. Used to determine usize width and pointer sizes.
     /// </summary>
-    public static readonly LLVMTypeRef UsizeLLVMType =
-        Environment.Is64BitProcess ? LLVMTypeRef.Int64 : LLVMTypeRef.Int32;
+    public static int TargetPointerBits { get; set; } = 64;
+
+    /// <summary>
+    /// The LLVM integer type matching target pointer size. Referenced directly by intrinsics.
+    /// </summary>
+    public static LLVMTypeRef UsizeLLVMType => TargetPointerBits == 64 ? LLVMTypeRef.Int64 : LLVMTypeRef.Int32;
 
     public override string Name => "usize";
     protected override LLVMTypeRef LLVMType => UsizeLLVMType;

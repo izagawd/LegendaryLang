@@ -179,12 +179,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
             }
         }
 
-        var bounds = GenericParameters
-            .SelectMany(gp => gp.TraitBounds.Count > 0
-                ? gp.TraitBounds.Select(tb => (tb.TraitPath, gp.Name, (Dictionary<string, LangPath>?)(tb.AssociatedTypeConstraints.Count > 0 ? tb.AssociatedTypeConstraints : null)))
-                : [(((LangPath)LangPath.VoidBaseLangPath), gp.Name, (Dictionary<string, LangPath>?)null)] // dummy entry for unconstrained T:! type
-            )
-            .ToList();
+        var bounds = SemanticAnalyzer.BuildGenericBoundsWithImplicitSized(GenericParameters);
         analyzer.PushTraitBounds(bounds);
 
         // Resolve qualified associated type paths in return type (e.g., T.Output, (T as Add(T)).Output)
@@ -196,6 +191,9 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
             if (i.TypePath != null)
                 i.TypePath = analyzer.ResolveQualifiedTypePath(i.TypePath);
         }
+
+        // All function parameters must be Sized (can't pass unsized types by value)
+        analyzer.ValidateParamsSized(Arguments, Token.GetLocationStringRepresentation());
 
         // Lifetime elision check: if the function returns a reference and has multiple
         // reference parameters, the compiler can't determine which input the output
