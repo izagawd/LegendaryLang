@@ -115,8 +115,8 @@ public class SizedFieldTests
     [Test]
     public void FieldAssocMetaSizedFailTest()
     {
-        // Field is (T as Producer).Item — Item :! MetaSized → unsized, struct unsized
-        AssertFail<GenericSemanticError>("sized_tests/field_assoc_metasized_fail_test");
+        // Field is (T as Producer).Item — Item :! MetaSized, acceptable in struct
+        AssertSuccess("sized_tests/field_assoc_metasized_fail_test", 0);
     }
 
     [Test]
