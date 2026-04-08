@@ -896,7 +896,35 @@ public class ManuallyDropTests
     [Test]
     public void DropMutBorrowVisibleInCopyReturnTest()
     {
-        // Drop increments &mut a from 5 to 6, Copy return reads AFTER drop
-        AssertSuccess("drop_tests/drop_mut_borrow_visible_in_copy_return_test", 6);
+        // Returning a while non-Copy dd borrows &mut a → rejected
+        AssertFail<MoveWhileBorrowedError>("drop_tests/drop_mut_borrow_visible_in_copy_return_test");
+    }
+
+    [Test]
+    public void DropTemporaryMethodReceiverTest()
+    {
+        // make Foo { &mut a }.get_val() → get_val returns 0, temp Foo dropped → a=1, return 0+1=1
+        AssertSuccess("drop_tests/drop_temporary_method_receiver_test", 1);
+    }
+
+    [Test]
+    public void DropChainedTemporaryReceiversTest()
+    {
+        // .inc().inc() consuming self → 3 Drops total (2 in inc + 1 at scope exit) = 3
+        AssertSuccess("drop_tests/drop_chained_temporary_receivers_test", 3);
+    }
+
+    [Test]
+    public void DropChainOrderTest()
+    {
+        // Drop encodes order as digits: self(id=1) → self(id=2) → result(id=3) = 123
+        AssertSuccess("drop_tests/drop_chain_order_test", 123);
+    }
+
+    [Test]
+    public void DropTemporaryFieldAccessTest()
+    {
+        // make Wrapper { val: 7, tracker: Tracker }.val → Wrapper dropped → Tracker.Drop → c=100, return 107
+        AssertSuccess("drop_tests/drop_temporary_field_access_test", 107);
     }
 }

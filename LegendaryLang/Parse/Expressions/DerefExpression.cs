@@ -22,6 +22,7 @@ public class DerefExpression : IExpression
     public Token Token => DerefToken;
 
     public LangPath? TypePath { get; private set; }
+    public bool IsTemporary => false; // accesses existing place
 
     /// <summary>
     /// Tries to extract the pointee type from a reference or raw pointer type path.

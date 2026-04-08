@@ -89,6 +89,7 @@ public class AssignVariableExpression : IExpression
     }
 
     public LangPath? TypePath { get; private set; }
+    public bool IsTemporary => true; // assignment produces void
 
     public static AssignVariableExpression Parse(Parser parser, IExpression assignerExpression)
     {

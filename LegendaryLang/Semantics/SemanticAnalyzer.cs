@@ -1642,8 +1642,6 @@ public class SemanticAnalyzer
             var varName = IExpression.TryGetSimpleVariableName(expr);
             if (varName != null)
             {
-                // Check if moving this variable would leave a non-NLL-eligible borrower
-                // with a dangling reference (borrower could call Drop on it)
                 var blocking = GetActiveBorrowBlockingMove(varName);
                 if (blocking != null)
                     AddException(new MoveWhileBorrowedException(
@@ -1651,11 +1649,25 @@ public class SemanticAnalyzer
                         expr.Token.GetLocationStringRepresentation()));
 
                 MarkAsMoved(varName);
-                // Invalidate borrows from the moved variable — any NLL-eligible borrower
-                // that tries to use the borrow after this point will get an error
                 InvalidateBorrowsFrom(varName);
             }
         }
+    }
+
+    /// <summary>
+    /// Check if returning a variable (even Copy) while a non-NLL-eligible borrower is alive.
+    /// Rejects patterns like: let dd = make Foo { r: &amp;mut a }; a
+    /// where dd's Drop could modify a but the return value was already captured.
+    /// </summary>
+    public void CheckReturnWhileBorrowed(IExpression expr)
+    {
+        var varName = IExpression.TryGetSimpleVariableName(expr);
+        if (varName == null) return;
+        var blocking = GetActiveBorrowBlockingMove(varName);
+        if (blocking != null)
+            AddException(new MoveWhileBorrowedException(
+                varName, blocking.Value.borrower,
+                expr.Token.GetLocationStringRepresentation()));
     }
 
     public void AddException(SemanticException exception)

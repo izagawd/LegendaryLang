@@ -198,6 +198,7 @@ public class StructCreationExpression : IExpression
 
 
     public LangPath TypePath { get; protected set; }
+    public bool IsTemporary => true; // fresh allocation
 
     public void ResolvePaths(PathResolver resolver)
     {

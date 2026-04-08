@@ -29,7 +29,11 @@ public class BlockExpression : IExpression
     /// Set during Analyze: true if the block's implicit return is a Copy type.
     /// Used in CodeGen to read the return value AFTER drops (so Drop side effects are visible).
     /// </summary>
-    public bool IsCopyReturn { get; private set; }
+    /// <summary>
+    /// Whether this block produces a temporary value (delegates to last expression).
+    /// Set during Analyze.
+    /// </summary>
+    public bool IsTemporary { get; private set; }
 
     public ImmutableArray<BlockSyntaxNodeContainer> BlockSyntaxNodeContainers { get; }
     public IEnumerable<ISyntaxNode> Children => SyntaxNodes;
@@ -133,11 +137,10 @@ public class BlockExpression : IExpression
 
         // Save the return value to a temp BEFORE drops run.
         // Drops may free memory the return value points to (e.g., *box returns a heap pointer
-        // that Box.Drop will free). Saving the value to the stack prevents use-after-free.
-        // Exception: Copy returns are read AFTER drops so Drop side effects are visible.
+        // that Box.Drop will free). The value is already copied (must be Copy for *box),
+        // so saving to stack temp is safe.
         ValueRefItem savedReturnValue = lastValue;
-
-        if (lastValue.Type.TypePath != LangPath.VoidBaseLangPath && !IsCopyReturn)
+        if (lastValue.Type.TypePath != LangPath.VoidBaseLangPath)
         {
             var returnVal = lastValue.Type.LoadValue(context, lastValue);
             var returnTemp = context.Builder.BuildAlloca(lastValue.Type.TypeRef, "block_ret_tmp");
@@ -146,24 +149,11 @@ public class BlockExpression : IExpression
         }
 
         // Mark the returned expression as moved so it won't be dropped at scope exit.
-        // Returning a value transfers ownership to the caller — the callee must not destruct it.
-        // This searches ALL scope levels, so it handles function parameters being returned too.
         if (lastReturnedExpression != null)
             context.TryMarkExpressionDropMoved(lastReturnedExpression);
 
         // Emit drop calls for droppable variables before exiting scope
         context.EmitDropCalls();
-
-        // For Copy returns, read the value AFTER drops so we see side effects
-        // (e.g., Drop incrementing a borrowed mut variable). This is safe because
-        // Copy types live on the stack and aren't freed by drops.
-        if (IsCopyReturn)
-        {
-            var returnVal = lastValue.Type.LoadValue(context, lastValue);
-            var returnTemp = context.Builder.BuildAlloca(lastValue.Type.TypeRef, "block_ret_tmp");
-            context.Builder.BuildStore(returnVal, returnTemp);
-            savedReturnValue = new ValueRefItem { Type = lastValue.Type, ValueRef = returnTemp };
-        }
 
         context.PopScope();
 
@@ -295,8 +285,8 @@ public class BlockExpression : IExpression
             }
 
             TypePath = possibleTypePath ?? LangPath.VoidBaseLangPath;
-            IsCopyReturn = TypePath != LangPath.VoidBaseLangPath
-                && analyzer.IsTypeCopy(TypePath);
+            IsTemporary = last is { HasSemiColonAfter: false, Node: IExpression lastE }
+                ? lastE.IsTemporary : true;
         }
 
         // Cannot return a non-Copy value out of a dereference.
@@ -329,11 +319,16 @@ public class BlockExpression : IExpression
                 lastExpr.Token.GetLocationStringRepresentation()));
         }
 
-        // Implicit return is a move — check for blocking borrows
+        // Implicit return — check for blocking borrows (both move and copy returns)
         if (last is not null && !last.Value.HasSemiColonAfter
             && last.Value.Node is IExpression retExpr)
         {
             analyzer.TryMarkExpressionAsMoved(retExpr);
+            // For Copy types, TryMarkExpressionAsMoved skips the check.
+            // But returning a Copy variable while a non-NLL borrower is alive is still
+            // rejected — the borrower's Drop runs after the value is captured, so
+            // Drop side effects on the variable wouldn't be visible in the return value.
+            analyzer.CheckReturnWhileBorrowed(retExpr);
         }
 
         analyzer.PopScope();

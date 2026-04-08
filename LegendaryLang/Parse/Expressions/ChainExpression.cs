@@ -54,10 +54,41 @@ public interface IChainKind
     IEnumerable<ISyntaxNode> KindChildren { get; }
     
     /// <summary>
+    /// True if this kind produces a fresh value that should be dropped when used as a
+    /// temporary receiver. False for named variables and field accesses.
+    /// Must be explicitly implemented — no default, wrong value causes drop bugs.
+    /// </summary>
+    bool IsTemporary { get; }
+
+    /// <summary>
     /// Extract borrow sources for this kind. Each kind knows where its borrows come from.
     /// Returns empty if this kind doesn't produce borrows.
     /// </summary>
     List<(string sourceName, RefKind refKind)> GetBorrowSources(SemanticAnalyzer analyzer) => [];
+}
+
+/// <summary>
+/// Utility for consumers to manage temporary scopes. The consumer decides whether
+/// to create a temp scope — expressions don't manage their own destruction.
+/// </summary>
+public static class TemporaryScope
+{
+    /// <summary>Push a scope, codegen the expression, register result as droppable.</summary>
+    public static ValueRefItem Begin(IChainKind kind, CodeGenContext ctx)
+    {
+        ctx.AddScope();
+        var val = kind.CodeGen(ctx);
+        if (val.Type?.TypePath != null && val.Type.TypePath != LangPath.VoidBaseLangPath)
+            ctx.RegisterDroppable("_temp", val.Type.TypePath, val.ValueRef);
+        return val;
+    }
+
+    /// <summary>Emit drops and pop the temporary scope.</summary>
+    public static void End(CodeGenContext ctx)
+    {
+        ctx.EmitDropCalls();
+        ctx.PopScope();
+    }
 }
 
 /// <summary>Simple variable/path reference. Terminal node.</summary>
@@ -65,6 +96,7 @@ public class VariableRefKind : IChainKind
 {
     public required LangPath Path { get; init; }
     public LangPath? TypePath { get; init; }
+    public bool IsTemporary => false;
     public IEnumerable<ISyntaxNode> KindChildren => [];
 
     public ValueRefItem CodeGen(CodeGenContext ctx)
@@ -84,8 +116,11 @@ public class ExpressionRefKind : IChainKind
 {
     public required IExpression Expression { get; init; }
     public LangPath? TypePath => Expression.TypePath;
+    public bool IsTemporary => Expression.IsTemporary;
     public IEnumerable<ISyntaxNode> KindChildren => [Expression];
     public ValueRefItem CodeGen(CodeGenContext ctx) => Expression.CodeGen(ctx);
+    public List<(string sourceName, RefKind refKind)> GetBorrowSources(SemanticAnalyzer analyzer)
+        => LetStatement.ExtractBorrowSources(Expression, analyzer);
 }
 
 /// <summary>Struct field access. Recursive — holds its receiver.</summary>
@@ -94,6 +129,7 @@ public class FieldAccessKind : IChainKind
     public required IChainKind Receiver { get; init; }
     public required string FieldName { get; init; }
     public LangPath? TypePath { get; set; }
+    public bool IsTemporary => Receiver.IsTemporary; // delegates to what it accesses from
     public bool AutoDeref { get; init; }
     public int AutoDerefDepth { get; init; }
     /// <summary>
@@ -106,8 +142,12 @@ public class FieldAccessKind : IChainKind
 
     public ValueRefItem CodeGen(CodeGenContext ctx)
     {
-        var receiverVal = Receiver.CodeGen(ctx);
-        return FieldAccessExpression.EmitFieldAccess(ctx, receiverVal, FieldName, AutoDeref, AutoDerefDepth);
+        // Consumer decides: field access doesn't consume, so destruct temp receiver after
+        bool destruct = Receiver.IsTemporary;
+        var receiverVal = destruct ? TemporaryScope.Begin(Receiver, ctx) : Receiver.CodeGen(ctx);
+        var result = FieldAccessExpression.EmitFieldAccess(ctx, receiverVal, FieldName, AutoDeref, AutoDerefDepth);
+        if (destruct) TemporaryScope.End(ctx);
+        return result;
     }
 }
 
@@ -118,6 +158,7 @@ public class EnumVariantKind : IChainKind
     public required EnumVariant Variant { get; init; }
     public required LangPath EnumTypePath { get; init; }
     public LangPath? TypePath { get; set; }
+    public bool IsTemporary => true;
     public IEnumerable<ISyntaxNode> KindChildren => [];
 
     public ValueRefItem CodeGen(CodeGenContext ctx)
@@ -135,6 +176,7 @@ public class EnumVariantCreationKind : IChainKind
     public required LangPath EnumTypePath { get; init; }
     public required ImmutableArray<IExpression> Arguments { get; init; }
     public LangPath? TypePath { get; set; }
+    public bool IsTemporary => true; // fresh enum variant
     public IEnumerable<ISyntaxNode> KindChildren => Arguments;
 
     public List<(string sourceName, RefKind refKind)> GetBorrowSources(SemanticAnalyzer analyzer)
@@ -169,6 +211,7 @@ public class FunctionCallKind : IChainKind
     public NormalLangPath? QualifiedAsType { get; init; }
     public FunctionDefinition? FuncDef { get; set; }
     public LangPath? TypePath { get; set; }
+    public bool IsTemporary => true;
     public IEnumerable<ISyntaxNode> KindChildren => Arguments;
 
     public List<(string sourceName, RefKind refKind)> GetBorrowSources(SemanticAnalyzer analyzer)
@@ -782,6 +825,7 @@ public class MethodCallKind : IChainKind
     public LangPath? ReceiverTypePath { get; init; }
     public string? RootVarName { get; init; }
     public LangPath? TypePath { get; set; }
+    public bool IsTemporary => true;
     public IEnumerable<ISyntaxNode> KindChildren
     {
         get
@@ -902,6 +946,15 @@ public class MethodCallKind : IChainKind
                 CheckImplicitBorrow(autoRefKind, rootVarName, analyzer);
                 CallExpressionHelper.CheckSelfMove(autoRefKind, rootVarName, originalReceiverType, analyzer, tokenLoc);
                 var traitPath = (td as IDefinition).TypePath;
+                var traitReturnType = CallExpressionHelper.IsSelfReturnType(method.ReturnTypePath)
+                    ? targetType : analyzer.ResolveQualifiedTypePath(method.ReturnTypePath);
+
+                // Reject borrowing from temporary receiver
+                if (receiver.IsTemporary && autoRefKind != null && HasLifetimeDependency(traitReturnType))
+                    analyzer.AddException(new SemanticException(
+                        $"Cannot call '{methodName}' on a temporary: return type '{traitReturnType}' " +
+                        $"borrows from the receiver, but the temporary will be dropped immediately\n{tokenLoc}"));
+
                 if (traitPath is NormalLangPath nlpTrait)
                     return new MethodCallKind
                     {
@@ -910,8 +963,7 @@ public class MethodCallKind : IChainKind
                         ResolvedQualifiedType = targetType as NormalLangPath, AutoRefKind = autoRefKind,
                         NeedsAutoDeref = needsAutoDeref, AutoDerefDepth = autoDerefDepth,
                         ReceiverTypePath = originalReceiverType, RootVarName = rootVarName,
-                        TypePath = CallExpressionHelper.IsSelfReturnType(method.ReturnTypePath)
-                            ? targetType : analyzer.ResolveQualifiedTypePath(method.ReturnTypePath),
+                        TypePath = traitReturnType,
                     };
             }
         }
@@ -1001,6 +1053,20 @@ public class MethodCallKind : IChainKind
         CallExpressionHelper.ValidateCallArguments(method, arguments,
             ImmutableArray<LangPath>.Empty, analyzer, tokenLoc, selfOffset: 1);
 
+        var resolvedReturnType = CallExpressionHelper.ResolveReturnTypeFromImpl(
+            method.ReturnTypePath, targetType, bindings, impl.GenericParameters, analyzer);
+
+        // Reject borrowing from temporary: if receiver is a temporary (not a named variable),
+        // method takes self by reference (temporary is borrowed, not consumed), and the return
+        // type has a lifetime dependency (reference, struct/enum with lifetime args), the
+        // temporary would be dropped while the return value still borrows from it.
+        if (receiver.IsTemporary && autoRefKind != null && HasLifetimeDependency(resolvedReturnType))
+        {
+            analyzer.AddException(new SemanticException(
+                $"Cannot call '{methodName}' on a temporary: return type '{resolvedReturnType}' " +
+                $"borrows from the receiver, but the temporary will be dropped immediately\n{tokenLoc}"));
+        }
+
         var dispatchPath = impl.IsInherent ? impl.ForTypePath : impl.TraitPath;
         if (dispatchPath is not NormalLangPath nlpDispatch) return null!;
 
@@ -1011,9 +1077,30 @@ public class MethodCallKind : IChainKind
             ResolvedQualifiedType = targetType as NormalLangPath, AutoRefKind = autoRefKind,
             NeedsAutoDeref = needsAutoDeref, AutoDerefDepth = autoDerefDepth,
             ReceiverTypePath = originalReceiverType, RootVarName = rootVarName,
-            TypePath = CallExpressionHelper.ResolveReturnTypeFromImpl(
-                method.ReturnTypePath, targetType, bindings, impl.GenericParameters, analyzer),
+            TypePath = resolvedReturnType,
         };
+    }
+
+    /// <summary>
+    /// Checks if a type has a lifetime dependency — is a reference, or a struct/enum with lifetime args.
+    /// Types with lifetime dependencies cannot safely borrow from temporaries.
+    /// </summary>
+    private static bool HasLifetimeDependency(LangPath? typePath)
+    {
+        if (typePath is NormalLangPath nlp)
+        {
+            // Reference type: &T, &mut T, etc.
+            if (nlp.Contains(RefTypeDefinition.GetRefModule())) return true;
+            // Type with lifetime args: Foo['a]
+            if (nlp.LifetimeArgs.Length > 0) return true;
+            // Check generic args recursively: Wrapper(Foo['a])
+            foreach (var ga in nlp.GetFrontGenerics())
+                if (HasLifetimeDependency(ga)) return true;
+        }
+        if (typePath is TupleLangPath tlp)
+            foreach (var tp in tlp.TypePaths)
+                if (HasLifetimeDependency(tp)) return true;
+        return false;
     }
 
     private static RefKind? DetectAutoRefKind(LangPath? selfParamType)
@@ -1071,7 +1158,10 @@ public class MethodCallKind : IChainKind
 
     public ValueRefItem CodeGen(CodeGenContext ctx)
     {
-        var receiverVal = Receiver.CodeGen(ctx);
+        // Consumer decides: self by ref → receiver borrowed, destruct temp after call.
+        // Self by value → receiver consumed by method, no separate destruct needed.
+        bool destruct = AutoRefKind != null && Receiver.IsTemporary;
+        var receiverVal = destruct ? TemporaryScope.Begin(Receiver, ctx) : Receiver.CodeGen(ctx);
 
         // Auto-deref chain
         if (NeedsAutoDeref)
@@ -1118,16 +1208,29 @@ public class MethodCallKind : IChainKind
         var allArgs = new List<ValueRefItem> { selfArg };
         allArgs.AddRange(argVals);
 
-        return CallExpressionHelper.EmitCall(funcRef, allArgs, ctx);
+        var result = CallExpressionHelper.EmitCall(funcRef, allArgs, ctx);
+
+        if (destruct) TemporaryScope.End(ctx);
+        return result;
     }
 
     public List<(string sourceName, RefKind refKind)> GetBorrowSources(SemanticAnalyzer analyzer)
     {
         var results = new List<(string, RefKind)>();
-        if (!RefTypeDefinition.IsReferenceType(TypePath)) return results;
-        var refKind = RefTypeDefinition.ExtractRefKindFromPath(TypePath!);
-        if (RootVarName != null)
-            results.Add((RootVarName, refKind));
+
+        // Direct reference return: borrow comes from root variable
+        if (RefTypeDefinition.IsReferenceType(TypePath))
+        {
+            var refKind = RefTypeDefinition.ExtractRefKindFromPath(TypePath!);
+            if (RootVarName != null)
+                results.Add((RootVarName, refKind));
+        }
+
+        // Return type has lifetime dependency (struct/enum with lifetime args, or contains refs):
+        // borrows propagate from the receiver through the chain
+        if (HasLifetimeDependency(TypePath))
+            results.AddRange(Receiver.GetBorrowSources(analyzer));
+
         return results;
     }
 }
@@ -1191,6 +1294,7 @@ public class ChainExpression : IExpression
     public string? SimpleVariableName => Steps.Length == 0 ? RootName : null;
 
     public LangPath? TypePath => ResolvedKind?.TypePath;
+    public bool IsTemporary => ResolvedKind?.IsTemporary ?? true;
     public Token Token => (Token?)RootToken ?? RootExpression?.Token;
     public bool HasGuaranteedExplicitReturn => false;
 

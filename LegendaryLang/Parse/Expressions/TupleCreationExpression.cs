@@ -43,5 +43,6 @@ public class TupleCreationExpression : IExpression
     }
 
     public LangPath? TypePath { get; private set; }
+    public bool IsTemporary => true; // fresh value
     public bool HasGuaranteedExplicitReturn => Composites.Any(i => i.HasGuaranteedExplicitReturn);
 }

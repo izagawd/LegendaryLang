@@ -15,6 +15,7 @@ public class PathExpression : IExpression
     }
 
     public LangPath Path { get; set; }
+    public bool IsTemporary => false;
     public IEnumerable<ISyntaxNode> Children => [];
 
     /// <summary>

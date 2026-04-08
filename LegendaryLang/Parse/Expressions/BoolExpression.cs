@@ -34,6 +34,7 @@ public class BoolExpression : IExpression
     }
 
     public LangPath? TypePath => BoolType.TypePath;
+    public bool IsTemporary => true; // fresh literal
 
     public void Analyze(SemanticAnalyzer analyzer)
     {

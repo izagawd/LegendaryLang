@@ -143,6 +143,7 @@ public class PointerGetterExpression : IExpression
     public LangPath? TypePath => RefTypeDefinition.GetRefModule()
         .Append(RefTypeDefinition.GetRefName(_refKind))
         .AppendGenerics([PointingTo.TypePath]);
+    public bool IsTemporary => true; // creates new reference
 
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {

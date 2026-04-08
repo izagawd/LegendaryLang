@@ -48,6 +48,7 @@ public class UnaryOperationExpression : IExpression
     }
 
     public LangPath? TypePath => Expression.TypePath;
+    public bool IsTemporary => true; // produces new value
 
 
     public Token Token => (OperatorToken as Token)!;

@@ -71,8 +71,8 @@ public class MoveBorrowTests
     [Test] public void ExplicitReturnBorrowerDroppedFirstOkTest() =>
         AssertSuccess("move_borrow_tests/explicit_return_borrower_dropped_first_ok_test", 5);
 
-    [Test] public void CopySourceBorrowedReturnOkTest() =>
-        AssertSuccess("move_borrow_tests/copy_source_borrowed_return_ok_test", 5);
+    [Test] public void CopySourceBorrowedReturnFailTest() =>
+        AssertFail<MoveWhileBorrowedError>("move_borrow_tests/copy_source_borrowed_return_ok_test");
 
     [Test] public void UniqBorrowBlocksSourceUseFailTest() =>
         AssertFail<UseWhileBorrowedError>("move_borrow_tests/uniq_borrow_blocks_source_use_fail_test");

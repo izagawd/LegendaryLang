@@ -50,6 +50,7 @@ public class WhileExpression : IExpression
     }
 
     public LangPath TypePath => LangPath.VoidBaseLangPath;
+    public bool IsTemporary => true; // returns void
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         var condBlock = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("while.cond");

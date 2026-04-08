@@ -31,9 +31,12 @@ public class ReturnStatement : IStatement
     {
         ToReturn?.Analyze(analyzer);
 
-        // Explicit return is a move — check for blocking borrows
+        // Explicit return — check for blocking borrows (both move and copy)
         if (ToReturn != null)
+        {
             analyzer.TryMarkExpressionAsMoved(ToReturn);
+            analyzer.CheckReturnWhileBorrowed(ToReturn);
+        }
 
         // Check if returning a reference to a local variable (dangling reference)
         if (ToReturn != null && analyzer.IsExpressionLocalBorrow(ToReturn))

@@ -66,6 +66,7 @@ public class MatchExpression : IExpression
 
     public Token Token => MatchTok;
     public LangPath? TypePath { get; private set; }
+    public bool IsTemporary => true; // match arm result is fresh
     public bool HasGuaranteedExplicitReturn => Arms.All(a => a.Body.HasGuaranteedExplicitReturn);
 
     /// <summary>

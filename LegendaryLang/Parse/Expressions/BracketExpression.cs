@@ -27,6 +27,7 @@ public class BracketExpression : IExpression
     }
 
     public LangPath? TypePath => Expression.TypePath;
+    public bool IsTemporary => Expression.IsTemporary; // delegates to inner expression
     public Token Token => LeftParenthesisToken;
 
     public static BracketExpression Parse(Parser parser, LeftParenthesisToken leftParenthesisToken,

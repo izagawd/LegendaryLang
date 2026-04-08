@@ -205,6 +205,7 @@ public class FieldAccessExpression : IExpression
     }
 
     public LangPath? TypePath { get; set; }
+    public bool IsTemporary => Caller.IsTemporary; // delegates to what it accesses from
 
     public static FieldAccessExpression Parse(Parser parser, IExpression caller)
     {

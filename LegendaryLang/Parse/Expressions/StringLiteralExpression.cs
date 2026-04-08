@@ -65,6 +65,7 @@ public class StringLiteralExpression : IExpression
     }
 
     public LangPath? TypePath { get; private set; }
+    public bool IsTemporary => true; // fresh string
 
     public static StringLiteralExpression Parse(Parser parser)
     {

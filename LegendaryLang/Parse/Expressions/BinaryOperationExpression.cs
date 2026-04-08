@@ -184,6 +184,7 @@ public class BinaryOperationExpression : IExpression
     private LangPath? _resolvedOutputType;
 
     public LangPath? TypePath { get; private set; }
+    public bool IsTemporary => true; // operator call produces new value
 
     public void Analyze(SemanticAnalyzer analyzer)
     {

@@ -13,6 +13,14 @@ public interface IExpression : IStatement
     /// </summary>
     public LangPath? TypePath { get; }
 
+    /// <summary>
+    /// True if this expression produces a fresh temporary value (struct creation, literal, call result).
+    /// False if it references an existing place (variable, field, deref). Used to determine if the
+    /// value needs a temporary scope for dropping when used as a method receiver.
+    /// Must be explicitly implemented — no default, wrong value causes drop bugs.
+    /// </summary>
+    public bool IsTemporary { get; }
+
 
  
     /// <summary>

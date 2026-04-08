@@ -34,6 +34,7 @@ public class NumberExpression : IExpression
     }
 
     public LangPath? TypePath { get; set; } = new I32TypeDefinition().TypePath;
+    public bool IsTemporary => true; // fresh literal
 
     /// <summary>
     /// Coerce this numeric literal to match a target type.
