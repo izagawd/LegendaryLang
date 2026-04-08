@@ -1065,26 +1065,93 @@ public class SemanticAnalyzer
     /// </summary>
     public bool TypeImplementsTrait(LangPath typePath, LangPath traitPath)
     {
-        // Check if typePath is a generic param with this trait as a bound
-        if (typePath is NormalLangPath nlp && nlp.PathSegments.Length == 1)
+        // Check if typePath is a generic param or associated type with this trait as a bound
+        if (typePath is NormalLangPath nlp)
         {
-            var paramName = nlp.PathSegments[0].ToString();
-            foreach (var bounds in TraitBoundsStack)
-                foreach (var (tp, pName, _) in bounds)
-                    if (pName == paramName && tp == traitPath)
-                        return true;
-
-            // Check via supertraits: if T: Foo<U> and Foo<X>: Bar<X>, then T satisfies Bar<U>
-            foreach (var bounds in TraitBoundsStack)
-                foreach (var (tp, pName, _) in bounds)
-                    if (pName == paramName)
+            // Build the lookup key: "T" for generic params, "Self.Output" for associated types
+            string? paramKey = null;
+            if (nlp.PathSegments.Length == 1)
+                paramKey = nlp.PathSegments[0].ToString();
+            else if (nlp.PathSegments.Length == 2)
+            {
+                // Check if first segment is a known generic param (e.g., Self, T)
+                var firstSeg = nlp.PathSegments[0].ToString();
+                foreach (var bounds in TraitBoundsStack)
+                    if (bounds.Any(b => b.genericParamName == firstSeg))
                     {
-                        var (boundTraitBase, boundGenericArgs) = LangPath.SplitGenerics(tp);
-                        var boundTraitDef = GetDefinition(boundTraitBase) as TraitDefinition;
-                        if (boundTraitDef != null && HasSupertraitTransitive(
-                                boundTraitDef, traitPath, boundTraitDef.GenericParameters, boundGenericArgs))
+                        paramKey = $"{firstSeg}.{nlp.PathSegments[1]}";
+                        break;
+                    }
+            }
+
+            if (paramKey != null)
+            {
+                // Direct bound check
+                foreach (var bounds in TraitBoundsStack)
+                    foreach (var (tp, pName, _) in bounds)
+                        if (pName == paramKey && tp == traitPath)
+                            return true;
+
+                // Check via supertraits: if T: Foo<U> and Foo<X>: Bar<X>, then T satisfies Bar<U>
+                foreach (var bounds in TraitBoundsStack)
+                    foreach (var (tp, pName, _) in bounds)
+                        if (pName == paramKey)
+                        {
+                            var (boundTraitBase, boundGenericArgs) = LangPath.SplitGenerics(tp);
+                            var boundTraitDef = GetDefinition(boundTraitBase) as TraitDefinition;
+                            if (boundTraitDef != null && HasSupertraitTransitive(
+                                    boundTraitDef, traitPath, boundTraitDef.GenericParameters, boundGenericArgs))
+                                return true;
+                        }
+            }
+        }
+
+        // Handle qualified associated type paths: (T as Trait).AssocType
+        if (typePath is QualifiedAssocTypePath qap)
+        {
+            var traitBasePath = LangPath.StripGenerics(qap.TraitPath);
+            var traitDef = GetDefinition(traitBasePath) as TraitDefinition;
+            if (traitDef != null)
+            {
+                var assocType = traitDef.GetAssociatedType(qap.AssociatedTypeName);
+                if (assocType != null)
+                {
+                    bool hasMetaSized = assocType.TraitBounds.Any(b =>
+                        LangPath.StripGenerics(b).Equals(MetaSizedTraitPath));
+                    // Check explicit bounds
+                    foreach (var atBound in assocType.TraitBounds)
+                    {
+                        if (LangPath.StripGenerics(atBound).Equals(LangPath.StripGenerics(traitPath)))
+                            return true;
+                        // Check supertrait chain on the bound
+                        var atBoundDef = GetDefinition(LangPath.StripGenerics(atBound)) as TraitDefinition;
+                        if (atBoundDef != null && HasSupertraitTransitive(atBoundDef, traitPath))
                             return true;
                     }
+                    // Implicit Sized (type → Sized → MetaSized)
+                    if (!hasMetaSized)
+                    {
+                        if (LangPath.StripGenerics(traitPath).Equals(SizedTraitPath))
+                            return true;
+                        if (LangPath.StripGenerics(traitPath).Equals(MetaSizedTraitPath))
+                            return true;
+                        // Check if Sized has the target as supertrait
+                        var sizedDef = GetDefinition(SizedTraitPath) as TraitDefinition;
+                        if (sizedDef != null && HasSupertraitTransitive(sizedDef, traitPath))
+                            return true;
+                    }
+                }
+            }
+        }
+
+        // Handle tuple types: all tuples are Sized/MetaSized if all components are
+        if (typePath is TupleLangPath tuplePath)
+        {
+            if (LangPath.StripGenerics(traitPath).Equals(SizedTraitPath)
+                || LangPath.StripGenerics(traitPath).Equals(MetaSizedTraitPath))
+            {
+                return tuplePath.TypePaths.All(tp => TypeImplementsTrait(tp, traitPath));
+            }
         }
 
         // Strip generics from traitPath for base comparison
@@ -1625,7 +1692,8 @@ public class SemanticAnalyzer
     /// Validates that all parameters have Sized types. Unsized types cannot be passed by value.
     /// Shared by FunctionDefinition and TraitDefinition — no duplication.
     /// </summary>
-    public void ValidateParamsSized(IEnumerable<VariableDefinition> parameters, string locationString)
+    public void ValidateParamsSized(IEnumerable<VariableDefinition> parameters, string locationString,
+        LangPath? returnType = null)
     {
         foreach (var param in parameters)
         {
@@ -1636,6 +1704,14 @@ public class SemanticAnalyzer
                     $"Parameter '{param.Name}' has unsized type '{param.TypePath}' — " +
                     $"cannot pass unsized types by value\n" + locationString));
             }
+        }
+
+        if (returnType != null && !returnType.Equals(LangPath.VoidBaseLangPath)
+            && !TypeImplementsTrait(returnType, SizedTraitPath))
+        {
+            AddException(new SemanticException(
+                $"Return type '{returnType}' is unsized — " +
+                $"cannot return unsized types by value\n" + locationString));
         }
     }
 
@@ -1715,14 +1791,51 @@ public class SemanticAnalyzer
                 }]);
             AddImplDefinition(metaSizedImpl);
 
-            // impl Sized for T {} (only for sized types)
+            // impl Sized for T {} — only if all fields are guaranteed Sized.
+            // For generic types, require Sized on params used directly as field types.
             if (!isUnsized)
             {
+                // Compute which generic params appear directly as field types (not behind references)
+                var fieldTypes = def switch
+                {
+                    StructTypeDefinition std => std.Fields.Select(f => f.TypePath).ToList(),
+                    EnumTypeDefinition etd => etd.Variants.SelectMany(v => v.FieldTypes).ToList(),
+                    _ => new List<LangPath?>()
+                };
+                var genericParamNames = genericParams.Select(gp => gp.Name).ToHashSet();
+                var paramsUsedByValue = new HashSet<string>();
+                foreach (var ft in fieldTypes)
+                {
+                    if (ft is NormalLangPath ftNlp && ftNlp.PathSegments.Length == 1
+                        && genericParamNames.Contains(ftNlp.PathSegments[0].ToString()))
+                        paramsUsedByValue.Add(ftNlp.PathSegments[0].ToString());
+                }
+
+                // Build generic params for the Sized impl: params used by value need Sized bound
+                var sizedGenericParams = genericParams.Select(gp =>
+                {
+                    if (paramsUsedByValue.Contains(gp.Name))
+                    {
+                        // Ensure this param has Sized bound (add if only MetaSized)
+                        bool hasSized = gp.TraitBounds.Any(tb =>
+                            LangPath.StripGenerics(tb.TraitPath).Equals(SizedTraitPath));
+                        if (!hasSized)
+                        {
+                            var newGp = new GenericParameter(gp.Name)
+                            {
+                                TraitBounds = [..gp.TraitBounds, new TraitBound(SizedTraitPath)]
+                            };
+                            return newGp;
+                        }
+                    }
+                    return gp;
+                }).ToImmutableArray();
+
                 var sizedImpl = new ImplDefinition(
                     SizedTraitPath, forTypePath,
                     methods: [],
                     token: null!,
-                    genericParameters: genericParams,
+                    genericParameters: sizedGenericParams,
                     associatedTypes: []);
                 AddImplDefinition(sizedImpl);
             }

@@ -131,6 +131,34 @@ impl PartialOrd(u8) for u8 {
 
 impl Ord for u8 {}
 
+impl Add(u8) for u8 {
+    let Output :! type = u8;
+    fn Add(lhs: u8, rhs: u8) -> u8 {
+        lhs + rhs
+    }
+}
+
+impl Sub(u8) for u8 {
+    let Output :! type = u8;
+    fn Sub(lhs: u8, rhs: u8) -> u8 {
+        lhs - rhs
+    }
+}
+
+impl Mul(u8) for u8 {
+    let Output :! type = u8;
+    fn Mul(lhs: u8, rhs: u8) -> u8 {
+        lhs * rhs
+    }
+}
+
+impl Div(u8) for u8 {
+    let Output :! type = u8;
+    fn Div(lhs: u8, rhs: u8) -> u8 {
+        lhs / rhs
+    }
+}
+
 impl PartialEq(usize) for usize {
     fn Eq(lhs: &usize, rhs: &usize) -> bool {
         *lhs == *rhs
@@ -149,6 +177,34 @@ impl PartialOrd(usize) for usize {
 }
 
 impl Ord for usize {}
+
+impl Add(usize) for usize {
+    let Output :! type = usize;
+    fn Add(lhs: usize, rhs: usize) -> usize {
+        lhs + rhs
+    }
+}
+
+impl Sub(usize) for usize {
+    let Output :! type = usize;
+    fn Sub(lhs: usize, rhs: usize) -> usize {
+        lhs - rhs
+    }
+}
+
+impl Mul(usize) for usize {
+    let Output :! type = usize;
+    fn Mul(lhs: usize, rhs: usize) -> usize {
+        lhs * rhs
+    }
+}
+
+impl Div(usize) for usize {
+    let Output :! type = usize;
+    fn Div(lhs: usize, rhs: usize) -> usize {
+        lhs / rhs
+    }
+}
 
 impl[T:! PartialEq(T)] PartialEq(&T) for &T {
     fn Eq(lhs: &&T, rhs: &&T) -> bool {

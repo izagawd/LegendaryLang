@@ -104,4 +104,53 @@ public class TraitScopeTests
         // Self by value with default body, no Sized supertrait — error
         AssertFail<GenericSemanticError>("trait_scope_tests/trait_self_by_value_default_fail_test");
     }
+
+    [Test]
+    public void TraitReturnSelfUnsizedFailTest()
+    {
+        // Return Self without Sized supertrait — error (can't return unsized by value)
+        AssertFail<GenericSemanticError>("trait_scope_tests/trait_return_self_unsized_fail_test");
+    }
+
+    [Test]
+    public void TraitReturnSelfSizedOkTest()
+    {
+        // Return Self with Sized supertrait — works
+        AssertSuccess("trait_scope_tests/trait_return_self_sized_ok_test", 99);
+    }
+
+    [Test]
+    public void TraitReturnRefSelfUnsizedOkTest()
+    {
+        // Return &Self without Sized — works (references are always sized)
+        AssertSuccess("trait_scope_tests/trait_return_ref_self_unsized_ok_test", 7);
+    }
+
+    [Test]
+    public void GenericTypeImplicitSizedTest()
+    {
+        // T:! type → implicit Sized, can take and return by value
+        AssertSuccess("trait_scope_tests/generic_type_implicit_sized_test", 42);
+    }
+
+    [Test]
+    public void GenericMetaSizedUnsizedFailTest()
+    {
+        // T:! MetaSized → might be unsized, can't take by value
+        AssertFail<GenericSemanticError>("trait_scope_tests/generic_metasized_unsized_fail_test");
+    }
+
+    [Test]
+    public void GenericSizedExplicitTest()
+    {
+        // T:! Sized → explicitly Sized, can take and return by value
+        AssertSuccess("trait_scope_tests/generic_sized_explicit_test", 42);
+    }
+
+    [Test]
+    public void GenericSizedPlusMetaSizedTest()
+    {
+        // T:! Sized + MetaSized → Sized wins, can take and return by value
+        AssertSuccess("trait_scope_tests/generic_sized_plus_metasized_test", 42);
+    }
 }

@@ -251,10 +251,21 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
                 if (!hasMetaSized)
                     traitBounds.Add(((LangPath)SemanticAnalyzer.SizedTraitPath, mgp.Name, null));
             }
+            // Associated type bounds (e.g., let Output :! type → Output: implicit Sized)
+            foreach (var at in AssociatedTypes)
+            {
+                var qualifiedName = $"Self.{at.Name}";
+                foreach (var atBound in at.TraitBounds)
+                    traitBounds.Add((atBound, qualifiedName, null));
+                bool hasMetaSized = at.TraitBounds.Any(tb =>
+                    LangPath.StripGenerics(tb).Equals(SemanticAnalyzer.MetaSizedTraitPath));
+                if (!hasMetaSized)
+                    traitBounds.Add(((LangPath)SemanticAnalyzer.SizedTraitPath, qualifiedName, null));
+            }
             analyzer.PushTraitBounds(traitBounds);
 
             // All parameters must be Sized (can't pass unsized types by value)
-            analyzer.ValidateParamsSized(method.Parameters, method.Token.GetLocationStringRepresentation());
+            analyzer.ValidateParamsSized(method.Parameters, method.Token.GetLocationStringRepresentation(), method.ReturnTypePath);
 
             // Analyze default method bodies
             if (method.HasDefault)

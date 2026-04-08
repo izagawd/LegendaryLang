@@ -193,7 +193,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         }
 
         // All function parameters must be Sized (can't pass unsized types by value)
-        analyzer.ValidateParamsSized(Arguments, Token.GetLocationStringRepresentation());
+        analyzer.ValidateParamsSized(Arguments, Token.GetLocationStringRepresentation(), ReturnTypePath);
 
         // Lifetime elision check: if the function returns a reference and has multiple
         // reference parameters, the compiler can't determine which input the output
