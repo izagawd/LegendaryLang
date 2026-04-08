@@ -12,6 +12,9 @@ public class PrimitiveTypeGenerator
             .Where(t => t.IsAssignableTo(typeof(PrimitiveTypeDefinition)) && !t.IsAbstract)
             .Select(i => (IItem)Activator.CreateInstance(i)).ToList();
 
+        // Add unsized primitive types
+        items.Add(new StrTypeDefinition());
+
         // Add reference type definitions for all 4 reference kinds
         items.Add(new RefTypeDefinition(RefKind.Shared)); // &T
         items.Add(new RefTypeDefinition(RefKind.Const));  // &const T

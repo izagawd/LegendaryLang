@@ -14,18 +14,25 @@ public abstract class PointerLikeType : Type
 {
     public Type PointingToType { get; }
 
-    /// <summary>The LLVM type of the metadata field, or null for thin pointers.</summary>
+    /// <summary>The LLVM type of the metadata field. Null for sized pointees (metadata is ()).</summary>
     public LLVMTypeRef? MetadataTypeRef { get; }
 
-    /// <summary>Whether this is a fat pointer (unsized pointee with metadata).</summary>
+    /// <summary>For unsized pointees: the LLVM type of each element (i8 for str, T for [T]).</summary>
+    public LLVMTypeRef? ElementTypeRef { get; }
+
+    /// <summary>
+    /// Whether this pointer carries non-trivial metadata (unsized pointee).
+    /// Sized types have () metadata which is zero-sized — no LLVM representation needed.
+    /// </summary>
     public bool IsFat => MetadataTypeRef != null;
 
     protected PointerLikeType(TypeDefinition definition, Type pointingToType, LLVMTypeRef typeRef,
-        LLVMTypeRef? metadataTypeRef = null)
+        LLVMTypeRef? elementTypeRef = null, LLVMTypeRef? metadataTypeRef = null)
         : base(definition)
     {
         PointingToType = pointingToType;
         TypeRef = typeRef;
+        ElementTypeRef = elementTypeRef;
         MetadataTypeRef = metadataTypeRef;
     }
 
@@ -75,5 +82,23 @@ public abstract class PointerLikeType : Type
         var ptrVal = LoadValue(context, dataRefItem);
         context.Builder.BuildStore(ptrVal, alloca);
         return alloca;
+    }
+
+    /// <summary>
+    /// Constructs a fat pointer from a data pointer and metadata value.
+    /// Returns a ValueRefItem containing an alloca with the fat pointer struct.
+    /// </summary>
+    public ValueRefItem BuildFatPointer(CodeGenContext context, LLVMValueRef dataPtr, LLVMValueRef metadata)
+    {
+        if (!IsFat)
+            throw new InvalidOperationException("Cannot build fat pointer for thin pointer type");
+
+        var alloca = context.Builder.BuildAlloca(TypeRef);
+        var dataDst = context.Builder.BuildStructGEP2(TypeRef, alloca, 0);
+        context.Builder.BuildStore(dataPtr, dataDst);
+        var metaDst = context.Builder.BuildStructGEP2(TypeRef, alloca, 1);
+        context.Builder.BuildStore(metadata, metaDst);
+
+        return new ValueRefItem { Type = this, ValueRef = alloca };
     }
 }

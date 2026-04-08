@@ -193,6 +193,9 @@ public interface IExpression : IStatement
             case IBoolToken:
                 expression = BoolExpression.Parse(parser);
                 break;
+            case StringLiteralToken:
+                expression = StringLiteralExpression.Parse(parser);
+                break;
             // Add more cases as needed,
             default:
                 throw new ExpectedParserException(parser,

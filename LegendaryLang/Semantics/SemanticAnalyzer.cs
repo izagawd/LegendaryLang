@@ -1590,7 +1590,8 @@ public class SemanticAnalyzer
         if (CrateRoot != null)
             pathShortcutContext.AddToDeepestScope("crate", CrateRoot);
         var primitiveParsed = ParseResults.First(i => i.Items.Any(j => j is I32TypeDefinition));
-        foreach (var i in primitiveParsed.Items.OfType<PrimitiveTypeDefinition>())
+        foreach (var i in primitiveParsed.Items.OfType<TypeDefinition>()
+                     .Where(t => t is PrimitiveTypeDefinition or StrTypeDefinition))
         {
             var usings = new UseDefinition((NormalLangPath)i.TypePath, null);
             usings.RegisterUsings(pathShortcutContext);

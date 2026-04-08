@@ -29,6 +29,8 @@ public class RawPtrTypeDefinition : PointerTypeDefinitionBase
     public override string Name => GetRawPtrName(Kind);
     public override NormalLangPath Module => GetRawPtrModule();
 
-    protected override ConcreteDefinition.Type CreateConcreteType(ConcreteDefinition.Type pointingToType, LLVMTypeRef typeRef)
-        => new ConcreteDefinition.RawPtrType(this, pointingToType, typeRef);
+    protected override ConcreteDefinition.Type CreateConcreteType(
+        ConcreteDefinition.Type pointingToType, LLVMTypeRef typeRef,
+        LLVMTypeRef? elementTypeRef, LLVMTypeRef? metadataTypeRef)
+        => new ConcreteDefinition.RawPtrType(this, pointingToType, typeRef, elementTypeRef, metadataTypeRef);
 }

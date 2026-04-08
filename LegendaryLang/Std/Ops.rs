@@ -196,5 +196,5 @@ impl[T:! PartialOrd(T)] PartialOrd(&uniq T) for &uniq T {
 }
 
 trait TryInto(T:! type) {
-    fn try_into(self: Self) -> Option(T);
+    fn TryInto(self: Self) -> Option(T);
 }

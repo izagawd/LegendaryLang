@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
 using LegendaryLang.Semantics;
@@ -25,12 +26,30 @@ public abstract class PointerTypeDefinitionBase : TypeDefinition
 
     public override IRefItem CreateRefDefinition(CodeGenContext context, ImmutableArray<LangPath> genericArguments)
     {
-        var pointingToType = (TypeRefItem)context.GetRefItemFor(genericArguments[0]);
-        var typeRef = LLVMTypeRef.CreatePointer(pointingToType.TypeRef, 0);
-        return new TypeRefItem { Type = CreateConcreteType(pointingToType.Type, typeRef) };
+        var pointeePath = genericArguments[0];
+        var pointingToTypeRef = (TypeRefItem)context.GetRefItemFor(pointeePath);
+        var pointingToType = pointingToTypeRef.Type;
+
+        // Unsized pointee → fat pointer: {ptr, metadata_type}
+        if (pointingToType is UnsizedType unsized)
+        {
+            var fatPtrTypeRef = LLVMTypeRef.CreateStruct(
+                [LLVMTypeRef.CreatePointer(LLVMTypeRef.Int8, 0), unsized.MetadataTypeRef], false);
+            return new TypeRefItem
+            {
+                Type = CreateConcreteType(pointingToType, fatPtrTypeRef,
+                    elementTypeRef: unsized.ElementTypeRef, metadataTypeRef: unsized.MetadataTypeRef)
+            };
+        }
+
+        // Sized pointee → thin pointer (metadata is () — no LLVM representation needed)
+        var typeRef = LLVMTypeRef.CreatePointer(pointingToTypeRef.TypeRef, 0);
+        return new TypeRefItem { Type = CreateConcreteType(pointingToType, typeRef) };
     }
 
-    protected abstract ConcreteDefinition.Type CreateConcreteType(ConcreteDefinition.Type pointingToType, LLVMTypeRef typeRef);
+    protected abstract ConcreteDefinition.Type CreateConcreteType(
+        ConcreteDefinition.Type pointingToType, LLVMTypeRef typeRef,
+        LLVMTypeRef? elementTypeRef = null, LLVMTypeRef? metadataTypeRef = null);
 
     public override ImmutableArray<LangPath>? GetGenericArguments(LangPath path)
     {
@@ -113,6 +132,8 @@ public class RefTypeDefinition : PointerTypeDefinitionBase
     public override string Name => GetRefName(Kind);
     public override NormalLangPath Module => GetRefModule();
 
-    protected override ConcreteDefinition.Type CreateConcreteType(ConcreteDefinition.Type pointingToType, LLVMTypeRef typeRef)
-        => new ConcreteDefinition.RefType(this, pointingToType, typeRef);
+    protected override ConcreteDefinition.Type CreateConcreteType(
+        ConcreteDefinition.Type pointingToType, LLVMTypeRef typeRef,
+        LLVMTypeRef? elementTypeRef, LLVMTypeRef? metadataTypeRef)
+        => new ConcreteDefinition.RefType(this, pointingToType, typeRef, elementTypeRef, metadataTypeRef);
 }

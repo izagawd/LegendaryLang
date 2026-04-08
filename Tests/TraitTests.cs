@@ -1071,28 +1071,28 @@ public class TryIntoTests
     [Test]
     public void TryIntoI32ToU8Test()
     {
-        // 42.try_into() → Some → 1
+        // 42.TryInto() → Some → 1
         AssertSuccess("trait_tests/try_into_i32_to_u8_test", 1);
     }
 
     [Test]
     public void TryIntoI32ToUsizeTest()
     {
-        // 100.try_into() → Some → 1
+        // 100.TryInto() → Some → 1
         AssertSuccess("trait_tests/try_into_i32_to_usize_test", 1);
     }
 
     [Test]
     public void TryIntoU8ToI32Test()
     {
-        // 123.try_into() → Some(123) → 123
+        // 123.TryInto() → Some(123) → 123
         AssertSuccess("trait_tests/try_into_u8_to_i32_test", 123);
     }
 
     [Test]
     public void TryIntoOverflowTest()
     {
-        // 300.try_into() as u8 → None → 1
+        // 300.TryInto() as u8 → None → 1
         AssertSuccess("trait_tests/try_into_overflow_test", 1);
     }
 
