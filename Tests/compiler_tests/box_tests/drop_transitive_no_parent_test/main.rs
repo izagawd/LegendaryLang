@@ -1,20 +1,20 @@
 use Std.Ops.Drop;
-struct C {
-    r: &uniq i32
+struct C['a] {
+    r: &'a uniq i32
 }
 
-impl Drop for C {
+impl['a] Drop for C['a] {
     fn Drop(self: &uniq Self) {
         *self.r = *self.r + 1;
     }
 }
 
-struct B {
-    c: C
+struct B['a] {
+    c: C['a]
 }
 
-struct A {
-    b: B,
+struct A['a] {
+    b: B['a],
     val: i32
 }
 

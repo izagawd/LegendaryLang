@@ -83,12 +83,20 @@ public class StructTypeDefinition : ComposableTypeDefinition
         IEnumerable<string?> fieldLifetimes, ImmutableArray<string> lifetimeParams,
         string typeName, Token token, SemanticAnalyzer analyzer)
     {
-        var refModule = RefTypeDefinition.GetRefModule();
         var fieldList = fieldTypes.ToList();
         var fieldLtList = fieldLifetimes.ToList();
 
-        bool hasRefField = fieldList.Any(ft =>
-            ft is NormalLangPath nlp && nlp.Contains(refModule));
+        // Check if any field is a non-static reference
+        bool hasRefField = false;
+        for (int i = 0; i < fieldList.Count; i++)
+        {
+            if (fieldList[i] is NormalLangPath nlp && nlp.Contains(RefTypeDefinition.GetRefModule())
+                && (i >= fieldLtList.Count || fieldLtList[i] != "static"))
+            {
+                hasRefField = true;
+                break;
+            }
+        }
         bool hasLifetimeDependentField = hasRefField || fieldList.Any(ft =>
             ft is NormalLangPath nlp && nlp.LifetimeArgs.Length > 0);
 
@@ -113,9 +121,29 @@ public class StructTypeDefinition : ComposableTypeDefinition
             if (ft is NormalLangPath nlp)
                 ValidateLifetimeArgsDeclared(nlp, declaredSet, typeName, token, analyzer);
 
-        // Validate: ref field lifetimes must be declared
+        // Validate: field types that require lifetime args must provide them
+        foreach (var ft in fieldList)
+        {
+            if (ft is NormalLangPath nlp && nlp.LifetimeArgs.Length == 0)
+            {
+                var basePath = LangPath.StripGenerics(nlp);
+                var def = analyzer.GetDefinition(basePath);
+                if (def is StructTypeDefinition std && std.LifetimeParameters.Length > 0)
+                    analyzer.AddException(new SemanticException(
+                        $"Type '{std.Name}' requires {std.LifetimeParameters.Length} lifetime parameter(s) " +
+                        $"but none were provided in field of '{typeName}'\n" +
+                        token.GetLocationStringRepresentation()));
+                else if (def is EnumTypeDefinition etd && etd.LifetimeParameters.Length > 0)
+                    analyzer.AddException(new SemanticException(
+                        $"Type '{etd.Name}' requires {etd.LifetimeParameters.Length} lifetime parameter(s) " +
+                        $"but none were provided in field of '{typeName}'\n" +
+                        token.GetLocationStringRepresentation()));
+            }
+        }
+
+        // Validate: ref field lifetimes must be declared ('static is built-in)
         foreach (var lt in fieldLtList)
-            if (lt != null && !declaredSet.Contains(lt))
+            if (lt != null && lt != "static" && !declaredSet.Contains(lt))
                 analyzer.AddException(new SemanticException(
                     $"Undeclared lifetime '{lt}' in field of '{typeName}'\n" +
                     token.GetLocationStringRepresentation()));

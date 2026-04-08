@@ -1,5 +1,5 @@
-struct Holder {
-    r: &i32
+struct Holder['a] {
+    r: &'a i32
 }
 fn main() -> i32 {
     let a = 99;

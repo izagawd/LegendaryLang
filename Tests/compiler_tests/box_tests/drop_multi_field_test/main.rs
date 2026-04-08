@@ -1,18 +1,18 @@
 use Std.Ops.Drop;
-struct Dropper {
-    r: &mut i32
+struct Dropper['a] {
+    r: &'a mut i32
 }
 
-impl Drop for Dropper {
+impl['a] Drop for Dropper['a] {
     fn Drop(self: &uniq Self) {
         *self.r = *self.r + 1;
     }
 }
 
-struct Multi {
-    a: Dropper,
+struct Multi['a] {
+    a: Dropper['a],
     plain: i32,
-    b: Dropper
+    b: Dropper['a]
 }
 
 fn main() -> i32 {

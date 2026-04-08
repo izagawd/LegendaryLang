@@ -9,7 +9,7 @@ impl['a] Drop for Dropper['a] {
     }
 }
 
-fn make_and_return(r: &'a uniq i32) -> i32 {
+fn make_and_return['a](r: &'a uniq i32) -> i32 {
     let d = make Dropper { r: r };
     42
 }

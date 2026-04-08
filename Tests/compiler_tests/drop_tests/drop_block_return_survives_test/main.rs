@@ -12,7 +12,7 @@ impl['a] Drop for Dropper['a] {
 fn main() -> i32 {
     let counter = 0;
     let val: i32 = {
-        let d = make Dropper { r: &'a uniq counter };
+        let d = make Dropper { r: &uniq counter };
         42
     };
     val + counter

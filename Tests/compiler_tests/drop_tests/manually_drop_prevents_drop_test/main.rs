@@ -14,7 +14,7 @@ impl['a] Drop for Counter['a] {
 fn main() -> i32 {
     let result = 0;
     {
-        let c = make Counter { r: &'a uniq result };
+        let c = make Counter { r: &uniq result };
         let _md = ManuallyDrop.New(c);
     };
     result
