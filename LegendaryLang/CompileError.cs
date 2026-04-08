@@ -214,6 +214,13 @@ public class UseWhileBorrowedError : CompileError
     public override string Message => $"Cannot use '{Source}' because it was borrowed as &{BorrowKindName} by '{Borrower}'";
 }
 
+public class MoveWhileBorrowedError : CompileError
+{
+    public required string Source { get; init; }
+    public required string Borrower { get; init; }
+    public override string Message => $"Cannot move '{Source}' because it is borrowed by '{Borrower}' which may call Drop";
+}
+
 public class TraitImplBoundsMismatchError : CompileError
 {
     public required string Details { get; init; }

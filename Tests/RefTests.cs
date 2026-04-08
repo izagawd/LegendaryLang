@@ -751,4 +751,19 @@ public class RefBorrowThroughGenericTests
         // Struct borrows a and b, b returned — b used while borrowed
         CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_multi_borrow_one_source_used_fail_test");
     }
+
+    [Test] public void RefReturnNoRefParamFailTest() =>
+        AssertFail<GenericSemanticError>("ref_tests/ref_return_no_ref_param_fail_test");
+
+    [Test] public void RefReturnNoRefParamStaticOkTest() =>
+        AssertSuccess("ref_tests/ref_return_no_ref_param_static_ok_test", 42);
+
+    [Test] public void RefTraitReturnNoRefParamFailTest() =>
+        AssertFail<GenericSemanticError>("ref_tests/ref_trait_return_no_ref_param_fail_test");
+
+    [Test] public void RefReturnValueSelfNoRefFailTest() =>
+        AssertFail<GenericSemanticError>("ref_tests/ref_return_value_self_no_ref_fail_test");
+
+    [Test] public void RefReturnSingleRefParamOkTest() =>
+        AssertSuccess("ref_tests/ref_return_single_ref_param_ok_test");
 }

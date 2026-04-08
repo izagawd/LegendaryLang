@@ -288,9 +288,20 @@ public static class CallExpressionHelper
     /// If self is by-value (not a reference) and the receiver type isn't Copy, marks the receiver as moved.
     /// </summary>
     public static void CheckSelfMove(
-        RefKind? autoRefKind, string? rootVarName, LangPath? receiverType, SemanticAnalyzer analyzer)
+        RefKind? autoRefKind, string? rootVarName, LangPath? receiverType, SemanticAnalyzer analyzer,
+        string? locationString = null)
     {
         if (autoRefKind == null && rootVarName != null && !analyzer.IsTypeCopy(receiverType))
+        {
+            if (locationString != null)
+            {
+                var blocking = analyzer.GetActiveBorrowBlockingMove(rootVarName);
+                if (blocking != null)
+                    analyzer.AddException(new MoveWhileBorrowedException(
+                        rootVarName, blocking.Value.borrower, locationString));
+            }
             analyzer.MarkAsMoved(rootVarName);
+            analyzer.InvalidateBorrowsFrom(rootVarName);
+        }
     }
 }

@@ -8,7 +8,7 @@ struct Foo {
 }
 
 impl Maker for Foo {
-    let Product :! type = i32;
+    let Product :! Copy = i32;
     fn make(input: Foo) -> i32 {
         input.val
     }

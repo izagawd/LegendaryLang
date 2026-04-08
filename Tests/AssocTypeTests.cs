@@ -35,4 +35,19 @@ public class AssocTypeTests
     [Test] public void AssocGenericOperatorOutputTest() => AssertSuccess("assoc_type_tests/assoc_generic_operator_output_test", 16);
 
     [Test] public void AssocGenericSubOutputTest() => AssertSuccess("assoc_type_tests/assoc_generic_sub_output_test", 7);
+
+    [Test] public void AssocImplBoundMismatchFailTest() =>
+        AssertFail<GenericSemanticError>("assoc_type_tests/assoc_impl_bound_mismatch_fail_test");
+
+    [Test] public void AssocImplBoundMatchOkTest() =>
+        AssertSuccess("assoc_type_tests/assoc_impl_bound_match_ok_test", 0);
+
+    [Test] public void AssocImplBoundStricterFailTest() =>
+        AssertFail<GenericSemanticError>("assoc_type_tests/assoc_impl_bound_stricter_fail_test");
+
+    [Test] public void AssocImplBoundMetasizedMatchOkTest() =>
+        AssertSuccess("assoc_type_tests/assoc_impl_bound_metasized_match_ok_test", 0);
+
+    [Test] public void AssocImplBoundWiderFailTest() =>
+        AssertFail<GenericSemanticError>("assoc_type_tests/assoc_impl_bound_wider_fail_test");
 }

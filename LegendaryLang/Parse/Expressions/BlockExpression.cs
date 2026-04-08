@@ -309,6 +309,13 @@ public class BlockExpression : IExpression
                 lastExpr.Token.GetLocationStringRepresentation()));
         }
 
+        // Implicit return is a move — check for blocking borrows
+        if (last is not null && !last.Value.HasSemiColonAfter
+            && last.Value.Node is IExpression retExpr)
+        {
+            analyzer.TryMarkExpressionAsMoved(retExpr);
+        }
+
         analyzer.PopScope();
     }
 

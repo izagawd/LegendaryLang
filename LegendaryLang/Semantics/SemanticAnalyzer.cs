@@ -243,6 +243,18 @@ public class UseWhileBorrowedException : SemanticException
     }
 }
 
+public class MoveWhileBorrowedException : SemanticException
+{
+    public string Source { get; }
+    public string Borrower { get; }
+    public MoveWhileBorrowedException(string source, string borrower, string location)
+        : base($"Cannot move '{source}' because it is borrowed by '{borrower}' which may call Drop\n{location}")
+    {
+        Source = source;
+        Borrower = borrower;
+    }
+}
+
 public class TraitImplBoundsMismatchException : SemanticException
 {
     public TraitImplBoundsMismatchException(string details, string location)
@@ -622,14 +634,7 @@ public class SemanticAnalyzer
             {
                 if (kind != RefKind.Uniq) continue;
 
-                // Look up borrower's type to determine NLL eligibility
-                LangPath? borrowerType = null;
-                foreach (var s in _borrowScopes)
-                    if (s.BorrowerTypes.TryGetValue(borrower, out var bt))
-                    { borrowerType = bt; break; }
-
-                bool isNllEligible = borrowerType != null
-                    && (RefTypeDefinition.IsReferenceType(borrowerType) || IsTypeCopy(borrowerType));
+                bool isNllEligible = IsBorrowerNllEligible(borrower);
 
                 if (isNllEligible)
                 {
@@ -647,6 +652,48 @@ public class SemanticAnalyzer
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Returns the first active borrow (any kind) on the given source variable
+    /// from a non-NLL-eligible borrower. Used to prevent moving a variable while
+    /// a non-Copy, non-reference borrower holds a reference to it (because Drop
+    /// could access the borrowed data at scope exit).
+    /// </summary>
+    public (string borrower, RefKind kind)? GetActiveBorrowBlockingMove(string sourceName)
+    {
+        foreach (var scope in _borrowScopes)
+        {
+            if (!scope.ActiveBorrows.TryGetValue(sourceName, out var activeList))
+                continue;
+
+            foreach (var (borrower, kind) in activeList)
+            {
+                if (IsBorrowerNllEligible(borrower))
+                    continue; // Copy/ref borrowers don't block moves
+
+                // Non-Copy, non-reference borrower: blocks move unless already moved
+                if (!IsMoved(borrower))
+                    return (borrower, kind);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks if a borrower is NLL-eligible (Copy or reference type).
+    /// NLL-eligible borrowers' borrows expire at last use rather than persisting to scope exit.
+    /// </summary>
+    private bool IsBorrowerNllEligible(string borrower)
+    {
+        LangPath? borrowerType = null;
+        foreach (var s in _borrowScopes)
+            if (s.BorrowerTypes.TryGetValue(borrower, out var bt))
+            { borrowerType = bt; break; }
+
+        return borrowerType != null
+            && (RefTypeDefinition.IsReferenceType(borrowerType) || IsTypeCopy(borrowerType));
     }
 
     /// <summary>
@@ -1594,7 +1641,20 @@ public class SemanticAnalyzer
         {
             var varName = IExpression.TryGetSimpleVariableName(expr);
             if (varName != null)
+            {
+                // Check if moving this variable would leave a non-NLL-eligible borrower
+                // with a dangling reference (borrower could call Drop on it)
+                var blocking = GetActiveBorrowBlockingMove(varName);
+                if (blocking != null)
+                    AddException(new MoveWhileBorrowedException(
+                        varName, blocking.Value.borrower,
+                        expr.Token.GetLocationStringRepresentation()));
+
                 MarkAsMoved(varName);
+                // Invalidate borrows from the moved variable — any NLL-eligible borrower
+                // that tries to use the borrow after this point will get an error
+                InvalidateBorrowsFrom(varName);
+            }
         }
     }
 
@@ -1845,18 +1905,27 @@ public class SemanticAnalyzer
             }
             else if (returnLifetime == null)
             {
-                // Implicit: check elision ambiguity
+                // Implicit: check elision is possible
                 var refParamCount = parameters.Count(p =>
                     p.TypePath is NormalLangPath nlpP && nlpP.Contains(RefTypeDefinition.GetRefModule()));
                 var hasSelfRefParam = parameters.Any(p =>
                     p.Name == "self"
                     && p.TypePath is NormalLangPath nlpS
                     && nlpS.Contains(RefTypeDefinition.GetRefModule()));
-                if (refParamCount > 1 && !hasSelfRefParam)
-                    AddException(new SemanticException(
-                        $"{char.ToUpper(kind[0]) + kind[1..]} '{name}' returns a reference but has {refParamCount} reference parameters. " +
-                        $"Cannot determine which input the output borrows from — explicit lifetime annotations are required\n" +
-                        locationString));
+                // Raw pointer params can produce 'static refs, so they count as a lifetime source
+                var hasRawPtrParam = parameters.Any(p =>
+                    p.TypePath is NormalLangPath nlpP && nlpP.Contains(RawPtrTypeDefinition.GetRawPtrModule()));
+                // Elision works with exactly 1 ref param, any self ref param, or raw ptr params.
+                // Otherwise (0 ref params or >1 without self): no lifetime source.
+                if (!hasSelfRefParam && !hasRawPtrParam && refParamCount != 1)
+                {
+                    var msg = refParamCount == 0
+                        ? $"{char.ToUpper(kind[0]) + kind[1..]} '{name}' returns a reference but has no reference parameters. " +
+                          $"Cannot determine output lifetime — use an explicit lifetime or 'static\n"
+                        : $"{char.ToUpper(kind[0]) + kind[1..]} '{name}' returns a reference but has {refParamCount} reference parameters. " +
+                          $"Cannot determine which input the output borrows from — explicit lifetime annotations are required\n";
+                    AddException(new SemanticException(msg + locationString));
+                }
             }
         }
     }

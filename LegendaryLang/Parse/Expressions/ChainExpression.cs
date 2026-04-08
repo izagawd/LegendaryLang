@@ -900,7 +900,7 @@ public class MethodCallKind : IChainKind
                 if (method == null || method.Parameters.Length == 0 || method.Parameters[0].Name != "self") continue;
                 var autoRefKind = DetectAutoRefKind(method.Parameters[0].TypePath);
                 CheckImplicitBorrow(autoRefKind, rootVarName, analyzer);
-                CallExpressionHelper.CheckSelfMove(autoRefKind, rootVarName, originalReceiverType, analyzer);
+                CallExpressionHelper.CheckSelfMove(autoRefKind, rootVarName, originalReceiverType, analyzer, tokenLoc);
                 var traitPath = (td as IDefinition).TypePath;
                 if (traitPath is NormalLangPath nlpTrait)
                     return new MethodCallKind
@@ -997,7 +997,7 @@ public class MethodCallKind : IChainKind
     {
         var (impl, method, bindings, autoRefKind) = candidate;
         CheckImplicitBorrow(autoRefKind, rootVarName, analyzer);
-        CallExpressionHelper.CheckSelfMove(autoRefKind, rootVarName, originalReceiverType, analyzer);
+        CallExpressionHelper.CheckSelfMove(autoRefKind, rootVarName, originalReceiverType, analyzer, tokenLoc);
         CallExpressionHelper.ValidateCallArguments(method, arguments,
             ImmutableArray<LangPath>.Empty, analyzer, tokenLoc, selfOffset: 1);
 

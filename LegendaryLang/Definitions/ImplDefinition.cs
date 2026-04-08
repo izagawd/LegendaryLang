@@ -13,6 +13,7 @@ public class ImplAssociatedType
     public required string Name { get; init; }
     public required LangPath ConcreteType { get; set; }
     public required Token Token { get; init; }
+    public List<LangPath> DeclaredBounds { get; init; } = new();
 }
 
 public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
@@ -670,7 +671,21 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             }
             else
             {
-                // Validate associated type bounds
+                // Validate: impl's declared bounds must match trait's declared bounds
+                var traitBoundSet = traitAT.TraitBounds;
+                var implBoundSet = implAT.DeclaredBounds;
+                bool boundsMatch = traitBoundSet.Count == implBoundSet.Count
+                    && traitBoundSet.All(tb => implBoundSet.Any(ib => ib.Equals(tb)));
+                if (!boundsMatch)
+                {
+                    var traitBoundsStr = traitBoundSet.Count == 0 ? "type" : string.Join(" + ", traitBoundSet);
+                    var implBoundsStr = implBoundSet.Count == 0 ? "type" : string.Join(" + ", implBoundSet);
+                    analyzer.AddException(new SemanticException(
+                        $"Associated type '{traitAT.Name}' bound mismatch: trait declares ':! {traitBoundsStr}' " +
+                        $"but impl declares ':! {implBoundsStr}'\n{Token.GetLocationStringRepresentation()}"));
+                }
+
+                // Validate: concrete type satisfies the trait's bounds
                 foreach (var bound in traitAT.TraitBounds)
                 {
                     if (!analyzer.TypeImplementsTrait(implAT.ConcreteType, bound))
@@ -987,9 +1002,13 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
         if (ForTypePath is NormalLangPath nlp)
             resolver.AddToDeepestScope("Self", nlp);
 
-        // NOW resolve associated type concrete types (Self is in scope)
+        // NOW resolve associated type concrete types and declared bounds (Self is in scope)
         foreach (var at in AssociatedTypeAssignments)
+        {
             at.ConcreteType = at.ConcreteType.Resolve(resolver);
+            for (int i = 0; i < at.DeclaredBounds.Count; i++)
+                at.DeclaredBounds[i] = at.DeclaredBounds[i].Resolve(resolver);
+        }
 
         // Register associated type assignments as path shortcuts (Output → i32)
         foreach (var at in AssociatedTypeAssignments)
@@ -1062,8 +1081,8 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                 var colonBang = parser.Pop();
                 if (colonBang is not ColonBangToken)
                     throw new ExpectedParserException(parser, ParseType.ColonBang, colonBang);
-                // Consume bounds (discarded — validation uses trait declaration bounds)
-                FunctionSignatureParser.ParseComptimeBounds(parser);
+                // Parse bounds — must match trait declaration
+                var implBounds = FunctionSignatureParser.ParseComptimeBounds(parser);
                 var eqTok = parser.Pop();
                 if (eqTok is not EqualityToken)
                     throw new ExpectedParserException(parser, ParseType.Equality, eqTok);
@@ -1073,7 +1092,8 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                 {
                     Name = atName.Identity,
                     ConcreteType = concreteType,
-                    Token = atName
+                    Token = atName,
+                    DeclaredBounds = implBounds.Select(b => b.TraitPath).ToList()
                 });
             }
             else

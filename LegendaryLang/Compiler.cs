@@ -86,6 +86,8 @@ public class Compiler
             UseWhileBorrowedException e => new UseWhileBorrowedError
                 { Source = e.Source, Borrower = e.Borrower,
                   BorrowKindName = RefTypeDefinition.GetRefName(e.BorrowKind) },
+            MoveWhileBorrowedException e => new MoveWhileBorrowedError
+                { Source = e.Source, Borrower = e.Borrower },
             TraitImplBoundsMismatchException e => new TraitImplBoundsMismatchError
                 { Details = e.Details },
             CopyDropConflictException e => new CopyDropConflictError
