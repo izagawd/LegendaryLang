@@ -30,14 +30,22 @@ public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
         return [];
     }
 
-    public NormalLangPath(IdentifierToken? firstIdentifierToken, IEnumerable<PathSegment> path)
+    public NormalLangPath(IdentifierToken? firstIdentifierToken, IEnumerable<PathSegment> path,
+        ImmutableArray<string>? lifetimeArgs = null)
     {
         FirstIdentifierToken = firstIdentifierToken;
         PathSegments = path.ToImmutableArray();
+        LifetimeArgs = lifetimeArgs ?? [];
     }
 
     
     public ImmutableArray<PathSegment> PathSegments { get; }
+
+    /// <summary>
+    /// Lifetime arguments on this type path (e.g., Bar['a, 'b] → ["a", "b"]).
+    /// Empty for types without lifetime parameters.
+    /// </summary>
+    public ImmutableArray<string> LifetimeArgs { get; }
 
     IEnumerator IEnumerable.GetEnumerator()
     {
@@ -74,7 +82,7 @@ public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
                 newSegments.Add(i);
             }
 
-        return new NormalLangPath(FirstIdentifierToken, newSegments);
+        return new NormalLangPath(FirstIdentifierToken, newSegments, LifetimeArgs);
     }
 
     public override LangPath Resolve(PathResolver resolver)
@@ -118,7 +126,7 @@ public class NormalLangPath : LangPath, IEnumerable<NormalLangPath.PathSegment>
             }
         
 
-        return new NormalLangPath(FirstIdentifierToken, newSegments);
+        return new NormalLangPath(FirstIdentifierToken, newSegments, LifetimeArgs);
     }
 
     public PathSegment? GetLastPathSegment()

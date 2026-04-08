@@ -171,16 +171,14 @@ public static class FunctionSignatureParser
                 continue;
             }
 
-            LangPath.LastParsedLifetime = null;
             var param = VariableDefinition.Parse(parser);
             if (param.TypePath is null)
                 throw new ExpectedParserException(parser, ParseType.BaseLangPath, param.IdentifierToken);
             parameters.Add(param);
             layout.Add(false);
 
-            if (LangPath.LastParsedLifetime != null)
-                argumentLifetimes[argIndex] = LangPath.LastParsedLifetime;
-            LangPath.LastParsedLifetime = null;
+            if (param.Lifetime != null)
+                argumentLifetimes[argIndex] = param.Lifetime;
 
             argIndex++;
             if (parser.Peek() is CommaToken) parser.Pop();

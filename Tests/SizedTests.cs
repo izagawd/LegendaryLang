@@ -139,4 +139,32 @@ public class SizedFieldTests
         // Nested struct with assoc type field — sized propagates through
         AssertSuccess("sized_tests/field_assoc_nested_sized_ok_test", 3);
     }
+
+    [Test]
+    public void StructGenericInBracketsFailTest()
+    {
+        // struct Foo[T:! type] — [] is for lifetimes only, generics go in ()
+        AssertFail<ParseError>("sized_tests/struct_generic_in_brackets_fail_test");
+    }
+
+    [Test]
+    public void StructLifetimeBracketGenericParenOkTest()
+    {
+        // struct Foo['a](T:! type) — lifetimes in [], generics in () — valid
+        AssertSuccess("sized_tests/struct_lifetime_bracket_generic_paren_ok_test", 42);
+    }
+
+    [Test]
+    public void EnumGenericInBracketsFailTest()
+    {
+        // enum Foo[T:! type] — [] is for lifetimes only
+        AssertFail<ParseError>("sized_tests/enum_generic_in_brackets_fail_test");
+    }
+
+    [Test]
+    public void EnumLifetimeBracketGenericParenOkTest()
+    {
+        // enum MaybeRef['a](T:! type) — lifetimes in [], generics in ()
+        AssertSuccess("sized_tests/enum_lifetime_bracket_generic_paren_ok_test", 5);
+    }
 }

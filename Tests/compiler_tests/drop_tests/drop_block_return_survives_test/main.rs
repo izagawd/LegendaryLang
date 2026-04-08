@@ -1,9 +1,9 @@
 use Std.Ops.Drop;
-struct Dropper {
-    r: &uniq i32
+struct Dropper['a] {
+    r: &'a uniq i32
 }
 
-impl Drop for Dropper {
+impl['a] Drop for Dropper['a] {
     fn Drop(self: &uniq Self) {
         *self.r = *self.r + 1;
     }
@@ -12,7 +12,7 @@ impl Drop for Dropper {
 fn main() -> i32 {
     let counter = 0;
     let val: i32 = {
-        let d = make Dropper { r: &uniq counter };
+        let d = make Dropper { r: &'a uniq counter };
         42
     };
     val + counter

@@ -1,4 +1,4 @@
-enum Wrapper[T:! MetaSized] {
+enum Wrapper(T:! MetaSized) {
     Some(T),
     None
 }

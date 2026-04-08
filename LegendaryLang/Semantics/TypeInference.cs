@@ -27,6 +27,16 @@ public static class TypeInference
             return true;
         }
 
+        // QualifiedAssocTypePath: (T as Trait(T)).Output ≈ concrete
+        // Heuristic: try binding free vars in ForType to the concrete type.
+        // Works for common patterns like arithmetic where Output = T.
+        // Type checking after inference will catch mismatches.
+        if (pattern is QualifiedAssocTypePath qap)
+        {
+            // Try to bind free vars from the ForType
+            return TryUnify(qap.ForType, concrete, freeVars, bindings);
+        }
+
         // Both NormalLangPaths — compare segment by segment
         if (pattern is NormalLangPath nlpPattern && concrete is NormalLangPath nlpConcrete)
         {

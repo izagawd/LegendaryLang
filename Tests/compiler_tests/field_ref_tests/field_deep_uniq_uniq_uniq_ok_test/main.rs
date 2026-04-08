@@ -8,7 +8,7 @@ impl Holder {
 }
 
 struct Middle['a] { inner: &'a uniq Holder }
-struct Outer['a, 'b] { mid: &'a uniq Middle('b) }
+struct Outer['a, 'b] { mid: &'a uniq Middle['b] }
 
 fn deep(o: &uniq Outer) -> i32 { o.mid.inner.get_uniq() }
 

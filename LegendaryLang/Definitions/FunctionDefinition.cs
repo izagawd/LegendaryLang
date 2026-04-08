@@ -195,63 +195,10 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         // All function parameters must be Sized (can't pass unsized types by value)
         analyzer.ValidateParamsSized(Arguments, Token.GetLocationStringRepresentation(), ReturnTypePath);
 
-        // Lifetime elision check: if the function returns a reference and has multiple
-        // reference parameters, the compiler can't determine which input the output
-        // borrows from — require explicit lifetime annotations.
-        // Exception 1: if there's a 'self' reference parameter, output borrows from self (elision rule 2).
-        // Exception 2: if explicit lifetime annotations are provided, use those instead.
-        if (ReturnTypePath is NormalLangPath nlpRetCheck
-            && nlpRetCheck.Contains(RefTypeDefinition.GetRefModule()))
-        {
-            var refParamCount = Arguments.Count(a =>
-                a.TypePath is NormalLangPath nlpA && nlpA.Contains(RefTypeDefinition.GetRefModule()));
-            var hasSelfRefParam = Arguments.Any(a =>
-                a.Name == "self"
-                && a.TypePath is NormalLangPath nlpS
-                && nlpS.Contains(RefTypeDefinition.GetRefModule()));
-
-            bool hasExplicitLifetimes = ReturnLifetime != null;
-
-            if (hasExplicitLifetimes)
-            {
-                // 'static is a special lifetime that doesn't need declaration or parameter binding
-                if (ReturnLifetime != "static")
-                {
-                    // Validate: return lifetime must be declared
-                    if (!LifetimeParameters.Contains(ReturnLifetime!))
-                    {
-                        analyzer.AddException(new SemanticException(
-                            $"Undeclared lifetime '{ReturnLifetime}' in return type of function '{Name}'\n" +
-                            Token.GetLocationStringRepresentation()));
-                    }
-                    // Validate: return lifetime must appear on at least one parameter
-                    bool returnLifetimeOnParam = ArgumentLifetimes.Values.Any(lt => lt == ReturnLifetime);
-                    if (!returnLifetimeOnParam)
-                    {
-                        analyzer.AddException(new SemanticException(
-                            $"Return lifetime '{ReturnLifetime}' does not appear on any parameter in function '{Name}'\n" +
-                            Token.GetLocationStringRepresentation()));
-                    }
-                }
-                // Validate: all argument lifetimes are declared
-                foreach (var (_, lt) in ArgumentLifetimes)
-                {
-                    if (!LifetimeParameters.Contains(lt))
-                    {
-                        analyzer.AddException(new SemanticException(
-                            $"Undeclared lifetime '{lt}' in parameter of function '{Name}'\n" +
-                            Token.GetLocationStringRepresentation()));
-                    }
-                }
-            }
-            else if (refParamCount > 1 && !hasSelfRefParam)
-            {
-                analyzer.AddException(new SemanticException(
-                    $"Function '{Name}' returns a reference but has {refParamCount} reference parameters. " +
-                    $"Cannot determine which input the output borrows from — explicit lifetime annotations are required\n" +
-                    Token.GetLocationStringRepresentation()));
-            }
-        }
+        // Lifetime annotation validation — shared with TraitDefinition
+        analyzer.ValidateLifetimeAnnotations(Arguments, ArgumentLifetimes,
+            ReturnLifetime, ReturnTypePath, LifetimeParameters,
+            Name, Token.GetLocationStringRepresentation(), "function");
 
         foreach (var i in Arguments)
             analyzer.RegisterVariableType(new NormalLangPath(i.IdentifierToken, [i.Name]), i.TypePath);

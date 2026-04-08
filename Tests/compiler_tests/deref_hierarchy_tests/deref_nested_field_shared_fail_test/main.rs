@@ -11,7 +11,7 @@ struct Middle['a] {
 }
 
 struct Outer['a, 'b] {
-    mid: &'a uniq Middle('b)
+    mid: &'a uniq Middle['b]
 }
 
 fn deep_modify(o: &Outer) -> i32 {

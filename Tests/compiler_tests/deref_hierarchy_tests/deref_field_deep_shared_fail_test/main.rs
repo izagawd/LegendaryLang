@@ -9,7 +9,7 @@ struct Inner['a] {
 }
 
 struct Outer['a, 'b] {
-    inner: &'a uniq Inner('b)
+    inner: &'a uniq Inner['b]
 }
 
 fn deep_modify(o: &Outer) -> i32 {

@@ -1,6 +1,6 @@
 use Std.Ops.Add;
 
-struct Result[T:! Add(T)] {
+struct Result(T:! Add(T)) {
     val: (T as Add(T)).Output
 }
 

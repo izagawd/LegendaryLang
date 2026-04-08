@@ -18,6 +18,10 @@ public class EnumVariant
     /// Payload field types. Empty for unit variants.
     /// </summary>
     public ImmutableArray<LangPath> FieldTypes { get; set; } = [];
+    /// <summary>
+    /// Lifetime annotations on payload field reference types. Parallel to FieldTypes.
+    /// </summary>
+    public ImmutableArray<string?> FieldLifetimes { get; set; } = [];
 }
 
 public class EnumTypeDefinition : ComposableTypeDefinition
@@ -77,6 +81,12 @@ public class EnumTypeDefinition : ComposableTypeDefinition
             if (!seenVariants.Add(v.Name))
                 analyzer.AddException(new SemanticException(
                     $"Duplicate variant name '{v.Name}' in enum '{Name}'\n{Token.GetLocationStringRepresentation()}"));
+
+        // Lifetime validation: reference variant payloads require lifetime parameters
+        var allFieldTypes = Variants.SelectMany(v => v.FieldTypes).Cast<LangPath?>();
+        var allFieldLifetimes = Variants.SelectMany(v => v.FieldLifetimes);
+        StructTypeDefinition.ValidateFieldLifetimes(allFieldTypes, allFieldLifetimes,
+            LifetimeParameters, Name, Token, analyzer);
     }
 
     /// <summary>
@@ -195,10 +205,32 @@ public class EnumTypeDefinition : ComposableTypeDefinition
 
         var nameToken = Identifier.Parse(parser);
 
-        // Parse generic parameters: (T:! type) explicit params, or [T]/&lt;T&gt; legacy
-        var generics = FunctionSignatureParser.ParseGenericParams(parser);
-        var genericParameters = generics.GenericParameters.ToList();
-        IEnumerable<string> lifetimeParameters = generics.LifetimeParameters;
+        // Parse [] (lifetimes only) and () (generic params) separately
+        // [] in enums must only contain lifetimes — generic params go in ()
+        var implicit_ = FunctionSignatureParser.ParseImplicitGenericParams(parser);
+        if (implicit_ != null && implicit_.GenericParameters.Length > 0)
+        {
+            throw new ParseException(
+                $"Generic type parameters in enum definitions must use '()' not '[]'. " +
+                $"'[]' is reserved for lifetime parameters.\n" +
+                $"{nameToken.GetLocationStringRepresentation()}");
+        }
+        var explicit_ = FunctionSignatureParser.ParseParams(parser);
+
+        if (explicit_ != null && explicit_.Parameters.Length > 0)
+        {
+            var firstRuntime = explicit_.Parameters[0];
+            throw new ParseException(
+                $"Runtime parameters are not allowed in enum definitions. " +
+                $"Use ':!' for compile-time parameters.\n" +
+                $"{firstRuntime.IdentifierToken.GetLocationStringRepresentation()}");
+        }
+
+        var genericParameters = new List<GenericParameter>();
+        if (explicit_ != null) genericParameters.AddRange(explicit_.CheckedParams);
+
+        var lifetimeParameters = new List<string>();
+        if (implicit_?.LifetimeParameters.Length > 0) lifetimeParameters.AddRange(implicit_.LifetimeParameters);
 
         CurlyBrace.ParseLeft(parser);
 
@@ -208,6 +240,7 @@ public class EnumTypeDefinition : ComposableTypeDefinition
         {
             var variantName = Identifier.Parse(parser);
             var fieldTypes = new List<LangPath>();
+            var fieldLifetimes = new List<string?>();
 
             // Check for tuple variant: VariantName(Type1, Type2, ...)
             if (parser.Peek() is LeftParenthesisToken)
@@ -215,7 +248,10 @@ public class EnumTypeDefinition : ComposableTypeDefinition
                 Parenthesis.ParseLeft(parser);
                 while (parser.Peek() is not RightParenthesisToken)
                 {
+                    LangPath.LastParsedLifetime = null;
                     fieldTypes.Add(LangPath.Parse(parser, true));
+                    fieldLifetimes.Add(LangPath.LastParsedLifetime);
+                    LangPath.LastParsedLifetime = null;
                     if (parser.Peek() is CommaToken) parser.Pop();
                     else break;
                 }
@@ -227,7 +263,8 @@ public class EnumTypeDefinition : ComposableTypeDefinition
                 Name = variantName.Identity,
                 Token = variantName,
                 Tag = tag++,
-                FieldTypes = fieldTypes.ToImmutableArray()
+                FieldTypes = fieldTypes.ToImmutableArray(),
+                FieldLifetimes = fieldLifetimes.ToImmutableArray()
             });
 
             // Optional comma between variants

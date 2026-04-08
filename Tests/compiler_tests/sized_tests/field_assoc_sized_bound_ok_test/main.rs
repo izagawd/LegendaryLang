@@ -3,7 +3,7 @@ trait Maker: Sized {
     fn make(self: Self) -> Self.Output;
 }
 
-struct Container[T:! Maker] {
+struct Container(T:! Maker) {
     val: (T as Maker).Output
 }
 

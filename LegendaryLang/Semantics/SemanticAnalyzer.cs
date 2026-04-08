@@ -1804,6 +1804,63 @@ public class SemanticAnalyzer
         }
     }
 
+    /// <summary>
+    /// Validates lifetime annotations on a function or trait method signature.
+    /// Shared by FunctionDefinition and TraitDefinition.
+    /// </summary>
+    public void ValidateLifetimeAnnotations(
+        ImmutableArray<VariableDefinition> parameters,
+        Dictionary<int, string> argumentLifetimes,
+        string? returnLifetime, LangPath? returnTypePath,
+        ImmutableArray<string> lifetimeParameters,
+        string name, string locationString, string kind)
+    {
+        // Check all argument lifetimes are declared
+        foreach (var (_, lt) in argumentLifetimes)
+            if (!lifetimeParameters.Contains(lt))
+                AddException(new SemanticException(
+                    $"Undeclared lifetime '{lt}' in parameter of {kind} '{name}'\n" + locationString));
+
+        // Check return lifetime is declared ('static is a built-in, not user-declared)
+        if (returnLifetime != null && returnLifetime != "static"
+            && !lifetimeParameters.Contains(returnLifetime))
+            AddException(new SemanticException(
+                $"Undeclared lifetime '{returnLifetime}' in return type of {kind} '{name}'\n" + locationString));
+
+        // Elision / explicit lifetime checks on reference-returning signatures
+        if (returnTypePath is NormalLangPath nlpRet
+            && nlpRet.Contains(RefTypeDefinition.GetRefModule()))
+        {
+            if (returnLifetime != null && returnLifetime != "static")
+            {
+                // Explicit: return lifetime must appear on at least one param
+                // Either as a direct ref lifetime (&'a T) or as a type lifetime arg (Foo['a])
+                bool returnLifetimeOnParam = argumentLifetimes.Values.Any(lt => lt == returnLifetime)
+                    || parameters.Any(p => p.TypePath is NormalLangPath nlpP
+                        && nlpP.LifetimeArgs.Contains(returnLifetime));
+                if (!returnLifetimeOnParam)
+                    AddException(new SemanticException(
+                        $"Return lifetime '{returnLifetime}' does not appear on any parameter in {kind} '{name}'\n" +
+                        locationString));
+            }
+            else if (returnLifetime == null)
+            {
+                // Implicit: check elision ambiguity
+                var refParamCount = parameters.Count(p =>
+                    p.TypePath is NormalLangPath nlpP && nlpP.Contains(RefTypeDefinition.GetRefModule()));
+                var hasSelfRefParam = parameters.Any(p =>
+                    p.Name == "self"
+                    && p.TypePath is NormalLangPath nlpS
+                    && nlpS.Contains(RefTypeDefinition.GetRefModule()));
+                if (refParamCount > 1 && !hasSelfRefParam)
+                    AddException(new SemanticException(
+                        $"{char.ToUpper(kind[0]) + kind[1..]} '{name}' returns a reference but has {refParamCount} reference parameters. " +
+                        $"Cannot determine which input the output borrows from — explicit lifetime annotations are required\n" +
+                        locationString));
+            }
+        }
+    }
+
     public static List<(LangPath traitPath, string paramName, Dictionary<string, LangPath>? assocConstraints)>
         BuildGenericBoundsWithImplicitSized(ImmutableArray<GenericParameter> genericParams)
     {

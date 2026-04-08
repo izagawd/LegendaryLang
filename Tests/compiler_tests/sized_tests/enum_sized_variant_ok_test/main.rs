@@ -1,4 +1,4 @@
-enum Wrapper[T:! type] {
+enum Wrapper(T:! type) {
     Some(T),
     None
 }

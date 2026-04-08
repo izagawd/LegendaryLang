@@ -40,7 +40,7 @@ public class StructTypeDefinition : ComposableTypeDefinition
     {
         var list = new List<VariableDefinition>();
         foreach (var i in Fields)
-            list.Add(new VariableDefinition(i.IdentifierToken, i.TypePath.Resolve(resolver)));
+            list.Add(new VariableDefinition(i.IdentifierToken, i.TypePath.Resolve(resolver), i.Lifetime));
 
         Fields = list.ToImmutableArray();
 
@@ -69,6 +69,110 @@ public class StructTypeDefinition : ComposableTypeDefinition
                 analyzer.AddException(new SemanticException(
                     $"Generic parameter '{gp.Name}' is never used in struct '{Name}'\n{Token.GetLocationStringRepresentation()}"));
         }
+
+        // Lifetime validation: reference fields require lifetime parameters
+        ValidateFieldLifetimes(Fields.Select(f => f.TypePath), Fields.Select(f => f.Lifetime),
+            LifetimeParameters, Name, Token, analyzer);
+    }
+
+    /// <summary>
+    /// Validates lifetime usage in struct/enum fields.
+    /// Shared by StructTypeDefinition and EnumTypeDefinition — no duplication.
+    /// </summary>
+    internal static void ValidateFieldLifetimes(IEnumerable<LangPath?> fieldTypes,
+        IEnumerable<string?> fieldLifetimes, ImmutableArray<string> lifetimeParams,
+        string typeName, Token token, SemanticAnalyzer analyzer)
+    {
+        var refModule = RefTypeDefinition.GetRefModule();
+        var fieldList = fieldTypes.ToList();
+        var fieldLtList = fieldLifetimes.ToList();
+
+        bool hasRefField = fieldList.Any(ft =>
+            ft is NormalLangPath nlp && nlp.Contains(refModule));
+        bool hasLifetimeDependentField = hasRefField || fieldList.Any(ft =>
+            ft is NormalLangPath nlp && nlp.LifetimeArgs.Length > 0);
+
+        // Reference fields require lifetime parameters on the type
+        if (hasRefField && lifetimeParams.Length == 0)
+        {
+            analyzer.AddException(new SemanticException(
+                $"'{typeName}' has reference fields but no lifetime parameters. " +
+                $"Add lifetime parameters: {typeName}['a]\n{token.GetLocationStringRepresentation()}"));
+        }
+
+        // Collect all used lifetimes (from field ref annotations + nested type lifetime args)
+        var usedLifetimes = new HashSet<string>();
+        foreach (var lt in fieldLtList)
+            if (lt != null) usedLifetimes.Add(lt);
+        foreach (var ft in fieldList)
+            if (ft != null) CollectUsedLifetimes(ft, usedLifetimes);
+
+        // Validate: lifetime args on nested types must reference declared lifetimes
+        var declaredSet = lifetimeParams.ToHashSet();
+        foreach (var ft in fieldList)
+            if (ft is NormalLangPath nlp)
+                ValidateLifetimeArgsDeclared(nlp, declaredSet, typeName, token, analyzer);
+
+        // Validate: ref field lifetimes must be declared
+        foreach (var lt in fieldLtList)
+            if (lt != null && !declaredSet.Contains(lt))
+                analyzer.AddException(new SemanticException(
+                    $"Undeclared lifetime '{lt}' in field of '{typeName}'\n" +
+                    token.GetLocationStringRepresentation()));
+
+        // Validate: all declared lifetimes must be used
+        foreach (var lt in lifetimeParams)
+            if (!usedLifetimes.Contains(lt))
+                analyzer.AddException(new SemanticException(
+                    $"Lifetime parameter '{lt}' is never used in '{typeName}'. " +
+                    $"Every lifetime must be linked to a reference or nested lifetime-bounded type\n" +
+                    token.GetLocationStringRepresentation()));
+    }
+
+    /// <summary>
+    /// Checks that lifetime args on a type path are declared on the containing type.
+    /// </summary>
+    private static void ValidateLifetimeArgsDeclared(NormalLangPath path,
+        HashSet<string> declaredLifetimes, string typeName, Token token, SemanticAnalyzer analyzer)
+    {
+        foreach (var lt in path.LifetimeArgs)
+        {
+            if (!declaredLifetimes.Contains(lt))
+                analyzer.AddException(new SemanticException(
+                    $"Undeclared lifetime '{lt}' in field type '{path}' of '{typeName}'\n" +
+                    token.GetLocationStringRepresentation()));
+        }
+        // Recurse into generic args
+        foreach (var ga in path.GetFrontGenerics())
+            if (ga is NormalLangPath gaNlp)
+                ValidateLifetimeArgsDeclared(gaNlp, declaredLifetimes, typeName, token, analyzer);
+    }
+
+    /// <summary>
+    /// Collects all lifetime names used in a type path (from LifetimeArgs and reference annotations).
+    /// </summary>
+    private static void CollectUsedLifetimes(LangPath path, HashSet<string> result)
+    {
+        if (path is NormalLangPath nlp)
+        {
+            foreach (var lt in nlp.LifetimeArgs)
+                result.Add(lt);
+            foreach (var ga in nlp.GetFrontGenerics())
+                CollectUsedLifetimes(ga, result);
+        }
+        if (path is TupleLangPath tlp)
+            foreach (var tp in tlp.TypePaths)
+                CollectUsedLifetimes(tp, result);
+    }
+
+    /// <summary>
+    /// Checks if a type path has lifetime arguments (e.g., Bar['a] has lifetime args).
+    /// </summary>
+    private static bool TypeHasLifetimeArgs(LangPath typePath)
+    {
+        if (typePath is NormalLangPath nlp && nlp.LifetimeArgs.Length > 0)
+            return true;
+        return false;
     }
 
     private static bool GenericParamUsedInType(string paramName, LangPath? typePath)
@@ -91,6 +195,11 @@ public class StructTypeDefinition : ComposableTypeDefinition
             foreach (var tp in tlp.TypePaths)
                 if (GenericParamUsedInType(paramName, tp)) return true;
         }
+        if (typePath is QualifiedAssocTypePath qap)
+        {
+            if (GenericParamUsedInType(paramName, qap.ForType)) return true;
+            if (GenericParamUsedInType(paramName, qap.TraitPath)) return true;
+        }
         return false;
     }
 
@@ -101,9 +210,33 @@ public class StructTypeDefinition : ComposableTypeDefinition
         {
             var structIdentifier = Identifier.Parse(parser);
 
-            var generics = FunctionSignatureParser.ParseGenericParams(parser);
-            var genericParameters = generics.GenericParameters.ToList();
-            IEnumerable<string> lifetimeParameters = generics.LifetimeParameters;
+            // Parse [] (lifetimes only) and () (generic params) separately
+            // [] in structs must only contain lifetimes — generic params go in ()
+            var implicit_ = FunctionSignatureParser.ParseImplicitGenericParams(parser);
+            if (implicit_ != null && implicit_.GenericParameters.Length > 0)
+            {
+                throw new ParseException(
+                    $"Generic type parameters in struct definitions must use '()' not '[]'. " +
+                    $"'[]' is reserved for lifetime parameters.\n" +
+                    $"{structIdentifier.GetLocationStringRepresentation()}");
+            }
+            var explicit_ = FunctionSignatureParser.ParseParams(parser);
+
+            // Validate: () params in structs must be comptime
+            if (explicit_ != null && explicit_.Parameters.Length > 0)
+            {
+                var firstRuntime = explicit_.Parameters[0];
+                throw new ParseException(
+                    $"Runtime parameters are not allowed in struct definitions. " +
+                    $"Use ':!' for compile-time parameters.\n" +
+                    $"{firstRuntime.IdentifierToken.GetLocationStringRepresentation()}");
+            }
+
+            var genericParameters = new List<GenericParameter>();
+            if (explicit_ != null) genericParameters.AddRange(explicit_.CheckedParams);
+
+            var lifetimeParameters = new List<string>();
+            if (implicit_?.LifetimeParameters.Length > 0) lifetimeParameters.AddRange(implicit_.LifetimeParameters);
 
             CurlyBrace.ParseLeft(parser);
             var next = parser.Peek();

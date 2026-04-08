@@ -291,12 +291,24 @@ fn main() -> i32 {
 
 ### Structs with Lifetimes
 
-Implicit lifetime parameters go in `[]`:
+Implicit lifetime parameters go in `[]`. Generic type parameters go in `()`. They can be combined:
 
 ```
 struct Holder['a] {
     r: &'a uniq i32
 }
+
+struct RefWrapper['a](T:! type) {
+    field: &'a T
+}
+```
+
+**Important:** `[]` in struct (and enum) definitions is reserved for lifetime parameters only. Generic type parameters must use `()`:
+
+```
+struct Foo(T:! type) { val: T }          // Correct
+struct Foo[T:! type] { val: T }          // Error: [] is for lifetimes only
+struct Foo['a](T:! type) { r: &'a T }   // Correct: lifetimes in [], generics in ()
 ```
 
 ## Enums

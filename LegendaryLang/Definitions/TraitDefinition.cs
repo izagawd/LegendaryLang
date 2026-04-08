@@ -170,57 +170,9 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
         // Validate lifetime annotations on trait method signatures
         foreach (var method in MethodSignatures)
         {
-            // Check all argument lifetimes are declared
-            foreach (var (_, lt) in method.ArgumentLifetimes)
-            {
-                if (!method.LifetimeParameters.Contains(lt))
-                {
-                    analyzer.AddException(new SemanticException(
-                        $"Undeclared lifetime '{lt}' in parameter of trait method '{method.Name}'\n" +
-                        method.Token.GetLocationStringRepresentation()));
-                }
-            }
-
-            // Check return lifetime is declared
-            if (method.ReturnLifetime != null && !method.LifetimeParameters.Contains(method.ReturnLifetime))
-            {
-                analyzer.AddException(new SemanticException(
-                    $"Undeclared lifetime '{method.ReturnLifetime}' in return type of trait method '{method.Name}'\n" +
-                    method.Token.GetLocationStringRepresentation()));
-            }
-
-            // Elision ambiguity check — same rules as FunctionDefinition
-            if (method.ReturnTypePath is NormalLangPath nlpRet
-                && nlpRet.Contains(RefTypeDefinition.GetRefModule()))
-            {
-                var refParamCount = method.Parameters.Count(p =>
-                    p.TypePath is NormalLangPath nlpP && nlpP.Contains(RefTypeDefinition.GetRefModule()));
-                var hasSelfRefParam = method.Parameters.Any(p =>
-                    p.Name == "self"
-                    && p.TypePath is NormalLangPath nlpS
-                    && nlpS.Contains(RefTypeDefinition.GetRefModule()));
-                bool hasExplicitLifetimes = method.ReturnLifetime != null;
-
-                if (!hasExplicitLifetimes && refParamCount > 1 && !hasSelfRefParam)
-                {
-                    analyzer.AddException(new SemanticException(
-                        $"Trait method '{method.Name}' returns a reference but has {refParamCount} reference parameters. " +
-                        $"Cannot determine which input the output borrows from — explicit lifetime annotations are required\n" +
-                        method.Token.GetLocationStringRepresentation()));
-                }
-
-                // If explicit return lifetime, check it appears on at least one param
-                if (hasExplicitLifetimes)
-                {
-                    bool returnLifetimeOnParam = method.ArgumentLifetimes.Values.Any(lt => lt == method.ReturnLifetime);
-                    if (!returnLifetimeOnParam)
-                    {
-                        analyzer.AddException(new SemanticException(
-                            $"Return lifetime '{method.ReturnLifetime}' does not appear on any parameter in trait method '{method.Name}'\n" +
-                            method.Token.GetLocationStringRepresentation()));
-                    }
-                }
-            }
+            analyzer.ValidateLifetimeAnnotations(method.Parameters, method.ArgumentLifetimes,
+                method.ReturnLifetime, method.ReturnTypePath, method.LifetimeParameters,
+                method.Name, method.Token.GetLocationStringRepresentation(), "trait method");
 
             // Push bounds for Self + trait generics + method generics
             // Used both for Sized param checks and default body analysis

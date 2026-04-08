@@ -1,20 +1,20 @@
 use Std.Ops.Drop;
-struct Dropper {
-    r: &mut i32
+struct Dropper['a] {
+    r: &'a mut i32
 }
 
-impl Drop for Dropper {
+impl['a] Drop for Dropper['a] {
     fn Drop(self: &uniq Self) {
         *self.r = *self.r + 1;
     }
 }
 
-struct Wrapper {
-    inner: Dropper,
+struct Wrapper['a] {
+    inner: Dropper['a],
     tag: i32
 }
 
-fn make_wrapper(r: &mut i32) -> Wrapper {
+fn make_wrapper['a](r: &'a mut i32) -> Wrapper['a] {
     make Wrapper {
         inner: make Dropper { r: r },
         tag: 99

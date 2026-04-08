@@ -1,15 +1,15 @@
 use Std.Ops.Drop;
-struct Dropper {
-    r: &uniq i32
+struct Dropper['a] {
+    r: &'a uniq i32
 }
 
-impl Drop for Dropper {
+impl['a] Drop for Dropper['a] {
     fn Drop(self: &uniq Self) {
         *self.r = *self.r + 100;
     }
 }
 
-fn make_and_return(r: &uniq i32) -> i32 {
+fn make_and_return(r: &'a uniq i32) -> i32 {
     let d = make Dropper { r: r };
     42
 }

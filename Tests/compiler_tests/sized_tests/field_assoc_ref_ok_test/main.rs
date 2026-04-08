@@ -3,7 +3,7 @@ trait Producer: Sized {
     fn produce(self: Self) -> &Item;
 }
 
-struct Holder[T:! Producer] {
+struct Holder(T:! Producer) {
     ptr: &(T as Producer).Item
 }
 

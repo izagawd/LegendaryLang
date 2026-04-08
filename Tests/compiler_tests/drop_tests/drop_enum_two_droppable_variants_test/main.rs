@@ -1,18 +1,18 @@
 use Std.Ops.Drop;
 
-struct CounterA { r: &mut i32 }
-struct CounterB { r: &mut i32 }
+struct CounterA['a] { r: &'a mut i32 }
+struct CounterB['a] { r: &'a mut i32 }
 
-impl Drop for CounterA {
+impl['a] Drop for CounterA['a] {
     fn Drop(self: &uniq Self) { *self.r = *self.r + 10; }
 }
-impl Drop for CounterB {
+impl['a] Drop for CounterB['a] {
     fn Drop(self: &uniq Self) { *self.r = *self.r + 100; }
 }
 
-enum Choice {
-    A(CounterA),
-    B(CounterB)
+enum Choice['a] {
+    A(CounterA['a]),
+    B(CounterB['a])
 }
 
 fn main() -> i32 {

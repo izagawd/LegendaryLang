@@ -9,7 +9,7 @@ struct Mid['a] {
 }
 
 struct Top['a, 'b] {
-    mid: &'a mut Mid('b)
+    mid: &'a mut Mid['b]
 }
 
 fn deep(t: &uniq Top) -> i32 {

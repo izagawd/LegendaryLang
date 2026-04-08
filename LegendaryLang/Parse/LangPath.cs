@@ -407,39 +407,18 @@ public abstract class LangPath
         }
 
         // In type position, accept explicit generics via ()
-        if (typePosition && parser.Peek() is LeftParenthesisToken)
-        {
-            Parenthesis.ParseLeft(parser);
-            var arguments = new List<LangPath>();
-            while (parser.Peek() is not RightParenthesisToken)
-            {
-                // Skip lifetime arguments — lifetimes are erased
-                if (parser.Peek() is LifetimeToken)
-                {
-                    parser.Pop();
-                    if (parser.Peek() is CommaToken) parser.Pop();
-                    continue;
-                }
-                arguments.Add(Parse(parser, true));
-                if (parser.Peek() is CommaToken)
-                    parser.Pop();
-                else
-                    break;
-            }
-            Parenthesis.ParseRight(parser);
-            if (arguments.Count > 0)
-                { if (segments[^1] is NormalLangPath.NormalPathSegment lastSeg) segments[^1] = lastSeg.WithGenericArgs(arguments.ToImmutableArray()); }
-        }
+        TryParseExplicitGenericArgs(parser, typePosition, segments);
 
-        // In type position, accept implicit args via [] (lifetimes, deduced params — all erased)
+        // In type position, accept implicit args via [] (lifetimes stored, other args erased)
         if (typePosition && parser.Peek() is LeftBracketToken)
         {
             Bracket.ParseLeft(parser);
+            var lifetimeArgs = new List<string>();
             while (parser.Peek() is not RightBracketToken)
             {
-                // Lifetimes are erased
-                if (parser.Peek() is LifetimeToken)
+                if (parser.Peek() is LifetimeToken ltArg)
                 {
+                    lifetimeArgs.Add(ltArg.Name);
                     parser.Pop();
                     if (parser.Peek() is CommaToken) parser.Pop();
                     continue;
@@ -449,12 +428,52 @@ public abstract class LangPath
                 if (parser.Peek() is CommaToken) parser.Pop();
             }
             Bracket.ParseRight(parser);
+
+            // After lifetime args, also accept explicit generic args via ()
+            // e.g., Inner['a](T) has both lifetime args and generic args
+            TryParseExplicitGenericArgs(parser, true, segments);
+
+            return new NormalLangPath(firstIdent, segments.Select(i => i),
+                lifetimeArgs.Count > 0 ? lifetimeArgs.ToImmutableArray() : null)
+            {
+                FirstIdentifierToken = firstIdent
+            };
         }
 
         return new NormalLangPath(firstIdent, segments.Select(i => i))
         {
             FirstIdentifierToken = firstIdent
         };
+    }
+
+    /// <summary>
+    /// Parses explicit generic args in () if present, attaching them to the last segment.
+    /// </summary>
+    private static void TryParseExplicitGenericArgs(Parser parser, bool typePosition,
+        List<NormalLangPath.PathSegment> segments)
+    {
+        if (!typePosition || parser.Peek() is not LeftParenthesisToken) return;
+
+        Parenthesis.ParseLeft(parser);
+        var arguments = new List<LangPath>();
+        while (parser.Peek() is not RightParenthesisToken)
+        {
+            // Skip lifetime arguments — lifetimes are erased
+            if (parser.Peek() is LifetimeToken)
+            {
+                parser.Pop();
+                if (parser.Peek() is CommaToken) parser.Pop();
+                continue;
+            }
+            arguments.Add(Parse(parser, true));
+            if (parser.Peek() is CommaToken)
+                parser.Pop();
+            else
+                break;
+        }
+        Parenthesis.ParseRight(parser);
+        if (arguments.Count > 0)
+            { if (segments[^1] is NormalLangPath.NormalPathSegment lastSeg) segments[^1] = lastSeg.WithGenericArgs(arguments.ToImmutableArray()); }
     }
 
     public abstract override bool Equals(object? obj);
