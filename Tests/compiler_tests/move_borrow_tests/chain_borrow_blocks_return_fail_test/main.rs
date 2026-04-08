@@ -19,8 +19,6 @@ impl['a] Drop for Counter['a] {
 
 fn main() -> i32 {
     let drops = 0;
-    {
-        let c = make Counter { val: 0, target: &mut drops }.inc().inc();
-    };
+    let c = make Counter { val: 0, target: &mut drops }.inc().inc();
     drops
 }

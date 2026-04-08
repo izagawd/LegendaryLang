@@ -19,8 +19,6 @@ impl['a] Drop for Tracker['a] {
 
 fn main() -> i32 {
     let order = 0;
-    {
-        let result = make Tracker { id: 1, counter: &mut order }.chain(2).chain(3);
-    };
+    let result = make Tracker { id: 1, counter: &mut order }.chain(2).chain(3);
     order
 }

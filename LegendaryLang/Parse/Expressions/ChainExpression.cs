@@ -1217,20 +1217,15 @@ public class MethodCallKind : IChainKind
     public List<(string sourceName, RefKind refKind)> GetBorrowSources(SemanticAnalyzer analyzer)
     {
         var results = new List<(string, RefKind)>();
+        if (!HasLifetimeDependency(TypePath)) return results;
 
-        // Direct reference return: borrow comes from root variable
-        if (RefTypeDefinition.IsReferenceType(TypePath))
-        {
-            var refKind = RefTypeDefinition.ExtractRefKindFromPath(TypePath!);
-            if (RootVarName != null)
-                results.Add((RootVarName, refKind));
-        }
-
-        // Return type has lifetime dependency (struct/enum with lifetime args, or contains refs):
-        // borrows propagate from the receiver through the chain
-        if (HasLifetimeDependency(TypePath))
-            results.AddRange(Receiver.GetBorrowSources(analyzer));
-
+        // Return type has lifetime dependency (reference, struct['a], enum['a], or contains such).
+        // Borrow sources come from the root variable and/or propagate through the receiver chain.
+        var refKind = RefTypeDefinition.IsReferenceType(TypePath)
+            ? RefTypeDefinition.ExtractRefKindFromPath(TypePath!) : RefKind.Shared;
+        if (RootVarName != null)
+            results.Add((RootVarName, refKind));
+        results.AddRange(Receiver.GetBorrowSources(analyzer));
         return results;
     }
 }
