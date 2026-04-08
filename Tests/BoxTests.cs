@@ -927,4 +927,63 @@ public class ManuallyDropTests
         // make Wrapper { val: 7, tracker: Tracker }.val → Wrapper dropped → Tracker.Drop → c=100, return 107
         AssertSuccess("drop_tests/drop_temporary_field_access_test", 107);
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  TEMPORARY DEREF DROP — *tempExpr
+    // ═══════════════════════════════════════════════════════════════
+
+    [Test]
+    public void DropTemporaryDerefBoxTest()
+    {
+        // *Box.New(45) — Box is a temporary, not bound to a variable.
+        // The i32 value 45 is read, and the Box must be freed at scope exit.
+        // Result is 45; memory safety confirmed by no leak (use -fsanitize=address to check).
+        AssertSuccess("drop_tests/drop_temporary_deref_box_test", 45);
+    }
+
+    [Test]
+    public void DropTemporaryDerefCustomWrapperTest()
+    {
+        // *Wrapper.New(&mut dropped, 7) — custom non-Copy smart pointer with Deref to i32.
+        // val == 7 is read; Drop fires on the temporary → dropped becomes 1.
+        // Result: 7 + 1 = 8.
+        AssertSuccess("drop_tests/drop_temporary_deref_custom_wrapper_test", 8);
+    }
+
+    [Test]
+    public void DropTemporaryDerefInBlockTest()
+    {
+        // *make Wrapper { ... } inside an inner block expression.
+        // The temporary is dropped when the block exits, not at end of main.
+        // dropped == 1 already when val + dropped is computed → result 10 + 1 = 11.
+        AssertSuccess("drop_tests/drop_temporary_deref_in_block_test", 11);
+    }
+
+    [Test]
+    public void DropTemporaryDerefRefInBlockTest()
+    {
+        // &*Box.New(45) — reference to the pointee of a temporary Box.
+        // The reference is used within the same scope as the temporary, which is valid.
+        // Result is 45.
+        AssertSuccess("drop_tests/drop_temporary_deref_ref_in_block_test", 45);
+    }
+
+    [Test]
+    public void DropTemporaryDerefRefEscapeFailTest()
+    {
+        // &*Box.New(45) returned out of a block — the reference would outlive
+        // the anonymous temporary "_" that was created in the inner block.
+        // Must be rejected as a dangling reference.
+        AssertFail<DanglingReferenceError>("drop_tests/drop_temporary_deref_ref_escape_fail_test");
+    }
+
+    [Test]
+    public void DropTemporaryDerefMultipleTest()
+    {
+        // Two separate *make Wrapper{...} temporaries sharing a single &mut dropped counter.
+        // &mut allows aliasing so both temporaries can hold &mut dropped simultaneously.
+        // Both are registered independently and both drop at scope exit → dropped == 2.
+        // a=3, b=5, dropped=2 → 3+5+2 = 10.
+        AssertSuccess("drop_tests/drop_temporary_deref_multiple_test", 10);
+    }
 }

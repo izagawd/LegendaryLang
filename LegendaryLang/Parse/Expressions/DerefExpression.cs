@@ -22,7 +22,10 @@ public class DerefExpression : IExpression
     public Token Token => DerefToken;
 
     public LangPath? TypePath { get; private set; }
-    public bool IsTemporary => false; // accesses existing place
+    public bool IsTemporary => false; // always accesses a stable place:
+        // - if Inner is a named variable, it's already a local alloca
+        // - if Inner is a temporary smart pointer, CodeGen spills it to an
+        //   anonymous local "_" before derefing, so the place is still stable
 
     /// <summary>
     /// Tries to extract the pointee type from a reference or raw pointer type path.
@@ -232,6 +235,18 @@ public class DerefExpression : IExpression
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         var innerVal = Inner.CodeGen(codeGenContext);
+
+        // When the inner expression is a temporary (e.g., *Box.New(45)), the smart pointer
+        // value is not bound to any variable, so it would never be dropped. Spill it to an
+        // anonymous local so the drop system sees it and calls free at scope exit.
+        // This applies only to trait-based deref (Box, smart pointers) — raw references and
+        // raw pointers are not heap-allocated and do not need drop registration.
+        if (IsDerefTrait && Inner.IsTemporary)
+        {
+            var spilledPtr = codeGenContext.SpillToAnonymousLocal(innerVal);
+            innerVal = new ValueRefItem { Type = innerVal.Type, ValueRef = spilledPtr };
+        }
+
         return EmitDeref(codeGenContext, innerVal);
     }
 

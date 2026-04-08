@@ -53,6 +53,18 @@ public class PointerGetterExpression : IExpression
 
         BorrowOriginName = ExtractBorrowOrigin(PointingTo);
 
+        // &*tempExpr where the inner deref is a temporary smart pointer (e.g., &*Box.New(45))
+        // materializes an anonymous local "_" at codegen time. That local lives only in the
+        // current block, so the reference must not escape it. Treat it as borrowing from "_"
+        // in the current scope so the block-escape dangling-reference check fires.
+        if (PointingTo is DerefExpression { IsDerefTrait: true } derefTmp
+            && derefTmp.Inner.IsTemporary
+            && BorrowOriginName == null)
+        {
+            BorrowOriginName = "_";
+            analyzer.TrackScopeVariable("_");
+        }
+
         if (PointingTo is DerefExpression derefExpr)
         {
             if (derefExpr.SourceDerefKind != null

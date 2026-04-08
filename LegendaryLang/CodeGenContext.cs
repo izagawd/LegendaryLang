@@ -185,6 +185,39 @@ public class CodeGenContext
     }
 
     /// <summary>
+    /// Spills a value to a named stack local in the current scope and registers it for drop.
+    /// This is the shared implementation for let-binding and temporary materialization:
+    ///   1. Allocate stack storage and store the value (StackAllocate)
+    ///   2. Add the variable to scope lookup by name (AddToDeepestScope)
+    ///   3. Register a drop flag if the type implements Drop or has droppable fields
+    /// Returns the alloca pointer (pointer to the stored value).
+    /// </summary>
+    public LLVMValueRef SpillToNamedLocal(string name, ValueRefItem value)
+    {
+        var stackPtr = value.StackAllocate(this);
+
+        AddToDeepestScope(new NormalLangPath(null, [name]), new ValueRefItem
+        {
+            Type = value.Type,
+            ValueRef = stackPtr
+        });
+
+        if (value.Type.TypePath != null &&
+            (IsTypeDrop(value.Type.TypePath) || TypeHasDroppableFields(value.Type.TypePath)))
+            RegisterDroppable(name, value.Type.TypePath, stackPtr);
+
+        return stackPtr;
+    }
+
+    /// <summary>
+    /// Spills a temporary value to an anonymous local using the reserved name "_".
+    /// The name "_" cannot be written by user code (it is the discard/wildcard keyword),
+    /// so the alloca is invisible to name lookup but still participates in drop at scope exit.
+    /// Use this when you need a temporary to live in scope for drop purposes but have no user-visible name.
+    /// </summary>
+    public LLVMValueRef SpillToAnonymousLocal(ValueRefItem value) => SpillToNamedLocal("_", value);
+
+    /// <summary>
     /// Mark a variable as moved (clear its drop flag so drop won't be called).
     /// Marks the LATEST (most recent) entry with the given name.
     /// </summary>

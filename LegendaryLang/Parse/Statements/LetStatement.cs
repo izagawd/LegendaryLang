@@ -57,20 +57,7 @@ public class LetStatement : IStatement
             context.TryMarkExpressionDropMoved(EqualsTo);
 
             var genedVal = EqualsTo.CodeGen(context);
-            var stackPtr = genedVal.StackAllocate(context);
-
-            context.AddToDeepestScope(new NormalLangPath(null, [VariableDefinition.Name]), new ValueRefItem
-            {
-                Type = genedVal.Type,
-                ValueRef = stackPtr
-            });
-
-            // Register for drop if the type implements Drop or has droppable fields
-            if (genedVal.Type.TypePath != null &&
-                (context.IsTypeDrop(genedVal.Type.TypePath) || context.TypeHasDroppableFields(genedVal.Type.TypePath)))
-            {
-                context.RegisterDroppable(VariableDefinition.Name, genedVal.Type.TypePath, stackPtr);
-            }
+            context.SpillToNamedLocal(VariableDefinition.Name, genedVal);
         }
         else
         {

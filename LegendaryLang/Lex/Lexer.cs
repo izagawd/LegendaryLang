@@ -91,6 +91,17 @@ public static class Lexer
                     file.AddToken(new OperatorToken(file,column,line,Operator.Add));
                     break;
                 case '/':
+                    if (index + 1 < code.Length && code[index + 1] == '/')
+                    {
+                        // Line comment — skip everything until end of line
+                        while (index < code.Length && code[index] != '\n')
+                        {
+                            index++;
+                            column++;
+                        }
+                        // Let the main loop handle the '\n' on the next iteration
+                        continue;
+                    }
                     file.AddToken(new OperatorToken(file,column,line,Operator.Divide));
                     break;
                 case '*':
