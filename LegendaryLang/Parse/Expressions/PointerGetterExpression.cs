@@ -153,14 +153,12 @@ public class PointerGetterExpression : IExpression
         if (ptrTypeRef?.Type is RefType refType)
         {
             // The inner ValueRef is the address we want to store as the reference value.
-            // Allocate a stack slot for the reference (pointer) and store the address.
+            // Allocate a {ptr, metadata} struct and store the address into field 0.
+            // Field 1 (metadata) is () for thin pointers — zero-sized, nothing to store.
             var alloca = codeGenContext.Builder.BuildAlloca(refType.TypeRef);
-            codeGenContext.Builder.BuildStore(innerVal.ValueRef, alloca);
-            return new ValueRefItem
-            {
-                Type = refType,
-                ValueRef = alloca
-            };
+            var field0 = codeGenContext.Builder.BuildStructGEP2(refType.TypeRef, alloca, 0);
+            codeGenContext.Builder.BuildStore(innerVal.ValueRef, field0);
+            return new ValueRefItem { Type = refType, ValueRef = alloca };
         }
 
         // Fallback — shouldn't happen

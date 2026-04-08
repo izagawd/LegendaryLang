@@ -251,7 +251,7 @@ public class MatchExpression : IExpression
         if (ScrutineeRefKind != null && scrutineeVal.Type is PointerLikeType ptrType)
         {
             // Load the pointer from the reference, giving us a pointer to the enum
-            enumPtr = ptrType.LoadValue(codeGenContext, scrutineeVal);
+            enumPtr = ptrType.ExtractDataPointer(codeGenContext, scrutineeVal);
             enumType = ptrType.PointingToType as EnumType
                 ?? throw new InvalidOperationException("Reference scrutinee does not point to an enum type");
         }
@@ -348,9 +348,10 @@ public class MatchExpression : IExpression
                             var refTypeRef = codeGenContext.GetRefItemFor(refTypePath) as TypeRefItem;
                             if (refTypeRef?.Type is RefType refType)
                             {
-                                // Allocate a stack slot for the reference pointer and store the field address
+                                // Allocate a {ptr, metadata} struct and store the field address into field 0
                                 var refAlloca = codeGenContext.Builder.BuildAlloca(refType.TypeRef, bindingName);
-                                codeGenContext.Builder.BuildStore(fieldPtr, refAlloca);
+                                var refField0 = codeGenContext.Builder.BuildStructGEP2(refType.TypeRef, refAlloca, 0);
+                                codeGenContext.Builder.BuildStore(fieldPtr, refField0);
 
                                 if (bindingName != "_")
                                 {

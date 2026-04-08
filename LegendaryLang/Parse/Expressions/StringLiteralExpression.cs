@@ -53,7 +53,7 @@ public class StringLiteralExpression : IExpression
 
         // Get the &const str fat pointer type
         var refTypeItem = codeGenContext.GetRefItemFor(TypePath!) as TypeRefItem;
-        if (refTypeItem?.Type is not PointerLikeType fatPtrType || !fatPtrType.IsFat)
+        if (refTypeItem?.Type is not PointerLikeType fatPtrType || !fatPtrType.HasNonTrivialMetadata)
             throw new InvalidOperationException("&const str should be a fat pointer type");
 
         // Build fat pointer: {data_ptr, length}

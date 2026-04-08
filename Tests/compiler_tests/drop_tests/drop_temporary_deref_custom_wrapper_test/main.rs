@@ -5,6 +5,8 @@
 use Std.Ops.Drop;
 use Std.Deref.Receiver;
 use Std.Deref.Deref;
+use Std.Deref.Receiver;
+use Std.Deref.Deref;
 
 struct Wrapper['a] {
     inner: Box(i32),

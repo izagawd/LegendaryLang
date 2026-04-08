@@ -37,6 +37,17 @@ public static class IntrinsicCodeGen
         return module.Contains(expectedModule);
     }
 
+    /// <summary>
+    /// Wraps a raw LLVM pointer into a {ptr, metadata} struct for returning from an intrinsic.
+    /// All pointer-like types are uniformly represented as {ptr, metadata} structs, so malloc/calloc
+    /// results (raw i8* values) must be inserted into field 0 of the return struct.
+    /// </summary>
+    private static LLVMValueRef WrapRawPtrAsStruct(LLVMTypeRef structType, LLVMValueRef rawPtr, LLVMBuilderRef builder)
+    {
+        var zero = LLVMValueRef.CreateConstNull(structType);
+        return builder.BuildInsertValue(zero, rawPtr, 0, "ptr_struct");
+    }
+
     public static bool TryEmit(Function function, CodeGenContext context)
     {
         var defPath = function.Definition.TypePath;
@@ -58,6 +69,7 @@ public static class IntrinsicCodeGen
             _ => false
         };
     }
+
     // ── Type query intrinsics ──
 
     private static bool EmitSizeOf(Function function, CodeGenContext context)
@@ -80,7 +92,7 @@ public static class IntrinsicCodeGen
 
     // ── Allocation intrinsics ──
 
-    private static bool EmitAlloc(Function function, CodeGenContext context)
+    private static unsafe bool EmitAlloc(Function function, CodeGenContext context)
     {
         if (function.Arguments.Length != 2) return false;
 
@@ -90,7 +102,8 @@ public static class IntrinsicCodeGen
         var mallocFunc = GetOrDeclareMalloc(context);
         var ptr = context.Builder.BuildCall2(MallocFuncType, mallocFunc,
             new LLVMValueRef[] { sizeVal }, "heap_ptr");
-        context.Builder.BuildRet(ptr);
+        var returnTypeRef = LLVM.GetReturnType(function.FunctionType);
+        context.Builder.BuildRet(WrapRawPtrAsStruct(returnTypeRef, ptr, context.Builder));
         return true;
     }
 
@@ -102,7 +115,7 @@ public static class IntrinsicCodeGen
         var ptrType = ptrArg.Type as RawPtrType;
         if (ptrType == null) return false;
 
-        var rawPtr = ptrType.LoadValue(context, new ValueRefItem
+        var rawPtr = ptrType.ExtractDataPointer(context, new ValueRefItem
         {
             Type = ptrType, ValueRef = ptrArg.Alloca
         });
@@ -115,7 +128,7 @@ public static class IntrinsicCodeGen
         return true;
     }
 
-    private static bool EmitAllocZeroed(Function function, CodeGenContext context)
+    private static unsafe bool EmitAllocZeroed(Function function, CodeGenContext context)
     {
         if (function.Arguments.Length != 2) return false;
 
@@ -126,14 +139,14 @@ public static class IntrinsicCodeGen
         var one = LLVMValueRef.CreateConstInt(UsizeTypeDefinition.UsizeLLVMType, 1, false);
         var ptr = context.Builder.BuildCall2(CallocFuncType, callocFunc,
             new LLVMValueRef[] { one, sizeVal }, "heap_ptr");
-
-        context.Builder.BuildRet(ptr);
+        var returnTypeRef = LLVM.GetReturnType(function.FunctionType);
+        context.Builder.BuildRet(WrapRawPtrAsStruct(returnTypeRef, ptr, context.Builder));
         return true;
     }
 
     // ── Pointer intrinsics ──
 
-    private static bool EmitPtrWrite(Function function, CodeGenContext context)
+    private static unsafe bool EmitPtrWrite(Function function, CodeGenContext context)
     {
         if (function.Arguments.Length != 2) return false;
 
@@ -142,31 +155,25 @@ public static class IntrinsicCodeGen
         var dstType = dstArg.Type as RawPtrType;
         if (dstType == null) return false;
 
-        var rawPtr = dstType.LoadValue(context, new ValueRefItem
+        var rawPtr = dstType.ExtractDataPointer(context, new ValueRefItem
         {
             Type = dstType, ValueRef = dstArg.Alloca
         });
 
         var valType = valArg.Type;
-        valType.AssignTo(context, new ValueRefItem
-            {
-                Type = valType,
-                ValueRef = valArg.Alloca
-            },
-            new ValueRefItem
-            {
-                Type = valType,
-                ValueRef = rawPtr
-            });
+        valType.AssignTo(context,
+            new ValueRefItem { Type = valType, ValueRef = valArg.Alloca },
+            new ValueRefItem { Type = valType, ValueRef = rawPtr });
 
         // Ownership transferred to heap destination — don't drop the parameter
         context.MarkDropFlagMoved(valArg.Name);
 
-        context.Builder.BuildRet(rawPtr);
+        var returnTypeRef = LLVM.GetReturnType(function.FunctionType);
+        context.Builder.BuildRet(WrapRawPtrAsStruct(returnTypeRef, rawPtr, context.Builder));
         return true;
     }
 
-    private static bool EmitPtrAsU8(Function function, CodeGenContext context)
+    private static unsafe bool EmitPtrAsU8(Function function, CodeGenContext context)
     {
         if (function.Arguments.Length != 1) return false;
 
@@ -174,12 +181,13 @@ public static class IntrinsicCodeGen
         var ptrType = ptrArg.Type as RawPtrType;
         if (ptrType == null) return false;
 
-        var rawPtr = ptrType.LoadValue(context, new ValueRefItem
+        var rawPtr = ptrType.ExtractDataPointer(context, new ValueRefItem
         {
             Type = ptrType, ValueRef = ptrArg.Alloca
         });
 
-        context.Builder.BuildRet(rawPtr);
+        var returnTypeRef = LLVM.GetReturnType(function.FunctionType);
+        context.Builder.BuildRet(WrapRawPtrAsStruct(returnTypeRef, rawPtr, context.Builder));
         return true;
     }
 
@@ -198,13 +206,11 @@ public static class IntrinsicCodeGen
 
         var typePath = ptrType.PointingToType.TypePath;
 
-        // Load the raw pointer from the argument alloca
-        var rawPtr = ptrType.LoadValue(context, new ValueRefItem
+        var rawPtr = ptrType.ExtractDataPointer(context, new ValueRefItem
         {
             Type = ptrType, ValueRef = ptrArg.Alloca
         });
 
-        // Destruct the value at the pointer: Drop call + recursive field drops
         context.EmitDestruct(typePath, rawPtr);
 
         var voidVal = context.GetVoid();
@@ -213,7 +219,6 @@ public static class IntrinsicCodeGen
     }
 
     // ── C runtime function declarations ──
-    // Explicitly declared in the LLVM module so we can map them via AddGlobalMapping.
 
     private static readonly LLVMTypeRef PtrType = LLVMTypeRef.CreatePointer(LLVMTypeRef.Int8, 0);
 
@@ -240,10 +245,17 @@ public static class IntrinsicCodeGen
         return context.Module.AddFunction("free", FreeFuncType);
     }
 
+    public static unsafe LLVMValueRef GetOrDeclareCalloc(CodeGenContext context)
+    {
+        LLVMValueRef existing = LLVM.GetNamedFunction(context.Module, "calloc".ToCString());
+        if (existing.Handle != IntPtr.Zero) return existing;
+        return context.Module.AddFunction("calloc", CallocFuncType);
+    }
+
     // ── Primitive conversion intrinsic ──
 
     /// <summary>
-    /// try_cast_primitive[From:! Primitive](To:! Primitive, input: From) -> Option(To)
+    /// TryCastPrimitive[From:! Primitive](To:! Primitive, input: From) -> Option(To)
     /// Converts between primitive numeric types with range checking.
     /// Returns Some(converted) if the value fits, None otherwise.
     /// GenericArguments[0] = From, GenericArguments[1] = To.
@@ -266,21 +278,18 @@ public static class IntrinsicCodeGen
         var toRef = toType.TypeRef;
         var fromBits = fromRef.IntWidth;
         var toBits = toRef.IntWidth;
-        bool fromSigned = fromType.Name == "i32"; // i32 is signed; u8, usize, bool are unsigned
+        bool fromSigned = fromType.Name == "i32";
 
-        // Determine if conversion can fail
         LLVMValueRef converted;
         LLVMValueRef fits;
 
         if (fromBits == toBits && fromType.Name == toType.Name)
         {
-            // Same type — always succeeds
             converted = inputVal;
             fits = LLVMValueRef.CreateConstInt(LLVMTypeRef.Int1, 1, false);
         }
         else
         {
-            // Convert to target width
             if (toBits > fromBits)
                 converted = fromSigned
                     ? context.Builder.BuildSExt(inputVal, toRef)
@@ -288,11 +297,10 @@ public static class IntrinsicCodeGen
             else if (toBits < fromBits)
                 converted = context.Builder.BuildTrunc(inputVal, toRef);
             else
-                converted = inputVal; // same width, different signedness
+                converted = inputVal;
 
-            // Round-trip check: convert back and compare
-            LLVMValueRef roundTrip;
             bool toSigned = toType.Name == "i32";
+            LLVMValueRef roundTrip;
             if (fromBits > toBits)
                 roundTrip = toSigned
                     ? context.Builder.BuildSExt(converted, fromRef)
@@ -304,7 +312,6 @@ public static class IntrinsicCodeGen
 
             fits = context.Builder.BuildICmp(LLVMIntPredicate.LLVMIntEQ, inputVal, roundTrip);
 
-            // Extra check: signed-to-unsigned requires non-negative
             if (fromSigned && !toSigned)
             {
                 var nonNeg = context.Builder.BuildICmp(LLVMIntPredicate.LLVMIntSGE,
@@ -313,10 +320,8 @@ public static class IntrinsicCodeGen
             }
         }
 
-        // Build Option enum result
         var resultAlloca = context.Builder.BuildAlloca(returnType.TypeRef);
 
-        // Branch: if fits → Some(converted), else → None
         var parentFunc = context.Builder.InsertBlock.Parent;
         var someBB = parentFunc.AppendBasicBlock("trycast.some");
         var noneBB = parentFunc.AppendBasicBlock("trycast.none");
@@ -324,7 +329,6 @@ public static class IntrinsicCodeGen
 
         context.Builder.BuildCondBr(fits, someBB, noneBB);
 
-        // Some branch: tag=0, payload=converted
         context.Builder.PositionAtEnd(someBB);
         var someTagPtr = context.Builder.BuildStructGEP2(returnType.TypeRef, resultAlloca, 0);
         context.Builder.BuildStore(LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, 0, false), someTagPtr);
@@ -337,23 +341,14 @@ public static class IntrinsicCodeGen
         }
         context.Builder.BuildBr(mergeBB);
 
-        // None branch: tag=1
         context.Builder.PositionAtEnd(noneBB);
         var noneTagPtr = context.Builder.BuildStructGEP2(returnType.TypeRef, resultAlloca, 0);
         context.Builder.BuildStore(LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, 1, false), noneTagPtr);
         context.Builder.BuildBr(mergeBB);
 
-        // Merge: load and return the Option enum
         context.Builder.PositionAtEnd(mergeBB);
         var loaded = returnType.LoadValue(context, new ValueRefItem { Type = returnType, ValueRef = resultAlloca });
         context.Builder.BuildRet(loaded);
         return true;
-    }
-
-    public static unsafe LLVMValueRef GetOrDeclareCalloc(CodeGenContext context)
-    {
-        LLVMValueRef existing = LLVM.GetNamedFunction(context.Module, "calloc".ToCString());
-        if (existing.Handle != IntPtr.Zero) return existing;
-        return context.Module.AddFunction("calloc", CallocFuncType);
     }
 }

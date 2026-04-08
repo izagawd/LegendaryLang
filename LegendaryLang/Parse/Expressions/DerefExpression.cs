@@ -174,51 +174,61 @@ public class DerefExpression : IExpression
     public bool IsNonCopyPlaceDeref => IsNonCopySmartPointerDeref || IsNonCopyRefDeref;
 
     /// <summary>
-    /// Shared deref codegen — works for any dereferenceable type (RefType, RawPtrType, StructType with Receiver).
+    /// Shared deref codegen — works for any dereferenceable type (RefType, RawPtrType, StructType with Deref impl).
     /// Used by both DerefExpression.CodeGen and MethodCallKind auto-deref.
-    /// No type-specific logic is repeated.
+    /// For struct types, calls the appropriate deref trait method (deref/deref_mut/deref_const/deref_uniq)
+    /// regardless of internal fields — deref behaviour is defined solely by the trait implementation.
     /// </summary>
-    public static ValueRefItem EmitDeref(CodeGenContext context, ValueRefItem inner)
+    public static ValueRefItem EmitDeref(CodeGenContext context, ValueRefItem inner, RefKind? derefKind = null)
     {
         Type pointeeType;
         LLVMValueRef ptrVal;
 
         if (inner.Type is RefType refType)
         {
-            ptrVal = refType.LoadValue(context, inner);
+            ptrVal = refType.ExtractDataPointer(context, inner);
             pointeeType = refType.PointingToType;
         }
         else if (inner.Type is RawPtrType rawPtrType)
         {
-            ptrVal = rawPtrType.LoadValue(context, inner);
+            ptrVal = rawPtrType.ExtractDataPointer(context, inner);
             pointeeType = rawPtrType.PointingToType;
         }
         else if (inner.Type is StructType structType)
         {
-            // Smart pointer deref: find the first raw pointer field and load through it.
-            RawPtrType? rawField = null;
-            uint fieldIdx = 0;
-            for (int i = 0; i < (structType.ResolvedFieldTypes?.Length ?? 0); i++)
-            {
-                if (structType.ResolvedFieldTypes!.Value[i] is RawPtrType rpt)
-                {
-                    rawField = rpt;
-                    fieldIdx = (uint)i;
-                    break;
-                }
-            }
-            if (rawField == null)
+            // Trait-based deref: call the appropriate deref method (deref/deref_mut/deref_const/deref_uniq).
+            // The method takes &Self and returns &T — we load through the returned reference to get T*.
+            if (derefKind == null)
                 throw new InvalidOperationException(
-                    $"Cannot deref '{structType.TypePath}': no raw pointer field found");
+                    $"Cannot deref '{structType.TypePath}': no deref kind provided");
 
-            var fieldGep = context.Builder.BuildStructGEP2(
-                structType.TypeRef, inner.ValueRef, fieldIdx);
-            ptrVal = rawField.LoadValue(context, new ValueRefItem
-            {
-                Type = rawField,
-                ValueRef = fieldGep
-            });
-            pointeeType = rawField.PointingToType;
+            var methodName = SemanticAnalyzer.GetDerefMethodForRefKind(derefKind.Value);
+
+            // Build the correct self reference kind for this deref method:
+            // deref → &Self, deref_const → &const Self, deref_mut → &mut Self, deref_uniq → &uniq Self
+            var selfRefTypePath = RefTypeDefinition.GetRefModule()
+                .Append(RefTypeDefinition.GetRefName(derefKind.Value))
+                .AppendGenerics([structType.TypePath!]);
+            var selfRefTypeRef = context.GetRefItemFor(selfRefTypePath) as TypeRefItem;
+            if (selfRefTypeRef?.Type is not RefType selfRefType)
+                throw new InvalidOperationException(
+                    $"Cannot build self reference for '{structType.TypePath}'");
+
+            var selfRefAlloca = context.Builder.BuildAlloca(selfRefType.TypeRef);
+            var selfField0 = context.Builder.BuildStructGEP2(selfRefType.TypeRef, selfRefAlloca, 0);
+            context.Builder.BuildStore(inner.ValueRef, selfField0);
+            var selfArg = new ValueRefItem { Type = selfRefType, ValueRef = selfRefAlloca };
+
+            // Call deref method — returns &T (an alloca of RefType)
+            var derefResult = context.EmitCall((NormalLangPath)structType.TypePath!, methodName, [selfArg]);
+
+            // Load through the returned &T to get the raw T* pointer
+            if (derefResult.Type is not RefType retRefType)
+                throw new InvalidOperationException(
+                    $"Expected '{methodName}' to return a reference, got '{derefResult.Type?.TypePath}'");
+
+            ptrVal = retRefType.ExtractDataPointer(context, derefResult);
+            pointeeType = retRefType.PointingToType;
         }
         else
         {
@@ -247,7 +257,7 @@ public class DerefExpression : IExpression
             innerVal = new ValueRefItem { Type = innerVal.Type, ValueRef = spilledPtr };
         }
 
-        return EmitDeref(codeGenContext, innerVal);
+        return EmitDeref(codeGenContext, innerVal, SourceDerefKind);
     }
 
     public bool HasGuaranteedExplicitReturn => Inner.HasGuaranteedExplicitReturn;

@@ -3,6 +3,8 @@
 // side-channel counter that drop has already fired by the time we reach
 // the addition after the block.
 use Std.Ops.Drop;
+use Std.Deref.Receiver;
+use Std.Deref.Deref;
 
 struct Sentinel['a] {
     counter: &'a mut i32

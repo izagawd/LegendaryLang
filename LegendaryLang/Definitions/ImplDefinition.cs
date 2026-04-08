@@ -394,10 +394,12 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             // Push impl generic bounds for method body analysis
             var bounds = SemanticAnalyzer.BuildGenericBoundsWithImplicitSized(GenericParameters);
             analyzer.PushTraitBounds(bounds);
+            analyzer.PushImplLifetimes(LifetimeParameters);
 
             foreach (var method in Methods)
                 method.Analyze(analyzer);
 
+            analyzer.PopImplLifetimes();
             analyzer.PopTraitBounds();
             return;
         }
@@ -632,8 +634,10 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
         }
 
         // Analyze each method body — impl generic bounds already pushed above
+        analyzer.PushImplLifetimes(LifetimeParameters);
         foreach (var method in Methods)
             method.Analyze(analyzer);
+        analyzer.PopImplLifetimes();
 
         analyzer.PopTraitBounds();
 

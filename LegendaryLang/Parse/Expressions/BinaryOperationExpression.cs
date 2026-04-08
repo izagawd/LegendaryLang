@@ -64,6 +64,29 @@ public class BinaryOperationExpression : IExpression
     private static bool IsLogicalOperator(Operator op) =>
         op is Operator.And or Operator.Or;
 
+    /// <summary>
+    /// Spills a value to an anonymous temporary alloca and wraps it into a shared reference.
+    /// Used for comparison operators whose trait methods take &Self / &Rhs:
+    /// even literal or temporary values need a stable address to take a reference to.
+    /// Reuses SpillToAnonymousLocal (same pattern as DerefExpression for temporary derefs).
+    /// </summary>
+    private static ValueRefItem SpillAndRef(ValueRefItem val, CodeGenContext ctx)
+    {
+        var rawPtr = ctx.SpillToAnonymousLocal(val);
+
+        var refTypePath = RefTypeDefinition.GetRefModule()
+            .Append(RefTypeDefinition.GetRefName(RefKind.Shared))
+            .AppendGenerics([val.Type.TypePath]);
+        var refTypeRef = ctx.GetRefItemFor(refTypePath) as TypeRefItem;
+        if (refTypeRef?.Type is not RefType refType)
+            throw new InvalidOperationException($"Cannot build &{val.Type.TypePath} reference");
+
+        var refAlloca = ctx.Builder.BuildAlloca(refType.TypeRef);
+        var field0 = ctx.Builder.BuildStructGEP2(refType.TypeRef, refAlloca, 0);
+        ctx.Builder.BuildStore(rawPtr, field0);
+        return new ValueRefItem { Type = refType, ValueRef = refAlloca };
+    }
+
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         var leftVal = Left.CodeGen(codeGenContext);
@@ -90,26 +113,14 @@ public class BinaryOperationExpression : IExpression
                 {
                     if (IsComparisonOperator(op))
                     {
-                        // Comparison trait methods take &Self and &Rhs — pass references.
-                        // Variables already live in allocas (pointers), so use them directly.
-                        // Only stack-allocate for literals/expression results in registers.
-                        var leftPtr = leftVal.ValueRef.TypeOf.Kind == LLVMTypeKind.LLVMPointerTypeKind
-                            ? leftVal.ValueRef
-                            : leftVal.StackAllocate(codeGenContext);
-                        var rightPtr = rightVal.ValueRef.TypeOf.Kind == LLVMTypeKind.LLVMPointerTypeKind
-                            ? rightVal.ValueRef
-                            : rightVal.StackAllocate(codeGenContext);
-
-                        var callResult = codeGenContext.Builder.BuildCall2(
-                            funcRef.Function.FunctionType,
-                            funcRef.Function.FunctionValueRef,
-                            [leftPtr, rightPtr]);
-
-                        return CallExpressionHelper.BuildCallReturnValue(
-                            callResult, funcRef.Function.ReturnType, codeGenContext);
+                        // Comparison trait methods take &Self and &Rhs. Spill each operand to
+                        // an anonymous temporary (same pattern as DerefExpression for temporary derefs),
+                        // then wrap the alloca into a {ptr, {}} ref struct to pass as the reference arg.
+                        var leftRef = SpillAndRef(leftVal, codeGenContext);
+                        var rightRef = SpillAndRef(rightVal, codeGenContext);
+                        return CallExpressionHelper.EmitCall(funcRef, [leftRef, rightRef], codeGenContext);
                     }
 
-                    // Arithmetic operators take values
                     return CallExpressionHelper.EmitCall(funcRef, [leftVal, rightVal], codeGenContext);
                 }
             }

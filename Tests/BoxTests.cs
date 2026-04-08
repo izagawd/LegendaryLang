@@ -73,6 +73,21 @@ public class BoxTests
         // Box<Outer> with nested structs, field access through deref: 10+32 = 42
         AssertSuccess("box_tests/box_nested_struct_test", 42);
     }
+
+    [Test]
+    public void BoxUniqDerefInStructTest()
+    {
+        // &uniq *box stored in a struct field, then accessed via *b.dd → 5
+        AssertSuccess("box_tests/box_uniq_deref_in_struct_test", 5);
+    }
+
+    [Test]
+    public void BoxUniqDerefStructShadowTest()
+    {
+        // Same as above but the Box binding is shadowed by the struct — old Box
+        // still lives on the stack, reference remains valid → *a.dd == 5
+        AssertSuccess("box_tests/box_uniq_deref_struct_shadow_test", 5);
+    }
 }
 
 public class DropFieldTests

@@ -175,8 +175,8 @@ public class Function : IConcreteDefinition,  IPathResolvable
             // Allocate space for the parameter in the entry block.
             LLVMValueRef alloca = context.Builder.BuildAlloca(paramTypes[(int)i], argument.Name);
 
-            // For pointer/reference types, the param IS the raw pointer value —
-            // just store it directly. AssignTo would incorrectly dereference it.
+            // For pointer/reference types, the param arrives as the full {ptr, metadata} struct value.
+            // Store it directly into the alloca of the same struct type.
             if (argument.Type is RefType or RawPtrType)
             {
                 context.Builder.BuildStore(param, alloca);

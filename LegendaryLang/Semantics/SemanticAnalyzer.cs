@@ -483,6 +483,12 @@ public class SemanticAnalyzer
     /// </summary>
     private readonly Stack<HashSet<string>> _scopeVariables = new();
 
+    /// <summary>Lifetime parameters declared on the enclosing impl block, available to all its methods.</summary>
+    private readonly Stack<ImmutableArray<string>> _implLifetimeParameters = new();
+
+    public void PushImplLifetimes(ImmutableArray<string> lifetimes) => _implLifetimeParameters.Push(lifetimes);
+    public void PopImplLifetimes() => _implLifetimeParameters.Pop();
+
     /// <summary>
     /// Register that <paramref name="borrower"/> borrows from <paramref name="source"/>.
     /// Registered in the current (innermost) scope.
@@ -1858,6 +1864,7 @@ public class SemanticAnalyzer
     /// <summary>
     /// Validates lifetime annotations on a function or trait method signature.
     /// Shared by FunctionDefinition and TraitDefinition.
+    /// Impl-block lifetime parameters (pushed via PushImplLifetimes) are always in scope.
     /// </summary>
     public void ValidateLifetimeAnnotations(
         ImmutableArray<VariableDefinition> parameters,
@@ -1866,15 +1873,19 @@ public class SemanticAnalyzer
         ImmutableArray<string> lifetimeParameters,
         string name, string locationString, string kind)
     {
+        // The full set of valid lifetimes: function's own + enclosing impl block's
+        var implLifetimes = _implLifetimeParameters.Count > 0 ? _implLifetimeParameters.Peek() : [];
+        bool IsValidLifetime(string lt) =>
+            lt == "static" || lifetimeParameters.Contains(lt) || implLifetimes.Contains(lt);
+
         // Check all argument lifetimes are declared
         foreach (var (_, lt) in argumentLifetimes)
-            if (!lifetimeParameters.Contains(lt))
+            if (!IsValidLifetime(lt))
                 AddException(new SemanticException(
                     $"Undeclared lifetime '{lt}' in parameter of {kind} '{name}'\n" + locationString));
 
         // Check return lifetime is declared ('static is a built-in, not user-declared)
-        if (returnLifetime != null && returnLifetime != "static"
-            && !lifetimeParameters.Contains(returnLifetime))
+        if (returnLifetime != null && !IsValidLifetime(returnLifetime))
             AddException(new SemanticException(
                 $"Undeclared lifetime '{returnLifetime}' in return type of {kind} '{name}'\n" + locationString));
 

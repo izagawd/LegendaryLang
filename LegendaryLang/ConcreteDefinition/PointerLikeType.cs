@@ -6,25 +6,26 @@ namespace LegendaryLang.ConcreteDefinition;
 
 /// <summary>
 /// Shared base for RefType and RawPtrType.
-/// Handles both thin pointers (sized pointees) and fat pointers (unsized pointees).
-/// A fat pointer is a struct {data_ptr, metadata} where metadata depends on the pointee
-/// (usize for slices/str, vtable ptr for trait objects).
+/// ALL pointer-like types are represented as {ptr, metadata} structs in LLVM IR.
+/// For sized pointees the metadata field is the zero-sized empty-struct () type.
+/// This uniform layout eliminates all thin/fat conditional branches — every path
+/// is data-driven over the same two-field struct.
 /// </summary>
 public abstract class PointerLikeType : Type
 {
     public Type PointingToType { get; }
 
-    /// <summary>The LLVM type of the metadata field. Null for sized pointees (metadata is ()).</summary>
-    public LLVMTypeRef? MetadataTypeRef { get; }
+    /// <summary>The LLVM type of the metadata field. Empty struct ({}) for sized pointees, usize for slices/str.</summary>
+    public LLVMTypeRef MetadataTypeRef { get; }
 
     /// <summary>For unsized pointees: the LLVM type of each element (i8 for str, T for [T]).</summary>
     public LLVMTypeRef? ElementTypeRef { get; }
 
     /// <summary>
-    /// Whether this pointer carries non-trivial metadata (unsized pointee).
-    /// Sized types have () metadata which is zero-sized — no LLVM representation needed.
+    /// Whether this pointer carries non-trivial (non-zero-sized) metadata.
+    /// True for slices and str, false for all sized pointees.
     /// </summary>
-    public bool IsFat => MetadataTypeRef != null;
+    public bool HasNonTrivialMetadata => ElementTypeRef != null;
 
     protected PointerLikeType(TypeDefinition definition, Type pointingToType, LLVMTypeRef typeRef,
         LLVMTypeRef? elementTypeRef = null, LLVMTypeRef? metadataTypeRef = null)
@@ -33,41 +34,41 @@ public abstract class PointerLikeType : Type
         PointingToType = pointingToType;
         TypeRef = typeRef;
         ElementTypeRef = elementTypeRef;
-        MetadataTypeRef = metadataTypeRef;
+        MetadataTypeRef = metadataTypeRef ?? LLVMTypeRef.CreateStruct([], false);
     }
 
     public override LLVMTypeRef TypeRef { get; protected set; }
-    public override int GetPrimitivesCompositeCount(CodeGenContext context) => IsFat ? 2 : 1;
+    public override int GetPrimitivesCompositeCount(CodeGenContext context) => HasNonTrivialMetadata ? 2 : 1;
 
     /// <summary>
-    /// Extracts just the data pointer from a pointer value (thin or fat).
-    /// For thin pointers, this is the pointer itself.
-    /// For fat pointers, this loads field 0 of the {ptr, metadata} struct.
+    /// Loads the full {ptr, metadata} struct value from storage.
+    /// If valueRef is an alloca (pointer kind), loads from it; otherwise returns the value directly.
     /// </summary>
-    public LLVMValueRef ExtractDataPointer(CodeGenContext context, ValueRefItem valueRef)
-    {
-        if (!IsFat) return LoadValue(context, valueRef);
-        var structVal = LoadValue(context, valueRef);
-        return context.Builder.BuildExtractValue(structVal, 0);
-    }
-
-    /// <summary>
-    /// Extracts the metadata from a fat pointer value.
-    /// For thin pointers, returns null.
-    /// For fat pointers, loads field 1 of the {ptr, metadata} struct.
-    /// </summary>
-    public LLVMValueRef? ExtractMetadata(CodeGenContext context, ValueRefItem valueRef)
-    {
-        if (!IsFat) return null;
-        var structVal = LoadValue(context, valueRef);
-        return context.Builder.BuildExtractValue(structVal, 1);
-    }
-
     public override LLVMValueRef LoadValue(CodeGenContext context, ValueRefItem valueRef)
     {
         if (valueRef.ValueRef.TypeOf.Kind == LLVMTypeKind.LLVMPointerTypeKind)
             return context.Builder.BuildLoad2(TypeRef, valueRef.ValueRef);
         return valueRef.ValueRef;
+    }
+
+    /// <summary>
+    /// Extracts the raw data pointer from the {ptr, metadata} struct (field 0).
+    /// Works uniformly for both thin ({ptr, {}}) and fat ({ptr, metadata}) pointers.
+    /// </summary>
+    public LLVMValueRef ExtractDataPointer(CodeGenContext context, ValueRefItem valueRef)
+    {
+        var structVal = LoadValue(context, valueRef);
+        return context.Builder.BuildExtractValue(structVal, 0);
+    }
+
+    /// <summary>
+    /// Extracts the metadata value from the {ptr, metadata} struct (field 1).
+    /// Returns the zero-sized () value for thin pointers, usize for fat pointers.
+    /// </summary>
+    public LLVMValueRef ExtractMetadata(CodeGenContext context, ValueRefItem valueRef)
+    {
+        var structVal = LoadValue(context, valueRef);
+        return context.Builder.BuildExtractValue(structVal, 1);
     }
 
     public override void AssignTo(CodeGenContext codeGenContext, ValueRefItem value, ValueRefItem ptr)
@@ -79,26 +80,22 @@ public abstract class PointerLikeType : Type
     public override LLVMValueRef AssignToStack(CodeGenContext context, ValueRefItem dataRefItem)
     {
         var alloca = context.Builder.BuildAlloca(TypeRef);
-        var ptrVal = LoadValue(context, dataRefItem);
-        context.Builder.BuildStore(ptrVal, alloca);
+        var structVal = LoadValue(context, dataRefItem);
+        context.Builder.BuildStore(structVal, alloca);
         return alloca;
     }
 
     /// <summary>
-    /// Constructs a fat pointer from a data pointer and metadata value.
-    /// Returns a ValueRefItem containing an alloca with the fat pointer struct.
+    /// Constructs a {ptr, metadata} struct from a raw data pointer and metadata value.
+    /// For thin pointers pass LLVMValueRef.CreateConstNull(emptyStructType) as metadata.
     /// </summary>
     public ValueRefItem BuildFatPointer(CodeGenContext context, LLVMValueRef dataPtr, LLVMValueRef metadata)
     {
-        if (!IsFat)
-            throw new InvalidOperationException("Cannot build fat pointer for thin pointer type");
-
         var alloca = context.Builder.BuildAlloca(TypeRef);
         var dataDst = context.Builder.BuildStructGEP2(TypeRef, alloca, 0);
         context.Builder.BuildStore(dataPtr, dataDst);
         var metaDst = context.Builder.BuildStructGEP2(TypeRef, alloca, 1);
         context.Builder.BuildStore(metadata, metaDst);
-
         return new ValueRefItem { Type = this, ValueRef = alloca };
     }
 }

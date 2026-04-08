@@ -69,9 +69,16 @@ public abstract class PointerTypeDefinitionBase : TypeDefinition
             };
         }
 
-        // Sized pointee → thin pointer (metadata is () — no LLVM representation needed)
-        var typeRef = LLVMTypeRef.CreatePointer(pointingToTypeRef.TypeRef, 0);
-        return new TypeRefItem { Type = CreateConcreteType(pointingToType, typeRef) };
+        // Sized pointee → thin pointer: {ptr, ()} where () is the zero-sized empty-struct metadata.
+        // Using the same {ptr, metadata} struct layout as fat pointers makes all pointer-like
+        // types data-driven — no IsFat branches in load/store/extract paths.
+        var emptyMetaTypeRef = LLVMTypeRef.CreateStruct([], false);
+        var thinTypeRef = LLVMTypeRef.CreateStruct(
+            [LLVMTypeRef.CreatePointer(pointingToTypeRef.TypeRef, 0), emptyMetaTypeRef], false);
+        return new TypeRefItem
+        {
+            Type = CreateConcreteType(pointingToType, thinTypeRef, metadataTypeRef: emptyMetaTypeRef)
+        };
     }
 
     protected abstract ConcreteDefinition.Type CreateConcreteType(

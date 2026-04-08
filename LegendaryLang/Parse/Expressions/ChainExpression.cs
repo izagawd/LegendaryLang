@@ -79,7 +79,7 @@ public static class TemporaryScope
         ctx.AddScope();
         var val = kind.CodeGen(ctx);
         if (val.Type?.TypePath != null && val.Type.TypePath != LangPath.VoidBaseLangPath)
-            ctx.RegisterDroppable("_temp", val.Type.TypePath, val.ValueRef);
+            ctx.RegisterDroppable("_", val.Type.TypePath, val.ValueRef);
         return val;
     }
 
@@ -822,6 +822,8 @@ public class MethodCallKind : IChainKind
     public RefKind? AutoRefKind { get; init; }
     public bool NeedsAutoDeref { get; init; }
     public int AutoDerefDepth { get; init; }
+    /// <summary>Deref capability to use at each step of the auto-deref chain (from chainCap / maxCapability).</summary>
+    public RefKind AutoDerefKind { get; init; } = RefKind.Shared;
     public LangPath? ReceiverTypePath { get; init; }
     public string? RootVarName { get; init; }
     public LangPath? TypePath { get; set; }
@@ -949,8 +951,6 @@ public class MethodCallKind : IChainKind
                 var traitReturnType = CallExpressionHelper.IsSelfReturnType(method.ReturnTypePath)
                     ? targetType : analyzer.ResolveQualifiedTypePath(method.ReturnTypePath);
 
-                RejectBorrowFromTemporary(receiver, autoRefKind, traitReturnType, methodName, tokenLoc, analyzer);
-
                 if (traitPath is NormalLangPath nlpTrait)
                     return new MethodCallKind
                     {
@@ -958,6 +958,7 @@ public class MethodCallKind : IChainKind
                         ResolvedFunctionPath = nlpTrait.Append(methodName),
                         ResolvedQualifiedType = targetType as NormalLangPath, AutoRefKind = autoRefKind,
                         NeedsAutoDeref = needsAutoDeref, AutoDerefDepth = autoDerefDepth,
+                        AutoDerefKind = autoRefKind ?? RefKind.Shared,
                         ReceiverTypePath = originalReceiverType, RootVarName = rootVarName,
                         TypePath = traitReturnType,
                     };
@@ -1052,8 +1053,6 @@ public class MethodCallKind : IChainKind
         var resolvedReturnType = CallExpressionHelper.ResolveReturnTypeFromImpl(
             method.ReturnTypePath, targetType, bindings, impl.GenericParameters, analyzer);
 
-        RejectBorrowFromTemporary(receiver, autoRefKind, resolvedReturnType, methodName, tokenLoc, analyzer);
-
         var dispatchPath = impl.IsInherent ? impl.ForTypePath : impl.TraitPath;
         if (dispatchPath is not NormalLangPath nlpDispatch) return null!;
 
@@ -1063,6 +1062,7 @@ public class MethodCallKind : IChainKind
             ResolvedFunctionPath = nlpDispatch.Append(methodName),
             ResolvedQualifiedType = targetType as NormalLangPath, AutoRefKind = autoRefKind,
             NeedsAutoDeref = needsAutoDeref, AutoDerefDepth = autoDerefDepth,
+            AutoDerefKind = autoRefKind ?? RefKind.Shared,
             ReceiverTypePath = originalReceiverType, RootVarName = rootVarName,
             TypePath = resolvedReturnType,
         };
@@ -1094,19 +1094,6 @@ public class MethodCallKind : IChainKind
         => RefTypeDefinition.TryExtractRefKindFromPath(selfParamType);
 
     /// <summary>
-    /// Reject calling a method on a temporary when the return type borrows from the receiver.
-    /// The temporary would be dropped immediately, leaving the return value dangling.
-    /// </summary>
-    private static void RejectBorrowFromTemporary(
-        IChainKind receiver, RefKind? autoRefKind, LangPath? returnType,
-        string methodName, string tokenLoc, SemanticAnalyzer analyzer)
-    {
-        if (receiver.IsTemporary && autoRefKind != null && HasLifetimeDependency(returnType))
-            analyzer.AddException(new SemanticException(
-                $"Cannot call '{methodName}' on a temporary: return type '{returnType}' " +
-                $"borrows from the receiver, but the temporary will be dropped immediately\n{tokenLoc}"));
-    }
-
     private static void CheckImplicitBorrow(RefKind? autoRefKind, string? receiverVarName, SemanticAnalyzer analyzer)
     {
         if (autoRefKind == null || receiverVarName == null) return;
@@ -1159,15 +1146,30 @@ public class MethodCallKind : IChainKind
 
     public ValueRefItem CodeGen(CodeGenContext ctx)
     {
-        // Consumer decides: self by ref → receiver borrowed, destruct temp after call.
-        // Self by value → receiver consumed by method, no separate destruct needed.
-        bool destruct = AutoRefKind != null && Receiver.IsTemporary;
-        var receiverVal = destruct ? TemporaryScope.Begin(Receiver, ctx) : Receiver.CodeGen(ctx);
+        // If the return type has a lifetime dependency on self (e.g., returns Yo['a, Self]),
+        // the receiver must outlive the call. Spill it to an anonymous local in the CURRENT
+        // scope so it lives until that scope exits, not just until the end of this call.
+        // Only applies to temporaries — named variables already have stable stack storage.
+        // If there's no lifetime dep the receiver can be destroyed immediately via TemporaryScope.
+        bool returnsLifetimeDep = AutoRefKind != null && Receiver.IsTemporary && HasLifetimeDependency(TypePath);
+        bool destruct = AutoRefKind != null && Receiver.IsTemporary && !returnsLifetimeDep;
+
+        ValueRefItem receiverVal;
+        if (returnsLifetimeDep)
+        {
+            var tempVal = Receiver.CodeGen(ctx);
+            var spilledPtr = ctx.SpillToAnonymousLocal(tempVal);
+            receiverVal = new ValueRefItem { Type = tempVal.Type, ValueRef = spilledPtr };
+        }
+        else if (destruct)
+            receiverVal = TemporaryScope.Begin(Receiver, ctx);
+        else
+            receiverVal = Receiver.CodeGen(ctx);
 
         // Auto-deref chain
         if (NeedsAutoDeref)
             for (int d = 0; d < AutoDerefDepth; d++)
-                receiverVal = DerefExpression.EmitDeref(ctx, receiverVal);
+                receiverVal = DerefExpression.EmitDeref(ctx, receiverVal, AutoDerefKind);
 
         // Auto-ref wrapping
         ValueRefItem selfArg;
@@ -1180,7 +1182,8 @@ public class MethodCallKind : IChainKind
             if (refTypeRef?.Type is RefType refType)
             {
                 var alloca = ctx.Builder.BuildAlloca(refType.TypeRef);
-                ctx.Builder.BuildStore(receiverVal.ValueRef, alloca);
+                var field0 = ctx.Builder.BuildStructGEP2(refType.TypeRef, alloca, 0);
+                ctx.Builder.BuildStore(receiverVal.ValueRef, field0);
                 selfArg = new ValueRefItem { Type = refType, ValueRef = alloca };
             }
             else

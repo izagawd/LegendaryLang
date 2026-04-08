@@ -492,6 +492,19 @@ public class CodeGenContext
     /// Emits a single drop call for a variable at the given pointer.
     /// Directly searches ImplDefinitions for the Drop impl and resolves the method.
     /// </summary>
+    /// <summary>
+    /// All reference types are now {ptr, metadata} structs. When calling a function whose
+    /// first parameter is a reference (e.g. Drop's self: &uniq Self), we must wrap the
+    /// raw alloca pointer into that struct type before passing it.
+    /// Gets the expected type directly from the LLVM function's first parameter.
+    /// </summary>
+    private unsafe LLVMValueRef WrapAsSelfRef(LLVMValueRef functionValueRef, LLVMValueRef valuePtr)
+    {
+        var selfParamType = new LLVMValueRef((nint)LLVM.GetParam(functionValueRef, 0)).TypeOf;
+        var zero = LLVMValueRef.CreateConstNull(selfParamType);
+        return Builder.BuildInsertValue(zero, valuePtr, 0, "drop_self");
+    }
+
     private void EmitSingleDropCall(LangPath typePath, LLVMValueRef valuePtr)
     {
         var dropTraitPath = SemanticAnalyzer.DropTraitPath;
@@ -529,7 +542,8 @@ public class CodeGenContext
         {
             if (scope.TryGetValue(implMethodPath, out var existing) && existing is FunctionRefItem efr)
             {
-                Builder.BuildCall2(efr.Function.FunctionType, efr.Function.FunctionValueRef, [valuePtr]);
+                Builder.BuildCall2(efr.Function.FunctionType, efr.Function.FunctionValueRef,
+                    [WrapAsSelfRef(efr.Function.FunctionValueRef, valuePtr)]);
                 return;
             }
         }
@@ -538,7 +552,8 @@ public class CodeGenContext
         if (GetCachedFunction(implMethodPath) is FunctionRefItem cdr)
         {
             AddToScope(implMethodPath, cdr, 0);
-            Builder.BuildCall2(cdr.Function.FunctionType, cdr.Function.FunctionValueRef, [valuePtr]);
+            Builder.BuildCall2(cdr.Function.FunctionType, cdr.Function.FunctionValueRef,
+                [WrapAsSelfRef(cdr.Function.FunctionValueRef, valuePtr)]);
             return;
         }
 
@@ -590,7 +605,8 @@ public class CodeGenContext
             CacheFunction(implMethodPath, refItem);
             AddToScope(implMethodPath, refItem, 0);
 
-            Builder.BuildCall2(funcRef.Function.FunctionType, funcRef.Function.FunctionValueRef, [valuePtr]);
+            Builder.BuildCall2(funcRef.Function.FunctionType, funcRef.Function.FunctionValueRef,
+                [WrapAsSelfRef(funcRef.Function.FunctionValueRef, valuePtr)]);
         }
     }
 
@@ -761,6 +777,26 @@ public class CodeGenContext
 
         return null;
     }
+
+    /// <summary>
+    /// Resolves and emits a call to a function identified by its full path.
+    /// Trait methods and free functions are all just functions — resolution is uniform:
+    /// try direct scope lookup first, then trait-method scope resolution.
+    /// Throws if the function cannot be resolved.
+    /// </summary>
+    public ValueRefItem EmitCall(NormalLangPath functionPath, IReadOnlyList<ValueRefItem> args)
+    {
+        var funcRef = (GetRefItemFor(functionPath) ?? ResolveTraitMethodCall(functionPath)) as FunctionRefItem;
+        if (funcRef == null)
+            throw new InvalidOperationException($"Cannot resolve function '{functionPath}'");
+        return CallExpressionHelper.EmitCall(funcRef, args, this);
+    }
+
+    /// <summary>
+    /// Convenience overload: resolves TypePath.Append(methodName) and emits the call.
+    /// </summary>
+    public ValueRefItem EmitCall(NormalLangPath typePath, string methodName, IReadOnlyList<ValueRefItem> args)
+        => EmitCall(typePath.Append(methodName), args);
 
     public IRefItem? ResolveTraitMethodCall(NormalLangPath path)
     {

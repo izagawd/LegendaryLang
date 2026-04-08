@@ -166,7 +166,7 @@ public class FieldAccessExpression : IExpression
     {
         if (autoDeref && receiverVal.Type is RefType ptrType)
         {
-            var derefPtr = ptrType.LoadValue(ctx, receiverVal);
+            var derefPtr = ptrType.ExtractDataPointer(ctx, receiverVal);
             receiverVal = new ValueRefItem
             {
                 Type = ptrType.PointingToType,
@@ -175,7 +175,7 @@ public class FieldAccessExpression : IExpression
         }
 
         for (int d = 0; d < autoDerefDepth; d++)
-            receiverVal = DerefExpression.EmitDeref(ctx, receiverVal);
+            receiverVal = DerefExpression.EmitDeref(ctx, receiverVal, RefKind.Shared);
 
         var structType = (StructType)receiverVal.Type;
         var fieldIndex = structType.GetIndexOfField(fieldName);

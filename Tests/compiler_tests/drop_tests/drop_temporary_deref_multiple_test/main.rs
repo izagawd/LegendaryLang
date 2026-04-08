@@ -3,6 +3,8 @@
 // both hold &mut to the same counter (which is valid — &mut allows aliasing),
 // so dropped ends at 2 after both temporaries are dropped.
 use Std.Ops.Drop;
+use Std.Deref.Receiver;
+use Std.Deref.Deref;
 
 struct Sentinel['a] {
     counter: &'a mut i32
