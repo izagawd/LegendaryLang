@@ -15,6 +15,33 @@ public enum RefKind
     Uniq      // &uniq T
 }
 
+public static class RefKindParser
+{
+    /// <summary>
+    /// Parse a RefKind from the token stream. Consumes mut/const/uniq if present,
+    /// defaults to Shared.
+    /// </summary>
+    public static RefKind Parse(Parser parser)
+    {
+        if (parser.Peek() is MutToken)
+        {
+            parser.Pop();
+            return RefKind.Mut;
+        }
+        if (parser.Peek() is IdentifierToken { Identity: "const" })
+        {
+            parser.Pop();
+            return RefKind.Const;
+        }
+        if (parser.Peek() is IdentifierToken { Identity: "uniq" })
+        {
+            parser.Pop();
+            return RefKind.Uniq;
+        }
+        return RefKind.Shared;
+    }
+}
+
 /// <summary>
 /// Shared base for RefTypeDefinition and RawPtrTypeDefinition.
 /// Both are single-generic-arg pointer types with identical CreateRefDefinition

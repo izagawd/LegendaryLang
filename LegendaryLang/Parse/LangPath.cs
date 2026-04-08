@@ -232,22 +232,7 @@ public abstract class LangPath
             }
             LastParsedLifetime = lifetime;
 
-            var refKind = RefKind.Shared;
-            if (parser.Peek() is MutToken)
-            {
-                refKind = RefKind.Mut;
-                parser.Pop();
-            }
-            else if (parser.Peek() is IdentifierToken { Identity: "const" })
-            {
-                refKind = RefKind.Const;
-                parser.Pop();
-            }
-            else if (parser.Peek() is IdentifierToken { Identity: "uniq" })
-            {
-                refKind = RefKind.Uniq;
-                parser.Pop();
-            }
+            var refKind = RefKindParser.Parse(parser);
             var innerType = Parse(parser, true);
             var refModule = RefTypeDefinition.GetRefModule();
             var refName = RefTypeDefinition.GetRefName(refKind);
@@ -261,22 +246,7 @@ public abstract class LangPath
             parser.Pop(); // consume &&
 
             // Second & may have a ref kind modifier
-            var innerRefKind = RefKind.Shared;
-            if (parser.Peek() is MutToken)
-            {
-                innerRefKind = RefKind.Mut;
-                parser.Pop();
-            }
-            else if (parser.Peek() is IdentifierToken { Identity: "const" })
-            {
-                innerRefKind = RefKind.Const;
-                parser.Pop();
-            }
-            else if (parser.Peek() is IdentifierToken { Identity: "uniq" })
-            {
-                innerRefKind = RefKind.Uniq;
-                parser.Pop();
-            }
+            var innerRefKind = RefKindParser.Parse(parser);
 
             var innerType = Parse(parser, true);
             var refModule = RefTypeDefinition.GetRefModule();

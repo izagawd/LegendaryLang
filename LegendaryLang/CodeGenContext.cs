@@ -86,25 +86,11 @@ public class CodeGenContext
 
     private List<IDefinition> TopLevelDefinitions;
 
-    /// <summary>
-    /// Stores all impl definitions for trait method resolution, scoped so that
-    /// impls defined inside blocks are only visible within that block.
-    /// </summary>
-    private readonly Stack<List<ImplDefinition>> _implDefinitionsStack = new();
+    private readonly ScopedImplDefinitions _implDefs = new();
 
-    /// <summary>
-    /// All impl definitions visible from the current scope (iterates all levels).
-    /// </summary>
-    public IEnumerable<ImplDefinition> ImplDefinitions =>
-        _implDefinitionsStack.SelectMany(scope => scope);
+    public IEnumerable<ImplDefinition> ImplDefinitions => _implDefs.All;
 
-    /// <summary>
-    /// Register an impl definition in the current (deepest) scope.
-    /// </summary>
-    public void AddImplDefinition(ImplDefinition impl)
-    {
-        _implDefinitionsStack.Peek().Add(impl);
-    }
+    public void AddImplDefinition(ImplDefinition impl) => _implDefs.Add(impl);
 
     /// <summary>
     /// Caches LLVM named struct types by their LangPath to prevent duplicate creation.
@@ -1092,7 +1078,7 @@ public class CodeGenContext
         DefinitionsStack.Push(new List<IDefinition>());
         ScopeItems.Push(new Dictionary<LangPath, IRefItem>());
         ScopeDropFlags.Push(new List<(string, LLVMValueRef, LangPath, LLVMValueRef)>());
-        _implDefinitionsStack.Push(new List<ImplDefinition>());
+        _implDefs.PushScope();
         _functionRefCache.Push(new Dictionary<LangPath, IRefItem>());
     }
 
@@ -1101,7 +1087,7 @@ public class CodeGenContext
         ScopeItems.Pop();
         DefinitionsStack.Pop();
         ScopeDropFlags.Pop();
-        _implDefinitionsStack.Pop();
+        _implDefs.PopScope();
         _functionRefCache.Pop();
     }
 

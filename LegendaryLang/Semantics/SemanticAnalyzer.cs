@@ -862,26 +862,11 @@ public class SemanticAnalyzer
     /// </summary>
     private readonly Stack<List<(LangPath traitPath, string genericParamName, Dictionary<string, LangPath>? assocConstraints)>> TraitBoundsStack = new();
 
-    /// <summary>
-    /// <summary>
-    /// Impl definitions for trait method validation, scoped so that
-    /// impls defined inside blocks are only visible within that block.
-    /// </summary>
-    private readonly Stack<List<ImplDefinition>> _implDefinitionsStack = new();
+    private readonly ScopedImplDefinitions _implDefs = new();
 
-    /// <summary>
-    /// All impl definitions visible from the current scope (iterates all levels).
-    /// </summary>
-    public IEnumerable<ImplDefinition> ImplDefinitions =>
-        _implDefinitionsStack.SelectMany(scope => scope);
+    public IEnumerable<ImplDefinition> ImplDefinitions => _implDefs.All;
 
-    /// <summary>
-    /// Register an impl definition in the current (deepest) scope.
-    /// </summary>
-    public void AddImplDefinition(ImplDefinition impl)
-    {
-        _implDefinitionsStack.Peek().Add(impl);
-    }
+    public void AddImplDefinition(ImplDefinition impl) => _implDefs.Add(impl);
 
     public Stack<ParseResult> ParseResults = new();
 
@@ -1639,15 +1624,10 @@ public class SemanticAnalyzer
     {
         if (expr.TypePath != null && !IsTypeCopy(expr.TypePath))
         {
+            CheckReturnWhileBorrowed(expr);
             var varName = IExpression.TryGetSimpleVariableName(expr);
             if (varName != null)
             {
-                var blocking = GetActiveBorrowBlockingMove(varName);
-                if (blocking != null)
-                    AddException(new MoveWhileBorrowedException(
-                        varName, blocking.Value.borrower,
-                        expr.Token.GetLocationStringRepresentation()));
-
                 MarkAsMoved(varName);
                 InvalidateBorrowsFrom(varName);
             }
@@ -1655,9 +1635,8 @@ public class SemanticAnalyzer
     }
 
     /// <summary>
-    /// Check if returning a variable (even Copy) while a non-NLL-eligible borrower is alive.
-    /// Rejects patterns like: let dd = make Foo { r: &amp;mut a }; a
-    /// where dd's Drop could modify a but the return value was already captured.
+    /// Reject using a variable (even Copy) while a non-NLL-eligible borrower is alive.
+    /// Covers: returning, moving, or reading a variable that something with Drop borrows.
     /// </summary>
     public void CheckReturnWhileBorrowed(IExpression expr)
     {
@@ -1746,7 +1725,7 @@ public class SemanticAnalyzer
         MovedVariablesStack.Push(new HashSet<string>());
         _scopeVariables.Push(new HashSet<string>());
         _referencesToLocalsStack.Push(new HashSet<string>());
-        _implDefinitionsStack.Push(new List<ImplDefinition>());
+        _implDefs.PushScope();
         _borrowScopes.Push(new BorrowScope());
         _traitsInScope.Push(new List<LangPath>());
         CurrentScopeDepth++;
@@ -1762,7 +1741,7 @@ public class SemanticAnalyzer
         VariableToTypeMapper.Pop();
         MovedVariablesStack.Pop();
         _referencesToLocalsStack.Pop();
-        _implDefinitionsStack.Pop();
+        _implDefs.PopScope();
         _traitsInScope.Pop();
         CurrentScopeDepth--;
 

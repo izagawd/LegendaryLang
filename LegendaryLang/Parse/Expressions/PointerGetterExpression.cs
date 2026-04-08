@@ -19,22 +19,7 @@ public class PointerGetterExpression : IExpression
             throw new ExpectedParserException(parser,[ParseType. Ampersand],popped);
         }
 
-        var refKind = RefKind.Shared;
-        if (parser.Peek() is MutToken)
-        {
-            refKind = RefKind.Mut;
-            parser.Pop();
-        }
-        else if (parser.Peek() is IdentifierToken { Identity: "const" })
-        {
-            refKind = RefKind.Const;
-            parser.Pop();
-        }
-        else if (parser.Peek() is IdentifierToken { Identity: "uniq" })
-        {
-            refKind = RefKind.Uniq;
-            parser.Pop();
-        }
+        var refKind = RefKindParser.Parse(parser);
 
         var expr = IExpression.ParsePrimary(parser);
         return new PointerGetterExpression(expr, ampersandToken, refKind);

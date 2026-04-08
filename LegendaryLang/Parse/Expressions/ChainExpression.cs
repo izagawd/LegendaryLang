@@ -949,11 +949,7 @@ public class MethodCallKind : IChainKind
                 var traitReturnType = CallExpressionHelper.IsSelfReturnType(method.ReturnTypePath)
                     ? targetType : analyzer.ResolveQualifiedTypePath(method.ReturnTypePath);
 
-                // Reject borrowing from temporary receiver
-                if (receiver.IsTemporary && autoRefKind != null && HasLifetimeDependency(traitReturnType))
-                    analyzer.AddException(new SemanticException(
-                        $"Cannot call '{methodName}' on a temporary: return type '{traitReturnType}' " +
-                        $"borrows from the receiver, but the temporary will be dropped immediately\n{tokenLoc}"));
+                RejectBorrowFromTemporary(receiver, autoRefKind, traitReturnType, methodName, tokenLoc, analyzer);
 
                 if (traitPath is NormalLangPath nlpTrait)
                     return new MethodCallKind
@@ -1056,16 +1052,7 @@ public class MethodCallKind : IChainKind
         var resolvedReturnType = CallExpressionHelper.ResolveReturnTypeFromImpl(
             method.ReturnTypePath, targetType, bindings, impl.GenericParameters, analyzer);
 
-        // Reject borrowing from temporary: if receiver is a temporary (not a named variable),
-        // method takes self by reference (temporary is borrowed, not consumed), and the return
-        // type has a lifetime dependency (reference, struct/enum with lifetime args), the
-        // temporary would be dropped while the return value still borrows from it.
-        if (receiver.IsTemporary && autoRefKind != null && HasLifetimeDependency(resolvedReturnType))
-        {
-            analyzer.AddException(new SemanticException(
-                $"Cannot call '{methodName}' on a temporary: return type '{resolvedReturnType}' " +
-                $"borrows from the receiver, but the temporary will be dropped immediately\n{tokenLoc}"));
-        }
+        RejectBorrowFromTemporary(receiver, autoRefKind, resolvedReturnType, methodName, tokenLoc, analyzer);
 
         var dispatchPath = impl.IsInherent ? impl.ForTypePath : impl.TraitPath;
         if (dispatchPath is not NormalLangPath nlpDispatch) return null!;
@@ -1105,6 +1092,20 @@ public class MethodCallKind : IChainKind
 
     private static RefKind? DetectAutoRefKind(LangPath? selfParamType)
         => RefTypeDefinition.TryExtractRefKindFromPath(selfParamType);
+
+    /// <summary>
+    /// Reject calling a method on a temporary when the return type borrows from the receiver.
+    /// The temporary would be dropped immediately, leaving the return value dangling.
+    /// </summary>
+    private static void RejectBorrowFromTemporary(
+        IChainKind receiver, RefKind? autoRefKind, LangPath? returnType,
+        string methodName, string tokenLoc, SemanticAnalyzer analyzer)
+    {
+        if (receiver.IsTemporary && autoRefKind != null && HasLifetimeDependency(returnType))
+            analyzer.AddException(new SemanticException(
+                $"Cannot call '{methodName}' on a temporary: return type '{returnType}' " +
+                $"borrows from the receiver, but the temporary will be dropped immediately\n{tokenLoc}"));
+    }
 
     private static void CheckImplicitBorrow(RefKind? autoRefKind, string? receiverVarName, SemanticAnalyzer analyzer)
     {
