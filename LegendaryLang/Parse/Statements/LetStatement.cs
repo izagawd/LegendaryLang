@@ -191,10 +191,8 @@ public class LetStatement : IStatement
                 analyzer.MarkAsLocalBorrow(VariableDefinition.Name);
         }
 
-        // If RHS is a variable and the type is not Copy, mark the source as moved.
-        // Exception: &uniq references are reborrowed, not moved — the source stays
-        // alive but frozen while the new binding is live (same as function arg reborrow).
-        if (EqualsTo is not null && !RefTypeDefinition.IsUniqRefType(EqualsTo.TypePath))
+        // If RHS is a variable and the type is not Copy, mark the source as moved
+        if (EqualsTo is not null)
             analyzer.TryMarkExpressionAsMoved(EqualsTo);
 
         analyzer.RegisterVariableType(new NormalLangPath(VariableDefinition.IdentifierToken, [VariableDefinition.Name]),
@@ -326,11 +324,6 @@ public class LetStatement : IStatement
             var varName = GetVariableOrigin(expr);
             if (varName != null)
             {
-                // &uniq reborrow: borrow directly from the source variable to freeze it.
-                // This ensures the source is unusable while the reborrow is live.
-                if (RefTypeDefinition.IsUniqRefType(expr.TypePath))
-                    results.Add((varName, RefKind.Uniq));
-
                 var ultimateSource = analyzer.GetBorrowSource(varName);
                 if (ultimateSource != null)
                 {
