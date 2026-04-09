@@ -907,7 +907,7 @@ public class MethodCallKind : IChainKind
     {
         // Priority 1: Inherent impls
         var inherent = CollectImplCandidates(targetType, methodName, maxCapability, analyzer,
-            filter: impl => impl.IsInherent);
+            filter: impl => impl.IsInherent, isAutoDeref: needsAutoDeref);
         if (inherent.Count > 0)
         {
             var chosen = Disambiguate(inherent, targetType, expectedReturnType, analyzer);
@@ -917,7 +917,8 @@ public class MethodCallKind : IChainKind
 
         // Priority 2: In-scope trait impls
         var traits = CollectImplCandidates(targetType, methodName, maxCapability, analyzer,
-            filter: impl => !impl.IsInherent && analyzer.IsTraitInScope(impl.TraitPath));
+            filter: impl => !impl.IsInherent && analyzer.IsTraitInScope(impl.TraitPath),
+            isAutoDeref: needsAutoDeref);
         if (traits.Count > 1)
         {
             var chosen = Disambiguate(traits, targetType, expectedReturnType, analyzer);
@@ -975,7 +976,8 @@ public class MethodCallKind : IChainKind
     private static List<(ImplDefinition impl, FunctionDefinition method,
         Dictionary<string, LangPath> bindings, RefKind? autoRefKind)> CollectImplCandidates(
         LangPath targetType, string methodName, RefKind? maxCapability,
-        SemanticAnalyzer analyzer, Func<ImplDefinition, bool> filter)
+        SemanticAnalyzer analyzer, Func<ImplDefinition, bool> filter,
+        bool isAutoDeref = false)
     {
         var results = new List<(ImplDefinition, FunctionDefinition, Dictionary<string, LangPath>, RefKind?)>();
         foreach (var impl in analyzer.ImplDefinitions)
@@ -990,6 +992,11 @@ public class MethodCallKind : IChainKind
             var autoRefKind = DetectAutoRefKind(method.Arguments[0].TypePath);
             if (autoRefKind != null && maxCapability != null
                 && !DerefExpression.CanProduceRefKind(maxCapability.Value, autoRefKind.Value))
+                continue;
+
+            // self: Self through auto-deref on non-Copy = moving out of a deref (same
+            // violation as `let x: Bar = *ref_to_bar`). Not a valid candidate.
+            if (isAutoDeref && autoRefKind == null && !analyzer.IsTypeCopy(targetType))
                 continue;
 
             results.Add((impl, method, bindings, autoRefKind));
@@ -1229,6 +1236,15 @@ public class MethodCallKind : IChainKind
             ? RefTypeDefinition.ExtractRefKindFromPath(TypePath!) : RefKind.Shared;
         if (RootVarName != null)
             results.Add((RootVarName, refKind));
+        else if (Receiver.IsTemporary)
+        {
+            // Temporary receiver with lifetime-dependent return: at codegen time the
+            // temporary is spilled to an anonymous local "_" in the current scope.
+            // Track "_" as a scope variable and borrow source so the dangling-reference
+            // check fires if the returned reference escapes the block.
+            analyzer.TrackScopeVariable("_");
+            results.Add(("_", refKind));
+        }
         results.AddRange(Receiver.GetBorrowSources(analyzer));
         return results;
     }

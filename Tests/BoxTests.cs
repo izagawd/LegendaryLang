@@ -944,6 +944,100 @@ public class ManuallyDropTests
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //  TEMPORARY METHOD CALL — lifetime-dependent return from temporary receiver
+    // ═══════════════════════════════════════════════════════════════
+
+    [Test]
+    public void TemporaryLifetimeRefTest()
+    {
+        // make Foo { val: 42 }.get_ref() → &i32 tied to temporary's lifetime, used in same scope
+        AssertSuccess("drop_tests/drop_temporary_lifetime_ref_test", 42);
+    }
+
+    [Test]
+    public void TemporaryLifetimeRefDropTest()
+    {
+        // Tracker temporary spilled, get_ref() returns &i32, drop fires at block exit.
+        // *r == 42, c == 100 after drop → 142
+        AssertSuccess("drop_tests/drop_temporary_lifetime_ref_drop_test", 142);
+    }
+
+    [Test]
+    public void TemporaryLifetimeRefEscapeFailTest()
+    {
+        // Reference from temporary.get_ref() escapes block where temporary lives → dangling
+        AssertFail<DanglingReferenceError>("drop_tests/drop_temporary_lifetime_ref_escape_fail_test");
+    }
+
+    [Test]
+    public void TemporaryLifetimeRefMultiTest()
+    {
+        // Two separate temporaries, each returning &i32 via get_ref(). Both valid in scope.
+        AssertSuccess("drop_tests/drop_temporary_lifetime_ref_multi_test", 42);
+    }
+
+    [Test]
+    public void TemporaryLifetimeRefChainTest()
+    {
+        // make Foo{val:42}.as_wrapper() returns Wrapper['a]{inner: &'a i32}. Lifetime-dep struct.
+        AssertSuccess("drop_tests/drop_temporary_lifetime_ref_chain_test", 42);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  TEMPORARY SELF CONSUME — temp.method(self: Self)
+    // ═══════════════════════════════════════════════════════════════
+
+    [Test]
+    public void TemporarySelfConsumeTest()
+    {
+        // make Foo{val:42}.consume() — self: Self, returns i32. No spill needed.
+        AssertSuccess("drop_tests/drop_temporary_self_consume_test", 42);
+    }
+
+    [Test]
+    public void TemporarySelfConsumeDropTest()
+    {
+        // Tracker temporary consumed by method. Drop fires at method exit → c=100. 42+100=142.
+        AssertSuccess("drop_tests/drop_temporary_self_consume_drop_test", 142);
+    }
+
+    [Test]
+    public void TemporarySelfConsumeChainTest()
+    {
+        // Temporary → double() → add(22) → get_val(). All self: Self. 10→20→42.
+        AssertSuccess("drop_tests/drop_temporary_self_consume_chain_test", 42);
+    }
+
+    [Test]
+    public void TemporarySelfConsumeFieldTest()
+    {
+        // make Pair{x:20,y:22}.sum() — consumes Pair, returns x+y = 42.
+        AssertSuccess("drop_tests/drop_temporary_self_consume_field_test", 42);
+    }
+
+    [Test]
+    public void TemporarySelfConsumeToNewTypeTest()
+    {
+        // make Foo{val:42}.into_bar() — consumes Foo, returns Bar{inner:42}.
+        AssertSuccess("drop_tests/drop_temporary_self_consume_then_ref_test", 42);
+    }
+
+    [Test]
+    public void SelfConsumeDoubleUseFailTest()
+    {
+        // f.consume() moves f (non-Copy). Second f.consume() is use-after-move.
+        AssertFail<UseAfterMoveError>("drop_tests/drop_temporary_self_consume_double_use_fail_test");
+    }
+
+    [Test]
+    public void RefReturnThenConsumeFailTest()
+    {
+        // get_bar_ref() returns &Bar. r.consume() takes self: Self (Bar).
+        // Cannot move non-Copy Bar out of a reference.
+        AssertFail("drop_tests/drop_temporary_ref_return_consume_fail_test");
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     //  TEMPORARY DEREF — *tempExpr on non-Copy smart pointers is rejected
     // ═══════════════════════════════════════════════════════════════
 

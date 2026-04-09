@@ -786,6 +786,16 @@ public class SemanticAnalyzer
         if (name != null)
             return IsLocalBorrow(name) && IsVariableInCurrentScope(name);
 
+        // ChainExpression (e.g., temporary.method() returning &T):
+        // check if any borrow source is a variable in the current scope.
+        if (expr is ChainExpression chain && chain.ResolvedKind != null)
+        {
+            var sources = chain.ResolvedKind.GetBorrowSources(this);
+            foreach (var (sourceName, _) in sources)
+                if (IsVariableInCurrentScope(sourceName))
+                    return true;
+        }
+
         return false;
     }
 
