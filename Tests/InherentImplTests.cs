@@ -52,4 +52,21 @@ public class InherentImplTests
 
     [Test] public void ReceiverNotSelfStaticOkTest()
         => AssertSuccess("receiver_tests/receiver_not_self_static_ok", 42);
+
+    // ── Custom receiver types (Receiver + Deref traits) ──
+
+    [Test] public void ReceiverCustomDerefSharedTest()
+        => AssertSuccess("receiver_tests/receiver_custom_deref_shared", 42);
+
+    [Test] public void ReceiverCustomDerefMethodChainTest()
+        => AssertSuccess("receiver_tests/receiver_custom_deref_method_chain", 42);
+
+    [Test] public void ReceiverCustomNoReceiverFailTest()
+        => AssertFail("receiver_tests/receiver_custom_no_deref_fail");
+
+    [Test] public void ReceiverCustomDerefMutTest()
+        => AssertSuccess("receiver_tests/receiver_custom_deref_mut", 42);
+
+    [Test] public void ReceiverCustomTraitDispatchTest()
+        => AssertSuccess("receiver_tests/receiver_custom_trait_dispatch", 42);
 }
