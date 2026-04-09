@@ -1729,6 +1729,12 @@ public class ChainExpression : IExpression
             MaxCapability = maxCap,
         };
         ResolvedKind = kind;
+
+        // Check if this field path is moved (e.g., x.a was moved, now accessing x.a again)
+        var fieldPath = IExpression.TryGetFieldPathFromKind(kind);
+        if (fieldPath != null && fieldType != null)
+            analyzer.CheckFieldPathUsage(fieldPath, fieldType, access.Token.GetLocationStringRepresentation());
+
         currentTypePath = fieldType ?? currentTypePath;
         return kind;
     }

@@ -323,7 +323,7 @@ public class SemanticAnalyzer
     /// Tracks variables that have been moved (consumed by assignment or function call).
     /// Scoped so that moves inside an inner block don't affect outer variables with the same name.
     /// </summary>
-    private readonly Stack<HashSet<string>> MovedVariablesStack = new();
+    private readonly Stack<HashSet<FieldPath>> MovedVariablesStack = new();
 
     /// <summary>
     /// When true, PathExpression.Analyze skips the move check.
@@ -617,18 +617,28 @@ public class SemanticAnalyzer
     /// </summary>
     public void CheckVariableUsage(string varName, LangPath path, string locationString)
     {
-        if (!SuppressMoveChecks && IsMoved(varName))
-            AddException(new UseAfterMoveException(path, locationString));
+        CheckFieldPathUsage(new FieldPath(varName), path, locationString);
+    }
 
-        if (IsBorrowInvalidated(varName))
-            AddException(new BorrowInvalidatedException(varName, locationString));
+    /// <summary>
+    /// Checks a field path for use-after-move, borrow invalidation, and exclusive borrow conflicts.
+    /// Does NOT check partial moves — that's checked at consumption sites (let binding, fn arg, etc.)
+    /// because accessing a field of a partially-moved struct is fine.
+    /// </summary>
+    public void CheckFieldPathUsage(FieldPath fieldPath, LangPath typePath, string locationString)
+    {
+        if (!SuppressMoveChecks && IsPathMoved(fieldPath))
+            AddException(new UseAfterMoveException(typePath, locationString));
+
+        if (IsBorrowInvalidated(fieldPath.Root))
+            AddException(new BorrowInvalidatedException(fieldPath.Root, locationString));
 
         if (!SuppressUseWhileBorrowedChecks)
         {
-            var exclusiveBorrow = GetActiveExclusiveBorrow(varName);
+            var exclusiveBorrow = GetActiveExclusiveBorrow(fieldPath.Root);
             if (exclusiveBorrow != null)
                 AddException(new UseWhileBorrowedException(
-                    varName, exclusiveBorrow.Value.borrower, exclusiveBorrow.Value.kind, locationString));
+                    fieldPath.Root, exclusiveBorrow.Value.borrower, exclusiveBorrow.Value.kind, locationString));
         }
     }
 
@@ -1623,39 +1633,75 @@ public class SemanticAnalyzer
     /// Checks if a raw pointer kind can produce a reference of the given kind.
     /// Follows the deref trait hierarchy: *uniq → all, *const → &amp;/&amp;const, etc.
     /// </summary>
-    public void MarkAsMoved(string variableName)
+    public void MarkAsMoved(string variableName) => MarkPathMoved(new FieldPath(variableName));
+
+    public void MarkPathMoved(FieldPath path)
     {
         if (MovedVariablesStack.Count > 0)
-            MovedVariablesStack.Peek().Add(variableName);
+            MovedVariablesStack.Peek().Add(path);
     }
 
     public void UnmarkMoved(string variableName)
     {
+        var target = new FieldPath(variableName);
         foreach (var scope in MovedVariablesStack)
-            scope.Remove(variableName);
+            scope.RemoveWhere(p => target.IsAncestorOrEqual(p));
     }
 
-    public bool IsMoved(string variableName)
+    public bool IsMoved(string variableName) => IsPathMoved(new FieldPath(variableName));
+
+    /// <summary>
+    /// A path is considered moved if:
+    /// 1. The exact path was moved, OR
+    /// 2. Any ancestor was moved (parent moved → children are all moved)
+    /// </summary>
+    public bool IsPathMoved(FieldPath path)
     {
         foreach (var scope in MovedVariablesStack)
-            if (scope.Contains(variableName))
-                return true;
+            foreach (var moved in scope)
+                if (moved.IsAncestorOrEqual(path))
+                    return true;
         return false;
     }
 
     /// <summary>
-    /// If the expression is a simple variable reference to a non-Copy type, mark it as moved.
+    /// A path is partially moved if any strict descendant was moved.
+    /// A partially moved struct cannot itself be moved or used as a whole.
+    /// </summary>
+    public bool IsPartiallyMoved(FieldPath path)
+    {
+        foreach (var scope in MovedVariablesStack)
+            foreach (var moved in scope)
+                if (moved.IsDescendantOf(path))
+                    return true;
+        return false;
+    }
+
+    /// <summary>
+    /// If the expression is a variable or field access on a non-Copy type, mark it as moved.
+    /// Supports partial moves: x.field can be moved independently of x.other_field.
+    /// Checks for partial moves at consumption time: if some fields of a struct are already
+    /// moved, the whole struct cannot be consumed.
     /// </summary>
     public void TryMarkExpressionAsMoved(IExpression expr)
     {
         if (expr.TypePath != null && !IsTypeCopy(expr.TypePath))
         {
             CheckReturnWhileBorrowed(expr);
-            var varName = IExpression.TryGetSimpleVariableName(expr);
-            if (varName != null)
+            var fieldPath = IExpression.TryGetFieldPath(expr);
+            if (fieldPath != null)
             {
-                MarkAsMoved(varName);
-                InvalidateBorrowsFrom(varName);
+                // Can't consume a struct that has partially moved fields
+                if (IsPartiallyMoved(fieldPath))
+                {
+                    AddException(new SemanticException(
+                        $"Cannot move '{fieldPath}' because some of its fields have been moved\n" +
+                        expr.Token.GetLocationStringRepresentation()));
+                    return;
+                }
+
+                MarkPathMoved(fieldPath);
+                InvalidateBorrowsFrom(fieldPath.Root);
             }
         }
     }
@@ -1749,7 +1795,7 @@ public class SemanticAnalyzer
 
         DefinitionsStackMap.Push(new ());
         VariableToTypeMapper.Push(new Dictionary<LangPath, LangPath>());
-        MovedVariablesStack.Push(new HashSet<string>());
+        MovedVariablesStack.Push(new HashSet<FieldPath>());
         _scopeVariables.Push(new HashSet<string>());
         _referencesToLocalsStack.Push(new HashSet<string>());
         _implDefs.PushScope();

@@ -2,6 +2,7 @@
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Statements;
+using LegendaryLang.Semantics;
 
 namespace LegendaryLang.Parse.Expressions;
 
@@ -301,4 +302,41 @@ public interface IExpression : IStatement
             => nlp.PathSegments[0].ToString(),
         _ => null
     };
+
+    /// <summary>
+    /// Extracts the full field path from an expression for move tracking.
+    /// Returns ["x"] for a simple variable, ["x", "a", "b"] for x.a.b.
+    /// Only follows OWNED field access chains — stops at auto-deref (references, smart pointers).
+    /// Returns null if the expression is not a movable path (e.g., function call, literal).
+    /// </summary>
+    public static FieldPath? TryGetFieldPath(IExpression? expr)
+    {
+        if (expr is ChainExpression chain && chain.ResolvedKind != null)
+            return TryGetFieldPathFromKind(chain.ResolvedKind);
+
+        var name = TryGetSimpleVariableName(expr);
+        return name != null ? new FieldPath(name) : null;
+    }
+
+    internal static FieldPath? TryGetFieldPathFromKind(IChainKind kind)
+    {
+        if (kind is VariableRefKind vrk)
+        {
+            if (vrk.Path is NormalLangPath nlp && nlp.PathSegments.Length == 1)
+                return new FieldPath(nlp.PathSegments[0].ToString());
+            return null;
+        }
+
+        if (kind is FieldAccessKind fak)
+        {
+            // Auto-deref means going through a reference or smart pointer — not an owned field.
+            if (fak.AutoDeref || fak.AutoDerefDepth > 0)
+                return null;
+
+            var parent = TryGetFieldPathFromKind(fak.Receiver);
+            return parent?.Append(fak.FieldName);
+        }
+
+        return null;
+    }
 }

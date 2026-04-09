@@ -148,4 +148,79 @@ public class MoveTests
         // self: &Self — receiver is borrowed, not moved
         AssertSuccess("move_tests/method_by_ref_no_move_test", 10);
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  PARTIAL MOVES — field-level move tracking
+    // ═══════════════════════════════════════════════════════════════
+
+    // ── Success: sibling fields remain usable ──
+
+    [Test] public void PartialMoveSiblingOkTest()
+        => AssertSuccess("partial_move_tests/partial_move_sibling_ok", 22);
+
+    [Test] public void PartialMoveDeepSiblingOkTest()
+        => AssertSuccess("partial_move_tests/partial_move_deep_sibling_ok", 22);
+
+    [Test] public void PartialMoveDeep4SiblingOkTest()
+        => AssertSuccess("partial_move_tests/partial_move_deep4_sibling_ok", 0);
+
+    [Test] public void PartialMoveDifferentBranchesOkTest()
+        => AssertSuccess("partial_move_tests/partial_move_different_branches_ok", 32);
+
+    [Test] public void PartialMoveTopSiblingOkTest()
+        => AssertSuccess("partial_move_tests/partial_move_top_sibling_ok", 42);
+
+    [Test] public void PartialMoveTwoFieldsSiblingOkTest()
+        => AssertSuccess("partial_move_tests/partial_move_two_fields_sibling_ok", 42);
+
+    [Test] public void PartialMoveCopyFieldAfterMoveTest()
+        => AssertSuccess("partial_move_tests/partial_move_copy_field_after_move", 42);
+
+    [Test] public void PartialMoveFnArgThenSiblingTest()
+        => AssertSuccess("partial_move_tests/partial_move_fn_arg_then_sibling", 42);
+
+    [Test] public void PartialMoveShadowResetsTest()
+        => AssertSuccess("partial_move_tests/partial_move_shadow_resets", 42);
+
+    [Test] public void PartialMoveAccessCopyOnMovedSiblingTest()
+        => AssertSuccess("partial_move_tests/partial_move_access_copy_on_moved_sibling", 42);
+
+    // ── Fail: use-after-move on exact path ──
+
+    [Test] public void PartialMoveUseMovedFieldFailTest()
+        => AssertFail<UseAfterMoveError>("partial_move_tests/partial_move_use_moved_field_fail");
+
+    [Test] public void PartialMoveDoubleMoveFieldFailTest()
+        => AssertFail<UseAfterMoveError>("partial_move_tests/partial_move_double_move_same_field_fail");
+
+    [Test] public void PartialMoveDeepUseMovedFailTest()
+        => AssertFail<UseAfterMoveError>("partial_move_tests/partial_move_deep_use_moved_fail");
+
+    [Test] public void PartialMoveDeep4UseMovedFailTest()
+        => AssertFail<UseAfterMoveError>("partial_move_tests/partial_move_deep4_use_moved_fail");
+
+    // ── Fail: parent moved → child inaccessible ──
+
+    [Test] public void PartialMoveFieldAfterWholeFailTest()
+        => AssertFail<UseAfterMoveError>("partial_move_tests/partial_move_field_after_whole_fail");
+
+    // ── Fail: child moved → parent can't be consumed ──
+
+    [Test] public void PartialMoveWholeAfterFieldFailTest()
+        => AssertFail("partial_move_tests/partial_move_whole_after_field_fail");
+
+    [Test] public void PartialMoveDeepParentAfterChildFailTest()
+        => AssertFail("partial_move_tests/partial_move_deep_parent_after_child_fail");
+
+    [Test] public void PartialMoveDeep4ParentFailTest()
+        => AssertFail("partial_move_tests/partial_move_deep4_parent_fail");
+
+    [Test] public void PartialMoveDeep4GrandparentFailTest()
+        => AssertFail("partial_move_tests/partial_move_deep4_grandparent_fail");
+
+    [Test] public void PartialMoveDeep4RootFailTest()
+        => AssertFail("partial_move_tests/partial_move_deep4_root_fail");
+
+    [Test] public void PartialMoveTwoFieldsThenWholeFailTest()
+        => AssertFail("partial_move_tests/partial_move_two_fields_then_whole_fail");
 }
