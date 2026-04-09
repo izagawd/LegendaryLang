@@ -189,7 +189,7 @@ public class DerefNonReferenceError : CompileError
 public class MoveOutOfReferenceError : CompileError
 {
     public required LangPath TypePath { get; init; }
-    public override string Message => $"Cannot move out of shared reference — type '{TypePath}' does not implement Copy";
+    public override string Message => $"Cannot move out of reference — type '{TypePath}' does not implement Copy";
 }
 
 public class DanglingReferenceError : CompileError

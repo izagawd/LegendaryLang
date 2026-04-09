@@ -157,7 +157,8 @@ public class LetStatement : IStatement
             if (deref.IsNonCopyRefDeref)
             {
                 analyzer.AddException(new MoveOutOfReferenceException(
-                    deref.TypePath, Token.GetLocationStringRepresentation()));
+                    deref.TypePath, deref.SourceDerefKind ?? RefKind.Shared,
+                    Token.GetLocationStringRepresentation()));
             }
             else
             {

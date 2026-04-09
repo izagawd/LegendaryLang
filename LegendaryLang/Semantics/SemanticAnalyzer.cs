@@ -197,11 +197,20 @@ public class DerefNonReferenceException : SemanticException
 public class MoveOutOfReferenceException : SemanticException
 {
     public LangPath TypePath { get; }
-    public MoveOutOfReferenceException(LangPath typePath, string location)
-        : base($"Cannot move out of shared reference '&{typePath}' — type '{typePath}' does not implement Copy\n{location}")
+    public MoveOutOfReferenceException(LangPath typePath, RefKind refKind, string location)
+        : base($"Cannot move out of '{FormatRef(refKind, typePath)}' — type '{typePath}' does not implement Copy\n{location}")
     {
         TypePath = typePath;
     }
+
+    private static string FormatRef(RefKind kind, LangPath typePath) => kind switch
+    {
+        RefKind.Shared => $"&{typePath}",
+        RefKind.Const => $"&const {typePath}",
+        RefKind.Mut => $"&mut {typePath}",
+        RefKind.Uniq => $"&uniq {typePath}",
+        _ => $"&{typePath}"
+    };
 }
 
 public class DanglingReferenceException : SemanticException

@@ -1038,6 +1038,113 @@ public class ManuallyDropTests
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //  METHOD CHAINING — auto-deref, borrow propagation, capability
+    // ═══════════════════════════════════════════════════════════════
+
+    // ── Chained calls: x.foo().bar() ──
+
+    [Test] public void ChainSharedSharedTest()
+        => AssertSuccess("method_chain_tests/chain_shared_shared", 42);
+
+    [Test] public void ChainSharedReturnsRefThenSharedTest()
+        => AssertSuccess("method_chain_tests/chain_shared_returns_ref_then_shared", 42);
+
+    [Test] public void ChainConsumeThenSharedTest()
+        => AssertSuccess("method_chain_tests/chain_consume_then_shared", 42);
+
+    [Test] public void ChainConsumeThenConsumeCopyTest()
+        => AssertSuccess("method_chain_tests/chain_consume_then_consume_copy", 42);
+
+    [Test] public void ChainBuilderPatternTest()
+        => AssertSuccess("method_chain_tests/chain_builder_pattern", 42);
+
+    [Test] public void ChainRefCopyConsumeCopyTest()
+        => AssertSuccess("method_chain_tests/chain_ref_copy_consume_copy", 42);
+
+    [Test] public void ChainConsumeNoncopyThenMethodTest()
+        => AssertSuccess("method_chain_tests/chain_consume_noncopy_then_method", 42);
+
+    [Test] public void ChainSharedReturnsRefFieldAccessTest()
+        => AssertSuccess("method_chain_tests/chain_shared_returns_ref_field_access", 42);
+
+    // ── Chained calls through Box auto-deref ──
+
+    [Test] public void ChainBoxSharedSharedTest()
+        => AssertSuccess("method_chain_tests/chain_box_shared_shared", 42);
+
+    [Test] public void ChainBoxRefReturnThenMethodTest()
+        => AssertSuccess("method_chain_tests/chain_box_ref_return_then_method", 42);
+
+    [Test] public void ChainBoxConsumeThenMethodTest()
+        => AssertSuccess("method_chain_tests/chain_box_consume_inner_then_method", 42);
+
+    [Test] public void ChainBoxFieldThenMethodTest()
+        => AssertSuccess("method_chain_tests/chain_box_field_then_method", 42);
+
+    [Test] public void ChainBoxNestedFieldDerefTest()
+        => AssertSuccess("method_chain_tests/chain_box_nested_field_deref", 42);
+
+    // ── Sequential calls on Box (mutation + read, NLL) ──
+
+    [Test] public void ChainBoxUniqThenSharedTest()
+        => AssertSuccess("method_chain_tests/chain_box_uniq_then_shared", 42);
+
+    [Test] public void ChainBoxMutThenSharedTest()
+        => AssertSuccess("method_chain_tests/chain_box_mut_then_shared", 42);
+
+    [Test] public void ChainNllBorrowExpiresThenChainTest()
+        => AssertSuccess("method_chain_tests/chain_nll_borrow_expires_then_chain", 42);
+
+    // ── Single-level through deref / ref kinds ──
+
+    [Test] public void ChainConstSelfMethodTest()
+        => AssertSuccess("method_chain_tests/chain_const_self_method", 42);
+
+    [Test] public void ChainMutThenSharedTest()
+        => AssertSuccess("method_chain_tests/chain_mut_then_shared", 42);
+
+    [Test] public void ChainDoubleDerefRefBoxTest()
+        => AssertSuccess("method_chain_tests/chain_double_deref_ref_box", 42);
+
+    [Test] public void ChainCopySelfThroughRefTwiceTest()
+        => AssertSuccess("method_chain_tests/chain_copy_self_through_ref_twice", 42);
+
+    // ── Fail: move out of deref ──
+
+    [Test] public void ChainRefReturnConsumeNoncopyFailTest()
+        => AssertFail("method_chain_tests/chain_ref_return_consume_noncopy_fail");
+
+    [Test] public void ChainMoveThroughRefBoxFailTest()
+        => AssertFail("method_chain_tests/chain_move_through_ref_box_fail");
+
+    // ── Fail: borrow conflicts through Box ──
+
+    [Test] public void ChainBoxSharedThenUniqConflictFailTest()
+        => AssertFail("method_chain_tests/chain_box_shared_then_uniq_conflict_fail");
+
+    [Test] public void ChainBoxSharedThenMutConflictFailTest()
+        => AssertFail("method_chain_tests/chain_box_shared_then_mut_conflict_fail");
+
+    // ── Fail: use after move ──
+
+    [Test] public void ChainConsumeThenUseMovedFailTest()
+        => AssertFail<UseAfterMoveError>("method_chain_tests/chain_consume_then_use_moved_fail");
+
+    [Test] public void ChainDoubleConsumeFailTest()
+        => AssertFail<UseAfterMoveError>("method_chain_tests/chain_double_consume_fail");
+
+    [Test] public void ChainBuilderUseAfterMoveFailTest()
+        => AssertFail<UseAfterMoveError>("method_chain_tests/chain_builder_use_after_move_fail");
+
+    // ── Fail: dangling reference ──
+
+    [Test] public void ChainBoxRefEscapeScopeFailTest()
+        => AssertFail<DanglingReferenceError>("method_chain_tests/chain_box_ref_escape_scope_fail");
+
+    [Test] public void ChainTemporaryLifetimeRefEscapeFailTest()
+        => AssertFail<DanglingReferenceError>("method_chain_tests/chain_temporary_lifetime_ref_escape_fail");
+
+    // ═══════════════════════════════════════════════════════════════
     //  TEMPORARY DEREF — *tempExpr on non-Copy smart pointers is rejected
     // ═══════════════════════════════════════════════════════════════
 

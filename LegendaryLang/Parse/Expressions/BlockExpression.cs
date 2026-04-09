@@ -297,7 +297,8 @@ public class BlockExpression : IExpression
             if (derefRet.IsNonCopyRefDeref)
             {
                 analyzer.AddException(new MoveOutOfReferenceException(
-                    derefRet.TypePath, derefRet.Token.GetLocationStringRepresentation()));
+                    derefRet.TypePath, derefRet.SourceDerefKind ?? RefKind.Shared,
+                    derefRet.Token.GetLocationStringRepresentation()));
             }
             else
             {
