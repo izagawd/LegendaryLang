@@ -22,10 +22,11 @@ public class DerefExpression : IExpression
     public Token Token => DerefToken;
 
     public LangPath? TypePath { get; private set; }
-    public bool IsTemporary => false; // always accesses a stable place:
-        // - if Inner is a named variable, it's already a local alloca
-        // - if Inner is a temporary smart pointer, CodeGen spills it to an
-        //   anonymous local "_" before derefing, so the place is still stable
+
+    /// Dereferencing propagates the temporariness of the inner expression.
+    /// A deref of a temporary is a semantic error, so this only matters for
+    /// expressions that pass analysis — i.e. always false in valid programs.
+    public bool IsTemporary => Inner.IsTemporary;
 
     /// <summary>
     /// Tries to extract the pointee type from a reference or raw pointer type path.
@@ -110,6 +111,15 @@ public class DerefExpression : IExpression
                 var target = analyzer.ResolveAssociatedType(Inner.TypePath, receiverPath, "Target");
                 if (target != null)
                 {
+                    if (Inner.IsTemporary && !analyzer.IsTypeCopy(Inner.TypePath))
+                    {
+                        analyzer.AddException(new SemanticException(
+                            $"Cannot dereference a temporary smart pointer. " +
+                            $"Bind it to a variable first.\n{Token.GetLocationStringRepresentation()}"));
+                        TypePath = target;
+                        return;
+                    }
+
                     IsDerefTrait = true;
                     TypePath = target;
 
@@ -251,12 +261,6 @@ public class DerefExpression : IExpression
         // anonymous local so the drop system sees it and calls free at scope exit.
         // This applies only to trait-based deref (Box, smart pointers) — raw references and
         // raw pointers are not heap-allocated and do not need drop registration.
-        if (IsDerefTrait && Inner.IsTemporary)
-        {
-            var spilledPtr = codeGenContext.SpillToAnonymousLocal(innerVal);
-            innerVal = new ValueRefItem { Type = innerVal.Type, ValueRef = spilledPtr };
-        }
-
         return EmitDeref(codeGenContext, innerVal, SourceDerefKind);
     }
 

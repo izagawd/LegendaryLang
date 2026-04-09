@@ -944,61 +944,42 @@ public class ManuallyDropTests
     }
 
     // ═══════════════════════════════════════════════════════════════
-    //  TEMPORARY DEREF DROP — *tempExpr
+    //  TEMPORARY DEREF — *tempExpr on non-Copy smart pointers is rejected
     // ═══════════════════════════════════════════════════════════════
 
     [Test]
-    public void DropTemporaryDerefBoxTest()
+    public void TemporaryDerefBoxFailTest()
     {
-        // *Box.New(45) — Box is a temporary, not bound to a variable.
-        // The i32 value 45 is read, and the Box must be freed at scope exit.
-        // Result is 45; memory safety confirmed by no leak (use -fsanitize=address to check).
-        AssertSuccess("drop_tests/drop_temporary_deref_box_test", 45);
+        AssertFail<GenericSemanticError>("drop_tests/drop_temporary_deref_box_test");
     }
 
     [Test]
-    public void DropTemporaryDerefCustomWrapperTest()
+    public void TemporaryDerefCustomWrapperFailTest()
     {
-        // *Wrapper.New(&mut dropped, 7) — custom non-Copy smart pointer with Deref to i32.
-        // val == 7 is read; Drop fires on the temporary → dropped becomes 1.
-        // Result: 7 + 1 = 8.
-        AssertSuccess("drop_tests/drop_temporary_deref_custom_wrapper_test", 8);
+        AssertFail<GenericSemanticError>("drop_tests/drop_temporary_deref_custom_wrapper_test");
     }
 
     [Test]
-    public void DropTemporaryDerefInBlockTest()
+    public void TemporaryDerefInBlockFailTest()
     {
-        // *make Wrapper { ... } inside an inner block expression.
-        // The temporary is dropped when the block exits, not at end of main.
-        // dropped == 1 already when val + dropped is computed → result 10 + 1 = 11.
-        AssertSuccess("drop_tests/drop_temporary_deref_in_block_test", 11);
+        AssertFail<GenericSemanticError>("drop_tests/drop_temporary_deref_in_block_test");
     }
 
     [Test]
-    public void DropTemporaryDerefRefInBlockTest()
+    public void TemporaryDerefRefInBlockFailTest()
     {
-        // &*Box.New(45) — reference to the pointee of a temporary Box.
-        // The reference is used within the same scope as the temporary, which is valid.
-        // Result is 45.
-        AssertSuccess("drop_tests/drop_temporary_deref_ref_in_block_test", 45);
+        AssertFail<GenericSemanticError>("drop_tests/drop_temporary_deref_ref_in_block_test");
     }
 
     [Test]
-    public void DropTemporaryDerefRefEscapeFailTest()
+    public void TemporaryDerefRefEscapeFailTest()
     {
-        // &*Box.New(45) returned out of a block — the reference would outlive
-        // the anonymous temporary "_" that was created in the inner block.
-        // Must be rejected as a dangling reference.
-        AssertFail<DanglingReferenceError>("drop_tests/drop_temporary_deref_ref_escape_fail_test");
+        AssertFail<GenericSemanticError>("drop_tests/drop_temporary_deref_ref_escape_fail_test");
     }
 
     [Test]
-    public void DropTemporaryDerefMultipleTest()
+    public void TemporaryDerefMultipleFailTest()
     {
-        // Two separate *make Wrapper{...} temporaries sharing a single &mut dropped counter.
-        // &mut allows aliasing so both temporaries can hold &mut dropped simultaneously.
-        // Both are registered independently and both drop at scope exit → dropped == 2.
-        // a=3, b=5, dropped=2 → 3+5+2 = 10.
-        AssertSuccess("drop_tests/drop_temporary_deref_multiple_test", 10);
+        AssertFail<GenericSemanticError>("drop_tests/drop_temporary_deref_multiple_test");
     }
 }
