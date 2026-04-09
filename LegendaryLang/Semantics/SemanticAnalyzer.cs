@@ -1122,6 +1122,7 @@ public class SemanticAnalyzer
     /// </summary>
     public bool TypeImplementsTrait(LangPath typePath, LangPath traitPath)
     {
+        if (typePath == null || traitPath == null) return false;
         // Check if typePath is a generic param or associated type with this trait as a bound
         if (typePath is NormalLangPath nlp)
         {
@@ -1682,6 +1683,7 @@ public class SemanticAnalyzer
 
     public IDefinition? GetDefinition(LangPath langPath)
     {
+        if (langPath == null) return null;
         foreach (var def in DefinitionsStackMap)
         {
             if (def.TryGetValue(langPath, out var definition)) return definition;
