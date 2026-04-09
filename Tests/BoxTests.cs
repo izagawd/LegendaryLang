@@ -1122,8 +1122,8 @@ public class ManuallyDropTests
     [Test] public void ChainBoxSharedThenUniqConflictFailTest()
         => AssertFail("method_chain_tests/chain_box_shared_then_uniq_conflict_fail");
 
-    [Test] public void ChainBoxSharedThenMutConflictFailTest()
-        => AssertFail("method_chain_tests/chain_box_shared_then_mut_conflict_fail");
+    [Test] public void ChainBoxSharedThenMutCoexistTest()
+        => AssertSuccess("method_chain_tests/chain_box_shared_then_mut_coexist_test", 99);
 
     // ── Fail: use after move ──
 

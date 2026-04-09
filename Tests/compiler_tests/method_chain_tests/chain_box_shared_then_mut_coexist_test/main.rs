@@ -1,4 +1,6 @@
-// b.get_ref() returns &i32 (shared borrow). b.set(99) takes &mut Self while r is live.
+// b.get_ref() returns &i32 (shared). b.set(99) takes &mut Self.
+// & and &mut CAN coexist — &mut is shared-mutable, not exclusive.
+// After set(99), *r reads the mutated value. Result: 99.
 struct Foo { val: i32 }
 impl Foo {
     fn get_ref(self: &Self) -> &i32 { &self.val }
