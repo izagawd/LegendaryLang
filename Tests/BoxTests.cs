@@ -1122,6 +1122,20 @@ public class ManuallyDropTests
     [Test] public void ChainBoxSharedThenUniqConflictFailTest()
         => AssertFail("method_chain_tests/chain_box_shared_then_uniq_conflict_fail");
 
+    [Test] public void ChainUseSourceWhileUniqBorrowedFailTest()
+        => AssertFail<UseWhileBorrowedError>("method_chain_tests/chain_use_source_while_uniq_borrowed_fail");
+
+    // ── &uniq reborrow in let bindings ──
+
+    [Test] public void ChainUniqReborrowLetTest()
+        => AssertSuccess("method_chain_tests/chain_uniq_reborrow_let_test", 42);
+
+    [Test] public void ChainUniqReborrowNllTest()
+        => AssertSuccess("method_chain_tests/chain_uniq_reborrow_nll_test", 42);
+
+    [Test] public void ChainUniqReborrowFrozenFailTest()
+        => AssertFail<UseWhileBorrowedError>("method_chain_tests/chain_uniq_reborrow_frozen_fail");
+
     [Test] public void ChainBoxSharedThenMutCoexistTest()
         => AssertSuccess("method_chain_tests/chain_box_shared_then_mut_coexist_test", 99);
 

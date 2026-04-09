@@ -30,4 +30,26 @@ public class InherentImplTests
     [Test] public void InherentWithDropTest() => AssertSuccess("inherent_impl_tests/inherent_with_drop_test", 100);
 
     [Test] public void InherentReturnGenericSelfTest() => AssertSuccess("inherent_impl_tests/inherent_return_generic_self_test", 500);
+
+    // ═══════════════════════════════════════════════════════════════
+    //  RECEIVER DISPATCH — self param naming determines instance vs static
+    // ═══════════════════════════════════════════════════════════════
+
+    [Test] public void ReceiverSelfSharedTest()
+        => AssertSuccess("receiver_tests/receiver_self_shared", 42);
+
+    [Test] public void ReceiverSelfUniqTest()
+        => AssertSuccess("receiver_tests/receiver_self_uniq", 42);
+
+    [Test] public void ReceiverSelfMutTest()
+        => AssertSuccess("receiver_tests/receiver_self_mut", 42);
+
+    [Test] public void ReceiverSelfConsumeTest()
+        => AssertSuccess("receiver_tests/receiver_self_consume", 42);
+
+    [Test] public void ReceiverNotSelfInstanceFailTest()
+        => AssertFail("receiver_tests/receiver_not_self_instance_fail");
+
+    [Test] public void ReceiverNotSelfStaticOkTest()
+        => AssertSuccess("receiver_tests/receiver_not_self_static_ok", 42);
 }
