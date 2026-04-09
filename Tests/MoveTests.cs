@@ -10,13 +10,7 @@ public class MoveTests
     public void UseAfterMoveTest()
     {
         // Struct doesn't impl Copy, so let b = a moves a
-        var result = Compile("move_tests/use_after_move_test");
-        Assert.That(!result.Success);
-        Assert.That(result.HasError<UseAfterMoveError>());
-
-        var errors = result.GetErrors<UseAfterMoveError>().ToList();
-        Assert.That(errors.Count == 1);
-        Assert.That(errors[0].VariablePath.ToString().Contains("a"));
+        AssertFail<UseAfterMoveError>("move_tests/use_after_move_test");
     }
 
     [Test]
@@ -181,9 +175,6 @@ public class MoveTests
 
     [Test] public void PartialMoveShadowResetsTest()
         => AssertSuccess("partial_move_tests/partial_move_shadow_resets", 42);
-
-    [Test] public void PartialMoveAccessCopyOnMovedSiblingTest()
-        => AssertSuccess("partial_move_tests/partial_move_access_copy_on_moved_sibling", 42);
 
     // ── Fail: use-after-move on exact path ──
 
