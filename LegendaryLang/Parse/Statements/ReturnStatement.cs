@@ -30,6 +30,20 @@ public class ReturnStatement : IStatement
     public void Analyze(SemanticAnalyzer analyzer)
     {
         ToReturn?.Analyze(analyzer);
+
+        // Explicit return — check for blocking borrows (both move and copy)
+        if (ToReturn != null)
+        {
+            analyzer.TryMarkExpressionAsMoved(ToReturn);
+            analyzer.CheckReturnWhileBorrowed(ToReturn);
+        }
+
+        // Check if returning a reference to a local variable (dangling reference)
+        if (ToReturn != null && analyzer.IsExpressionLocalBorrow(ToReturn))
+        {
+            analyzer.AddException(new DanglingReferenceException(
+                Token.GetLocationStringRepresentation()));
+        }
     }
 
     /// <summary>

@@ -1,0 +1,5 @@
+fn double(x: i32) -> i32 { x * 2 }
+fn add_one(x: i32) -> i32 { x + 1 }
+fn main() -> i32 {
+    double(add_one(5))
+}

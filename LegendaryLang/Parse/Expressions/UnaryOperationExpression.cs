@@ -23,8 +23,22 @@ public class UnaryOperationExpression : IExpression
         var gottenVal = Expression.CodeGen(codeGenContext);
         if (OperatorToken.OperatorType == Operator.Add) return gottenVal;
 
-        var zero = LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, 0);
         var loaded = gottenVal.Type.LoadValue(codeGenContext, gottenVal);
+
+        if (OperatorToken.OperatorType == Operator.ExclamationMark)
+        {
+            // Boolean NOT: XOR with 1 flips the bit
+            var one = LLVMValueRef.CreateConstInt(LLVMTypeRef.Int1, 1);
+            var negated = codeGenContext.Builder.BuildXor(loaded, one);
+            return new ValueRefItem
+            {
+                Type = gottenVal.Type,
+                ValueRef = negated
+            };
+        }
+
+        // Numeric negation: 0 - value
+        var zero = LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, 0);
         var subbed = codeGenContext.Builder.BuildSub(zero, loaded);
         return new ValueRefItem
         {
@@ -34,6 +48,7 @@ public class UnaryOperationExpression : IExpression
     }
 
     public LangPath? TypePath => Expression.TypePath;
+    public bool IsTemporary => true; // produces new value
 
 
     public Token Token => (OperatorToken as Token)!;

@@ -25,7 +25,7 @@ public abstract class Type : IConcreteDefinition,  IPathResolvable
 
     public abstract string Name { get; }
     public NormalLangPath Module => TypeDefinition.Module;
-    public bool HasBeenGened { get; set; }
+
     public IDefinition? Definition => TypeDefinition;
 
 

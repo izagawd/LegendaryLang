@@ -1,4 +1,6 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Definitions;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse.Statements;
@@ -23,6 +25,15 @@ public class BlockExpression : IExpression
     public ImmutableArray<ISyntaxNode> SyntaxNodes => BlockSyntaxNodeContainers.Select(i => i.Node).ToImmutableArray();
 
     public LangPath? ExpectedReturnType { get; set; }
+    /// <summary>
+    /// Set during Analyze: true if the block's implicit return is a Copy type.
+    /// Used in CodeGen to read the return value AFTER drops (so Drop side effects are visible).
+    /// </summary>
+    /// <summary>
+    /// Whether this block produces a temporary value (delegates to last expression).
+    /// Set during Analyze.
+    /// </summary>
+    public bool IsTemporary { get; private set; }
 
     public ImmutableArray<BlockSyntaxNodeContainer> BlockSyntaxNodeContainers { get; }
     public IEnumerable<ISyntaxNode> Children => SyntaxNodes;
@@ -32,12 +43,24 @@ public class BlockExpression : IExpression
     public ValueRefItem CodeGen(CodeGenContext context)
     {
         var lastValue = context.GetVoid();
+        IExpression? lastReturnedExpression = null;
         context.AddScope();
 
         foreach (var i in SyntaxNodes.OfType<IDefinition>())
         {
             context.AddToDeepestScope(i);
         }
+        // Register nested impl definitions for trait method resolution
+        foreach (var impl in SyntaxNodes.OfType<ImplDefinition>())
+        {
+            context.AddImplDefinition(impl);
+        }
+        // Determine which node is last (for return value vs discarded decision)
+        var lastContainer = BlockSyntaxNodeContainers
+            .Where(i => i.Node is not IItem).Cast<BlockSyntaxNodeContainer?>().LastOrDefault();
+
+        bool exitedViaReturn = false;
+
         // Iterate over each syntax node in the block.
         foreach (var item in BlockSyntaxNodeContainers.Where(i => i.Node is not IItem)) 
         {
@@ -45,18 +68,33 @@ public class BlockExpression : IExpression
             if (item.Node is IExpression expr)
             {
                 lastValue = expr.CodeGen(context);
+                lastReturnedExpression = expr;
+
+                // Drop temporaries: expressions with semicolons (value discarded),
+                // or non-last expressions. The last expression without semicolon is the
+                // block's return value — it must NOT be dropped here.
+                bool isLast = lastContainer != null && item.Node == lastContainer.Value.Node;
+                bool isDiscarded = item.HasSemiColonAfter || !isLast;
+                if (isDiscarded && lastValue.Type?.TypePath != null
+                    && lastValue.Type.TypePath != LangPath.VoidBaseLangPath)
+                {
+                    context.EmitDestruct(lastValue.Type.TypePath, lastValue.ValueRef);
+                }
             }
             // return statements are special, as when you encounter one theres no
             // point in code genning the rest of the nodes
             else if (item.Node is ReturnStatement ret)
             {
                 lastValue = ret.ToReturn?.CodeGen(context) ?? context.GetVoid();
+                lastReturnedExpression = ret.ToReturn;
+                exitedViaReturn = true;
                 break;
             }
             // If the node is a statement, simply generate code.
             else if (item.Node is IStatement stmt)
             {
                 lastValue = context.GetVoid();
+                lastReturnedExpression = null;
                 stmt.CodeGen(context);
             }
 
@@ -85,9 +123,37 @@ public class BlockExpression : IExpression
             // stop looping, since explicit returns ignores the rest of the code in
             // blocks anyways
             var firstNoticed = GetFirstNoticedGuaranteedReturn(item.Node);
-            if (firstNoticed is not null) break;
+            if (firstNoticed is not null) { exitedViaReturn = true; break; }
         }
 
+        // If the last expression had a semicolon, the block returns void — not the expression's value.
+        // Does NOT apply when the loop exited via a return statement (return always produces a value).
+        if (!exitedViaReturn && lastContainer is { HasSemiColonAfter: true, Node: IExpression }
+            && lastContainer.Value.Node is not ReturnStatement)
+        {
+            lastValue = context.GetVoid();
+            lastReturnedExpression = null;
+        }
+
+        // Save the return value to a temp BEFORE drops run.
+        // Drops may free memory the return value points to (e.g., *box returns a heap pointer
+        // that Box.Drop will free). The value is already copied (must be Copy for *box),
+        // so saving to stack temp is safe.
+        ValueRefItem savedReturnValue = lastValue;
+        if (lastValue.Type.TypePath != LangPath.VoidBaseLangPath)
+        {
+            var returnVal = lastValue.Type.LoadValue(context, lastValue);
+            var returnTemp = context.Builder.BuildAlloca(lastValue.Type.TypeRef, "block_ret_tmp");
+            context.Builder.BuildStore(returnVal, returnTemp);
+            savedReturnValue = new ValueRefItem { Type = lastValue.Type, ValueRef = returnTemp };
+        }
+
+        // Mark the returned expression as moved so it won't be dropped at scope exit.
+        if (lastReturnedExpression != null)
+            context.TryMarkExpressionDropMoved(lastReturnedExpression);
+
+        // Emit drop calls for droppable variables before exiting scope
+        context.EmitDropCalls();
 
         context.PopScope();
 
@@ -101,7 +167,7 @@ public class BlockExpression : IExpression
             return (context.GetRefItemFor(ExpectedReturnType) as TypeRefItem).Type.CreateUninitializedValRef(context);
         }
 
-        return lastValue;
+        return savedReturnValue;
     }
 
 
@@ -124,16 +190,66 @@ public class BlockExpression : IExpression
 
         void SetExpectedReturnTypesRecursively(ISyntaxNode syntaxNode)
         {
-            if (syntaxNode is BlockExpression block) block.ExpectedReturnType = ExpectedReturnType;
+            if (syntaxNode is BlockExpression block)
+            {
+                block.ExpectedReturnType = ExpectedReturnType;
+                // Propagate to the last expression if it's a chain (for enum variant inference)
+                var lastItem = block.BlockSyntaxNodeContainers.Cast<BlockSyntaxNodeContainer?>().LastOrDefault();
+                if (lastItem is { HasSemiColonAfter: false, Node: ChainExpression lastChain })
+                    lastChain.ExpectedReturnType ??= ExpectedReturnType;
+            }
             foreach (var i in syntaxNode.Children.Where(i => i is not IItem)) SetExpectedReturnTypesRecursively(i);
         }
 
+        var seenDefs = new HashSet<string>();
         foreach (var i in BlockSyntaxNodeContainers.Select(i => i.Node).OfType<IDefinition>() )
         {
+            if (!seenDefs.Add(i.Name))
+            {
+                analyzer.AddException(new DuplicateDefinitionException(
+                    i.TypePath, i.Token?.GetLocationStringRepresentation() ?? ""));
+            }
             analyzer.RegisterDefinitionAtDeepestScope(i.TypePath,i);
         }
+        // Register nested impl definitions so their methods are visible
+        foreach (var impl in BlockSyntaxNodeContainers.Select(i => i.Node).OfType<ImplDefinition>())
+        {
+            analyzer.AddImplDefinition(impl);
+            foreach (var method in impl.Methods)
+                analyzer.RegisterDefinitionAtDeepestScope(method.TypePath, method);
+        }
         SetExpectedReturnTypesRecursively(this);
-        foreach (var item in SyntaxNodes.OfType<IAnalyzable>()) item.Analyze(analyzer);
+
+        // NLL: pre-compute which variables are referenced from each point onward.
+        // This allows borrow checking to determine if a borrower is still "live" —
+        // if not, its exclusive borrow has effectively expired.
+        var analyzableItems = SyntaxNodes.OfType<IAnalyzable>().ToList();
+        // Collect variables referenced in each item
+        var itemVars = new List<HashSet<string>>();
+        foreach (var item in analyzableItems)
+        {
+            var vars = new HashSet<string>();
+            SemanticAnalyzer.CollectReferencedVariables((ISyntaxNode)item, vars);
+            itemVars.Add(vars);
+        }
+        // Build suffix unions: for position i, union of variables in items i..end
+        var suffixVars = new HashSet<string>[analyzableItems.Count + 1];
+        suffixVars[analyzableItems.Count] = new HashSet<string>();
+        for (int i = analyzableItems.Count - 1; i >= 0; i--)
+        {
+            suffixVars[i] = new HashSet<string>(suffixVars[i + 1]);
+            suffixVars[i].UnionWith(itemVars[i]);
+        }
+
+        // Push this block's scope onto the live-variables stack
+        analyzer.PushLiveVariables(suffixVars[0]);
+        for (int i = 0; i < analyzableItems.Count; i++)
+        {
+            // Live = variables in current item + all remaining items
+            analyzer.UpdateLiveVariables(suffixVars[i]);
+            analyzableItems[i].Analyze(analyzer);
+        }
+        analyzer.PopLiveVariables();
 
         foreach (var item in BlockSyntaxNodeContainers)
         {
@@ -169,6 +285,63 @@ public class BlockExpression : IExpression
             }
 
             TypePath = possibleTypePath ?? LangPath.VoidBaseLangPath;
+            IsTemporary = last is { HasSemiColonAfter: false, Node: IExpression lastE }
+                ? lastE.IsTemporary : true;
+        }
+
+        // Cannot return a non-Copy value out of a dereference.
+        // e.g., *boxed_foo or *ref_foo as the last expression where the type doesn't impl Copy
+        if (last is not null && !last.Value.HasSemiColonAfter
+            && last.Value.Node is DerefExpression { IsNonCopyPlaceDeref: true } derefRet)
+        {
+            if (derefRet.IsNonCopyRefDeref)
+            {
+                analyzer.AddException(new MoveOutOfReferenceException(
+                    derefRet.TypePath, derefRet.SourceDerefKind ?? RefKind.Shared,
+                    derefRet.Token.GetLocationStringRepresentation()));
+            }
+            else
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Cannot move non-Copy type '{derefRet.TypePath}' out of dereference. " +
+                    $"Use a reference instead: &*expr or access fields: (*expr).field\n{derefRet.Token.GetLocationStringRepresentation()}"));
+            }
+        }
+
+        // Cannot return a non-Copy field accessed through a reference.
+        if (last is not null && !last.Value.HasSemiColonAfter
+            && last.Value.Node is ChainExpression { ResolvedKind: FieldAccessKind fakRet }
+            && (fakRet.AutoDeref || fakRet.AutoDerefDepth > 0)
+            && TypePath != null && !analyzer.IsTypeCopy(TypePath))
+        {
+            var retExprNode = (IExpression)last.Value.Node;
+            analyzer.AddException(new SemanticException(
+                $"Cannot move non-Copy type '{TypePath}' out of field access through a reference. " +
+                $"Use a reference instead: &borrowed.field\n{retExprNode.Token.GetLocationStringRepresentation()}"));
+        }
+
+        // Check if the block's value is a reference that borrows from a variable
+        // declared in THIS scope — it would dangle after the scope exits
+        if (last is not null && !last.Value.HasSemiColonAfter
+            && last.Value.Node is IExpression lastExpr
+            && TypePath is NormalLangPath nlpBlock
+            && nlpBlock.Contains(RefTypeDefinition.GetRefModule())
+            && analyzer.IsExpressionBorrowingFromCurrentScope(lastExpr))
+        {
+            analyzer.AddException(new DanglingReferenceException(
+                lastExpr.Token.GetLocationStringRepresentation()));
+        }
+
+        // Implicit return — check for blocking borrows (both move and copy returns)
+        if (last is not null && !last.Value.HasSemiColonAfter
+            && last.Value.Node is IExpression retExpr)
+        {
+            analyzer.TryMarkExpressionAsMoved(retExpr);
+            // For Copy types, TryMarkExpressionAsMoved skips the check.
+            // But returning a Copy variable while a non-NLL borrower is alive is still
+            // rejected — the borrower's Drop runs after the value is captured, so
+            // Drop side effects on the variable wouldn't be visible in the return value.
+            analyzer.CheckReturnWhileBorrowed(retExpr);
         }
 
         analyzer.PopScope();
@@ -197,7 +370,39 @@ public class BlockExpression : IExpression
         {
             i.ResolvePaths(resolver);
         }
+        // Resolve chain expression roots that aren't IPathResolvable.
+        // Without this, bare function names like TryCastPrimitive stay unresolved
+        // and can't be found by GetDefinition during analysis.
+        ResolveChainExpressions(this, resolver);
         resolver.PopScope();
+    }
+
+    /// <summary>
+    /// Recursively resolves ChainExpression roots within a syntax tree.
+    /// ChainExpression doesn't implement IPathResolvable, so it's skipped
+    /// by the standard ResolvePaths walk. This fixes bare function name resolution.
+    /// Skips BlockExpression children — they already ran their own ResolvePaths
+    /// (which includes their own ResolveChainExpressions call with correct scoping).
+    /// Other IPathResolvable nodes (LetStatement, MatchExpression, etc.) are recursed
+    /// into because they don't resolve chains themselves.
+    /// </summary>
+    private static void ResolveChainExpressions(ISyntaxNode node, PathResolver resolver)
+    {
+        foreach (var child in node.Children)
+        {
+            if (child is ChainExpression chain)
+            {
+                chain.ResolvePaths(resolver);
+                // Also recurse into chain's children (call arguments may contain chains)
+                ResolveChainExpressions(chain, resolver);
+            }
+            else if (child is not BlockExpression)
+            {
+                // Skip BlockExpression children — they handle their own chain resolution
+                // via their own ResolvePaths → ResolveChainExpressions call with proper scope.
+                ResolveChainExpressions(child, resolver);
+            }
+        }
     }
 
 

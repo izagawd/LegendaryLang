@@ -7,6 +7,8 @@ public enum ParseType
     Expression,
     LeftParenthesis,
     RightParenthesis,
+    LeftBracket,
+    RightBracket,
     Fn,
     Comma,
     SemiColon,
@@ -31,5 +33,14 @@ public enum ParseType
     If,
     Else,
     While,
-    Ampersand
+    Ampersand,
+    Trait,
+    Impl,
+    For,
+    As,
+    Enum,
+    Match,
+    FatArrow,
+    ColonBang,
+    Type
 }

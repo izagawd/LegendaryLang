@@ -50,25 +50,36 @@ public class WhileExpression : IExpression
     }
 
     public LangPath TypePath => LangPath.VoidBaseLangPath;
+    public bool IsTemporary => true; // returns void
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
-        var loop = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("loop");
-        var resume = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("resume");
-        var iffed = Condition.CodeGen(codeGenContext);
-        var valPtr = iffed.Type.LoadValue(codeGenContext,iffed);
-        codeGenContext.Builder.BuildCondBr(valPtr, loop, resume);
-        codeGenContext.Builder.PositionAtEnd(loop);
+        var condBlock = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("while.cond");
+        var bodyBlock = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("while.body");
+        var resumeBlock = codeGenContext.Builder.InsertBlock.Parent.AppendBasicBlock("while.resume");
+
+        // Jump to the condition block to start the loop
+        codeGenContext.Builder.BuildBr(condBlock);
+
+        // Condition block: evaluate condition, branch to body or resume
+        codeGenContext.Builder.PositionAtEnd(condBlock);
+        var condVal = Condition.CodeGen(codeGenContext);
+        var condLoaded = condVal.Type.LoadValue(codeGenContext, condVal);
+        codeGenContext.Builder.BuildCondBr(condLoaded, bodyBlock, resumeBlock);
+
+        // Body block: execute body, then jump back to condition
+        codeGenContext.Builder.PositionAtEnd(bodyBlock);
         var genned = ToExecute.CodeGen(codeGenContext);
-      
+
         if (ToExecute.HasGuaranteedExplicitReturn)
         {
-            codeGenContext.Builder.BuildRet(genned.Type.LoadValue(codeGenContext,genned));
+            codeGenContext.Builder.BuildRet(genned.Type.LoadValue(codeGenContext, genned));
         }
         else
         {
-            codeGenContext.Builder.BuildBr(loop);
+            codeGenContext.Builder.BuildBr(condBlock);
         }
-        codeGenContext.Builder.PositionAtEnd(resume);
+
+        codeGenContext.Builder.PositionAtEnd(resumeBlock);
         return codeGenContext.GetVoid();
     }
 

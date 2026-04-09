@@ -52,6 +52,7 @@ public class ElseExpression : IExpression
     ///     Else expression is a unique expression in which it doesnt directly hav4 a type path
     /// </summary>
     public LangPath? TypePath => null;
+    public bool IsTemporary => true; // branch result is fresh
 
     public bool HasGuaranteedExplicitReturn => Body.HasGuaranteedExplicitReturn;
 }
@@ -239,6 +240,7 @@ public class IfExpression : IExpression
 
 
     public LangPath? TypePath { get; set; }
+    public bool IsTemporary => true; // branch result is fresh
 
     public static IfExpression Parse(Parser parser)
     {

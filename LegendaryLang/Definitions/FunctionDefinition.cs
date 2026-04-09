@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex;
 using LegendaryLang.Lex.Tokens;
 using LegendaryLang.Parse;
@@ -15,8 +16,10 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
     public readonly ImmutableArray<VariableDefinition> Arguments;
 
     public FunctionDefinition(string name, IEnumerable<VariableDefinition> variables, LangPath returnTypePath,
-        BlockExpression blockExpression, NormalLangPath module, IEnumerable<GenericParameter> genericParameters,
-        Token lookUpToken)
+        BlockExpression? blockExpression, NormalLangPath module, IEnumerable<GenericParameter> genericParameters,
+        Token lookUpToken, IEnumerable<string>? lifetimeParameters = null,
+        Dictionary<int, string>? argumentLifetimes = null, string? returnLifetime = null,
+        ImmutableArray<bool>? callParamLayout = null, int implicitGenericCount = 0)
     {
         Arguments = variables.ToImmutableArray();
         Name = name;
@@ -25,13 +28,40 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         Token = lookUpToken;
         Module = module;
         GenericParameters = genericParameters.ToImmutableArray();
+        LifetimeParameters = lifetimeParameters?.ToImmutableArray() ?? [];
+        ArgumentLifetimes = argumentLifetimes ?? new();
+        ReturnLifetime = returnLifetime;
+        CallParamLayout = callParamLayout ?? [];
+        ImplicitGenericCount = implicitGenericCount;
     }
 
     public ImmutableArray<GenericParameter> GenericParameters { get; }
 
+    /// <summary>
+    /// Number of generic parameters from [] (implicit/inferred).
+    /// These come first in GenericParameters, before the () comptime params.
+    /// Used to correctly map explicit type args to () params during call resolution.
+    /// </summary>
+    public int ImplicitGenericCount { get; }
+    
+    /// <summary>
+    /// Layout of params in () as seen by the caller.
+    /// true = comptime type param (:!), false = runtime param (:).
+    /// Handles interleaving: fn foo(T:! type, x: i32, U:! type) → [true, false, true]
+    /// Empty for functions with no () comptime params.
+    /// </summary>
+    public ImmutableArray<bool> CallParamLayout { get; }
+    
+    /// <summary>Lifetime parameters declared in the function signature (e.g., 'a, 'b).</summary>
+    public ImmutableArray<string> LifetimeParameters { get; }
+    /// <summary>Maps argument index to its lifetime annotation name.</summary>
+    public Dictionary<int, string> ArgumentLifetimes { get; }
+    /// <summary>Lifetime annotation on the return type, if any.</summary>
+    public string? ReturnLifetime { get; }
+
 
     public int Priority => 3;
-    public BlockExpression BlockExpression { get; }
+    public BlockExpression? BlockExpression { get; }
 
 
     /// <summary>
@@ -42,7 +72,6 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
 
     public LangPath TypePath => Module.Append(Name);
     public NormalLangPath Module { get; }
-    public bool HasBeenGened { get; set; }
     public string Name { get; }
 
 
@@ -63,15 +92,20 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
 
             var ReturnType = returnTypeRefItem.Type;
 
-            var FullPath = Module.Append(Name, new NormalLangPath.GenericTypesPathSegment(
-                genericArguments.Select(i => i.Monomorphize(context))));
+            var FullPath = Module.Append(new NormalLangPath.NormalPathSegment(Name,
+                genericArguments.Select(i => i.Monomorphize(context)).ToImmutableArray()));
 
             // 1. Determine the LLVM return type.
             var llvmReturnType = returnTypeRefItem.TypeRef;
-            // 2. Gather LLVM types for each parameter.
+            // 2. Gather LLVM types for each parameter — also capture the resolved Type objects
             var paramTypes = new LLVMTypeRef[Arguments.Length];
+            var resolvedArgTypes = new Type[Arguments.Length];
             for (var i = 0; i < Arguments.Length; i++)
-                paramTypes[i] = (context.GetRefItemFor(Arguments[i].TypePath) as TypeRefItem).TypeRef;
+            {
+                var argTypeRef = context.GetRefItemFor(Arguments[i].TypePath) as TypeRefItem;
+                paramTypes[i] = argTypeRef.TypeRef;
+                resolvedArgTypes[i] = argTypeRef.Type;
+            }
 
             LLVMTypeRef functionType;
             // 3. Create the function type and add the function to the module.
@@ -88,6 +122,9 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
             return new FunctionRefItem()
             {
                 Function = new Function(this, genericArguments,FunctionValueRef,functionType,ReturnType, FullPath)
+                {
+                    ResolvedArgTypes = resolvedArgTypes.ToImmutableArray()
+                }
             };
             
         }
@@ -96,26 +133,154 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
 
     public void ResolvePaths(PathResolver resolver)
     {
-        BlockExpression.ResolvePaths(resolver);
+        BlockExpression?.ResolvePaths(resolver);
         ReturnTypePath = ReturnTypePath.Resolve(resolver);
         foreach (var i in Arguments)
             i.TypePath = i.TypePath?.Resolve(resolver);
+        foreach (var gp in GenericParameters)
+            for (int i = 0; i < gp.TraitBounds.Count; i++)
+                gp.TraitBounds[i] = gp.TraitBounds[i].Resolve(resolver);
     }
 
 
-    public IEnumerable<ISyntaxNode> Children => [BlockExpression];
+    public IEnumerable<ISyntaxNode> Children => BlockExpression != null ? [BlockExpression] : [];
 
 
     public Token Token { get; }
 
 
+    /// <summary>
+    /// When true, the body has already been analyzed (e.g., default trait method bodies
+    /// analyzed at trait definition site). Skips re-analysis at the impl level.
+    /// </summary>
+    public bool IsPreAnalyzed { get; init; }
+
+    /// <summary>
+    /// For injected default trait methods: maps abstract names (Self, Rhs, etc.)
+    /// to concrete types. Pushed into codegen scope so the shared body AST
+    /// can resolve qualified calls like (Self as PartialEq(Rhs)).Eq.
+    /// </summary>
+    public Dictionary<string, LangPath>? TraitSubstitutions { get; init; }
+
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        if (IsPreAnalyzed) return;
+
         analyzer.AddScope();
+
+        // Check for duplicate generic parameter names
+        var seen = new HashSet<string>();
+        foreach (var gp in GenericParameters)
+        {
+            if (!seen.Add(gp.Name))
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Duplicate generic parameter name '{gp.Name}'\n{Token.GetLocationStringRepresentation()}"));
+            }
+        }
+
+        var bounds = SemanticAnalyzer.BuildGenericBoundsWithImplicitSized(GenericParameters);
+        analyzer.PushTraitBounds(bounds);
+
+        // Resolve qualified associated type paths in return type (e.g., T.Output, (T as Add(T)).Output)
+        ReturnTypePath = analyzer.ResolveQualifiedTypePath(ReturnTypePath);
+
+        // Also resolve argument types
+        foreach (var i in Arguments)
+        {
+            if (i.TypePath != null)
+                i.TypePath = analyzer.ResolveQualifiedTypePath(i.TypePath);
+        }
+
+        // All function parameters must be Sized (can't pass unsized types by value)
+        analyzer.ValidateParamsSized(Arguments, Token.GetLocationStringRepresentation(), ReturnTypePath);
+
+        // Lifetime annotation validation — shared with TraitDefinition
+        analyzer.ValidateLifetimeAnnotations(Arguments, ArgumentLifetimes,
+            ReturnLifetime, ReturnTypePath, LifetimeParameters,
+            Name, Token.GetLocationStringRepresentation(), "function");
+
         foreach (var i in Arguments)
             analyzer.RegisterVariableType(new NormalLangPath(i.IdentifierToken, [i.Name]), i.TypePath);
+
+        // Register parameter names for lifetime analysis
+        analyzer.SetFunctionParameters(Arguments.Select(a => a.Name));
+
+        // Register argument lifetimes so the analyzer can look them up by name
+        if (LifetimeParameters.Length > 0)
+        {
+            var paramLifetimeMap = new Dictionary<string, string>();
+            for (int i = 0; i < Arguments.Length; i++)
+            {
+                if (ArgumentLifetimes.TryGetValue(i, out var lt))
+                    paramLifetimeMap[Arguments[i].Name] = lt;
+            }
+            analyzer.SetParameterLifetimes(paramLifetimeMap);
+        }
+
+        // Bodyless function: only allowed for intrinsics
+        if (BlockExpression == null)
+        {
+            if (!IsIntrinsic())
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Function '{Name}' has no body — only intrinsic functions can omit the body\n" +
+                    Token.GetLocationStringRepresentation()));
+            }
+            analyzer.PopTraitBounds();
+            analyzer.PopScope();
+            return;
+        }
+
+        // Intrinsic functions with placeholder bodies — skip body validation
+        if (IsIntrinsic())
+        {
+            analyzer.PopTraitBounds();
+            analyzer.PopScope();
+            return;
+        }
+
         BlockExpression.Analyze(analyzer);
-        if (BlockExpression.TypePath != ReturnTypePath)
+
+        // Validate return lifetime: if the function has explicit lifetime annotations,
+        // check that the return expression borrows from a parameter with the matching lifetime.
+        if (ReturnLifetime != null && BlockExpression.BlockSyntaxNodeContainers.Length > 0)
+        {
+            // Check implicit return (last expression in block)
+            var lastNode = BlockExpression.BlockSyntaxNodeContainers.Last();
+            if (lastNode.Node is IExpression lastExpr && !lastNode.HasSemiColonAfter)
+                ValidateReturnLifetime(lastExpr, analyzer);
+
+            // Check explicit return statements
+            foreach (var node in BlockExpression.SyntaxNodes)
+            {
+                if (node is ReturnStatement rs && rs.ToReturn != null)
+                    ValidateReturnLifetime(rs.ToReturn, analyzer);
+            }
+        }
+
+        // Check implicit return for dangling references
+        if (BlockExpression.BlockSyntaxNodeContainers.Length > 0)
+        {
+            var lastNode = BlockExpression.BlockSyntaxNodeContainers.Last();
+            if (lastNode.Node is IExpression lastExpr
+                && BlockExpression.TypePath is NormalLangPath nlpRet
+                && nlpRet.Contains(RefTypeDefinition.GetRefModule())
+                && analyzer.IsExpressionLocalBorrow(lastExpr))
+            {
+                analyzer.AddException(new DanglingReferenceException(
+                    Token.GetLocationStringRepresentation()));
+            }
+
+            // Validate return value lifetime matches declared return lifetime
+            if (ReturnLifetime != null && lastNode.Node is IExpression returnExpr)
+            {
+                ValidateReturnLifetime(returnExpr, analyzer);
+            }
+        }
+
+        if (BlockExpression.TypePath != ReturnTypePath
+            && !IsRefKindSubsumable(BlockExpression.TypePath, ReturnTypePath))
         {
             IEnumerable<ReturnStatement> GuaranteedReturnStatements(ISyntaxNode node)
             {
@@ -131,19 +296,71 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
             if (GuaranteedReturnStatements(this).Any())
             {
                 var statementsThatDontFollow = GuaranteedReturnStatements(this)
-                    .Where(i => i.TypePath != ReturnTypePath).ToArray();
+                    .Where(i => i.TypePath != ReturnTypePath
+                                && !IsRefKindSubsumable(i.TypePath, ReturnTypePath)).ToArray();
                 if (statementsThatDontFollow.Length != 0)
                     foreach (var i in statementsThatDontFollow)
-                        analyzer.AddException(new SemanticException(
-                            $"Return type of function does not match it's definition\nExpected Type: '{ReturnTypePath}'\nFound: '{i.TypePath}\n{i.Token.GetLocationStringRepresentation()}'"));
+                        analyzer.AddException(new ReturnTypeMismatchException(
+                            ReturnTypePath, i.TypePath, i.Token.GetLocationStringRepresentation()));
             }
             else if (ReturnTypePath != LangPath.VoidBaseLangPath)
             {
-                analyzer.AddException(new SemanticException(
-                    $"Not all paths return a value of the valid type\n{Token.GetLocationStringRepresentation()}'"));
+                analyzer.AddException(new ReturnTypeMismatchException(
+                    ReturnTypePath, BlockExpression.TypePath ?? LangPath.VoidBaseLangPath,
+                    Token.GetLocationStringRepresentation()));
             }
         }
+        analyzer.PopTraitBounds();
         analyzer.PopScope();
+    }
+
+    /// <summary>
+    /// Checks ref-kind subsumption: can 'actual' be used where 'expected' is needed?
+    /// e.g., &amp;uniq T → &amp;T (unique can be used as shared).
+    /// Both must be reference types to the same inner type.
+    /// Follows the deref hierarchy: Uniq→all, Mut→Shared, Const→Shared.
+    /// </summary>
+    private static bool IsRefKindSubsumable(LangPath? actual, LangPath? expected)
+    {
+        if (actual == null || expected == null) return false;
+        if (actual is not NormalLangPath nlpActual || expected is not NormalLangPath nlpExpected)
+            return false;
+
+        // Both must be reference types
+        var refModule = RefTypeDefinition.GetRefModule();
+        if (!nlpActual.Contains(refModule) || !nlpExpected.Contains(refModule))
+            return false;
+
+        // Extract inner types
+        var actualGenerics = nlpActual.GetFrontGenerics();
+        var expectedGenerics = nlpExpected.GetFrontGenerics();
+        if (actualGenerics.Length != 1 || expectedGenerics.Length != 1)
+            return false;
+
+        // Auto-deref coercion: &&mut T → &T
+        // actual is &K1 X where X is &K2 T, expected is &K3 T
+        // If X (the pointee of actual) is itself a reference with the same pointee as expected,
+        // check if X's ref kind can produce expected's ref kind via the deref trait hierarchy.
+        // Note: direct ref-kind coercion (&mut T → &T) is NOT allowed here —
+        // only nested auto-deref through the trait hierarchy.
+        if (actualGenerics[0] is NormalLangPath innerActual && innerActual.Contains(refModule))
+        {
+            var innerGenerics = innerActual.GetFrontGenerics();
+            if (innerGenerics.Length == 1 && innerGenerics[0].Equals(expectedGenerics[0]))
+            {
+                RefKind? innerKind = null, expectedKind = null;
+                foreach (RefKind rk in Enum.GetValues<RefKind>())
+                {
+                    var name = RefTypeDefinition.GetRefName(rk);
+                    if (innerActual.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == name)) innerKind = rk;
+                    if (nlpExpected.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == name)) expectedKind = rk;
+                }
+                if (innerKind != null && expectedKind != null)
+                    return DerefExpression.CanProduceRefKind(innerKind.Value, expectedKind.Value);
+            }
+        }
+
+        return false;
     }
 
     public void ImplementMonomorphized(CodeGenContext codeGenContext, Function function)
@@ -151,81 +368,115 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
         function.CodeGen(codeGenContext);
     }
 
-    public bool ImplementsLater => true;
+    /// <summary>
+    /// Checks whether this function is a compiler intrinsic based on its module path.
+    /// Intrinsic functions have placeholder bodies that the compiler replaces during codegen.
+    /// </summary>
+    public bool IsIntrinsic()
+    {
+        return IntrinsicCodeGen.IsIntrinsic(Module, Name);
+    }
+
 
     public LangPath? GetMonomorphizedReturnTypePath(NormalLangPath functionLangPath)
     {
         if (! ((NormalLangPath) (this as IDefinition).TypePath).Contains(functionLangPath.PopGenerics())) return null;
         var genericArgs = functionLangPath.GetFrontGenerics();
         if (genericArgs.Length != GenericParameters.Length) return null;
-        for (var i = 0; i < GenericParameters.Length; i++)
-        {
-            var genericParam = GenericParameters[i];
-            if (new NormalLangPath(null, [genericParam.Name]) == ReturnTypePath) return genericArgs[i];
-        }
 
-        return ReturnTypePath;
+        // Substitute all generic params in the return type
+        return FieldAccessExpression.SubstituteGenerics(ReturnTypePath, GenericParameters, genericArgs);
     }
 
     public static FunctionDefinition Parse(Parser parser, NormalLangPath module)
     {
-        var genericParameters = new List<GenericParameter>();
         var token = parser.Pop();
-        var variables = new List<VariableDefinition>();
-        if (token is FnToken)
+        if (token is not FnToken)
+            throw new ExpectedParserException(parser, ParseType.Fn, token);
+
+        var nameToken = Identifier.Parse(parser);
+
+        // Parse generic parameters (lifetimes + type params) from [] deduced params
+        var generics = FunctionSignatureParser.ParseImplicitGenericParams(parser);
+        var genericParameters = (generics?.GenericParameters ?? []).ToList();
+        var implicitGenericCount = genericParameters.Count;
+        var lifetimeParameters = generics?.LifetimeParameters ?? [];
+
+        // Parse function parameters — () is required for functions
+        var paramsResult = FunctionSignatureParser.ParseParams(parser);
+        if (paramsResult is null)
+            throw new ExpectedParserException(parser, ParseType.LeftParenthesis, parser.Peek());
+
+        // Merge explicit comptime params from () into the generic params list
+        if (paramsResult.CheckedParams.Length > 0)
+            genericParameters.AddRange(paramsResult.CheckedParams);
+
+        // Parse return type
+        var returnResult = FunctionSignatureParser.ParseReturnType(parser);
+
+        // Bodyless function: fn name(...) -> T; (only allowed for intrinsics, checked in Analyze)
+        BlockExpression? body = null;
+        if (parser.Peek() is SemiColonToken)
         {
-            var nameToken = Identifier.Parse(parser);
-            var name = nameToken.Identity;
-            var nextToken = parser.Peek();
-            if (nextToken is OperatorToken {OperatorType: Operator.LessThan})
-            {
-                parser.Pop();
-                nextToken = parser.Peek();
-                while (nextToken is not OperatorToken {OperatorType: Operator.GreaterThan})
-                {
-                    var paramIdentifier = Identifier.Parse(parser);
-                    nextToken = parser.Peek();
-                    genericParameters.Add(new GenericParameter(paramIdentifier));
-                    if (nextToken is CommaToken)
-                    {
-                        parser.Pop();
-                        nextToken = parser.Peek();
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-
-                Comparator.ParseGreater(parser);
-            }
-
-            Parenthesis.ParseLeft(parser);
-            nextToken = parser.Peek();
-            while (nextToken is not RightParenthesisToken)
-            {
-                var parameter = VariableDefinition.Parse(parser);
-                nextToken = parser.Peek();
-                if (parameter.TypePath is null)
-                    throw new ExpectedParserException(parser, ParseType.BaseLangPath, parameter.IdentifierToken);
-                variables.Add(parameter);
-                if (nextToken is CommaToken) parser.Pop();
-                nextToken = parser.Peek();
-            }
-
-            parser.Pop();
-            nextToken = parser.Peek();
-            LangPath returnTyp = LangPath.VoidBaseLangPath;
-            if (nextToken is RightPointToken)
-            {
-                parser.Pop();
-                returnTyp = LangPath.Parse(parser);
-            }
-
-            return new FunctionDefinition(name, variables, returnTyp, BlockExpression.Parse(parser, returnTyp),
-                module, genericParameters, nameToken);
+            parser.Pop(); // consume ;
+        }
+        else
+        {
+            body = BlockExpression.Parse(parser, returnResult.ReturnTypePath);
         }
 
-        throw new ExpectedParserException(parser, ParseType.Fn, token);
+        return new FunctionDefinition(nameToken.Identity, paramsResult.Parameters,
+            returnResult.ReturnTypePath, body,
+            module, genericParameters, nameToken, lifetimeParameters,
+            paramsResult.ArgumentLifetimes, returnResult.ReturnLifetime,
+            paramsResult.CallParamLayout, implicitGenericCount);
+    }
+
+    /// <summary>
+    /// Validate that an implicit return value's borrow origin has a lifetime matching the declared return lifetime.
+    /// E.g., fn bro&lt;'a, 'b&gt;(dd: &amp;'a i32, kk: &amp;'b i32) -&gt; &amp;'b i32 { dd } — error because dd has 'a not 'b.
+    /// </summary>
+    private void ValidateReturnLifetime(IExpression returnExpr, SemanticAnalyzer analyzer)
+    {
+        // Find the origin parameter name of the returned value
+        string? originParam = null;
+
+        string? varName = null;
+        if (returnExpr is ChainExpression { SimpleVariableName: string cv })
+            varName = cv;
+        else if (returnExpr is PathExpression pe && pe.Path is NormalLangPath nlp && nlp.PathSegments.Length == 1)
+            varName = nlp.PathSegments[0].ToString();
+
+        if (varName != null)
+        {
+            // Is it directly a parameter?
+            if (Arguments.Any(a => a.Name == varName))
+                originParam = varName;
+            else
+            {
+                // Trace through borrows to find the ultimate source parameter
+                var source = analyzer.GetBorrowSource(varName);
+                if (source != null && Arguments.Any(a => a.Name == source))
+                    originParam = source;
+            }
+        }
+
+        if (originParam == null) return;
+
+        // Find the parameter's index and its declared lifetime
+        for (int i = 0; i < Arguments.Length; i++)
+        {
+            if (Arguments[i].Name != originParam) continue;
+            if (!ArgumentLifetimes.TryGetValue(i, out var paramLifetime)) break;
+
+            if (paramLifetime != ReturnLifetime)
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Function '{Name}' returns a value with lifetime '{paramLifetime}', " +
+                    $"but the return type requires lifetime '{ReturnLifetime}'\n" +
+                    Token.GetLocationStringRepresentation()));
+            }
+            break;
+        }
     }
 }

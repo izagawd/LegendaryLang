@@ -1,4 +1,4 @@
-﻿using LegendaryLang;
+using LegendaryLang;
 using NUnit.Framework;
 
 namespace Tests;

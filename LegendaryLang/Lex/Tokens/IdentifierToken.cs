@@ -21,12 +21,14 @@ public class IdentifierToken : Token
         return false;
     }
 
-    public static bool operator ==(IdentifierToken first, IdentifierToken second)
+    public static bool operator ==(IdentifierToken? first, IdentifierToken? second)
     {
+        if (first is null) return second is null;
+        if (second is null) return false;
         return first.Identity == second.Identity;
     }
 
-    public static bool operator !=(IdentifierToken first, IdentifierToken second)
+    public static bool operator !=(IdentifierToken? first, IdentifierToken? second)
     {
         return !(first == second);
     }

@@ -1,29 +1,35 @@
-﻿using LegendaryLang.Definitions.Types;
+using LegendaryLang.Definitions.Types;
 using LegendaryLang.Parse;
 using LLVMSharp.Interop;
 
 namespace LegendaryLang.ConcreteDefinition;
 
-public abstract class PrimitiveType : Type
+public class PrimitiveType : Type
 {
-    public PrimitiveType(PrimitiveTypeDefinition definition) : base(definition)
+    private readonly LLVMTypeRef _typeRef;
+    private readonly string _name;
+
+    public PrimitiveType(PrimitiveTypeDefinition definition, LLVMTypeRef typeRef, string name) : base(definition)
     {
+        _typeRef = typeRef;
+        _name = name;
     }
 
+    public override LLVMTypeRef TypeRef
+    {
+        get => _typeRef;
+        protected set => throw new NotImplementedException();
+    }
 
     public override LangPath TypePath => TypeDefinition.TypePath;
+    public override string Name => _name;
 
-
-    public override int GetPrimitivesCompositeCount(CodeGenContext context)
-    {
-        return 1;
-    }
+    public override int GetPrimitivesCompositeCount(CodeGenContext context) => 1;
 
     public override void AssignTo(CodeGenContext codeGenContext, ValueRefItem value, ValueRefItem ptr)
     {
         codeGenContext.Builder.BuildStore(value.LoadValue(codeGenContext), ptr.ValueRef);
     }
-
 
     public override LLVMValueRef LoadValue(CodeGenContext context, ValueRefItem valueRef)
     {
@@ -42,6 +48,4 @@ public abstract class PrimitiveType : Type
         context.Builder.BuildStore(value, allocated);
         return allocated;
     }
-
-
 }
