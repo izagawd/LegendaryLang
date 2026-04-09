@@ -960,7 +960,7 @@ public class MethodCallKind : IChainKind
                         ResolvedQualifiedType = targetType as NormalLangPath, AutoRefKind = autoRefKind,
                         NeedsAutoDeref = needsAutoDeref, AutoDerefDepth = autoDerefDepth,
                         AutoDerefKind = autoRefKind ?? RefKind.Shared,
-                        ReceiverTypePath = originalReceiverType, RootVarName = rootVarName,
+                        ReceiverTypePath = targetType, RootVarName = rootVarName,
                         TypePath = traitReturnType,
                     };
             }
@@ -1070,7 +1070,7 @@ public class MethodCallKind : IChainKind
             ResolvedQualifiedType = targetType as NormalLangPath, AutoRefKind = autoRefKind,
             NeedsAutoDeref = needsAutoDeref, AutoDerefDepth = autoDerefDepth,
             AutoDerefKind = autoRefKind ?? RefKind.Shared,
-            ReceiverTypePath = originalReceiverType, RootVarName = rootVarName,
+            ReceiverTypePath = targetType, RootVarName = rootVarName,
             TypePath = resolvedReturnType,
         };
     }
@@ -1182,17 +1182,17 @@ public class MethodCallKind : IChainKind
         ValueRefItem selfArg;
         if (AutoRefKind != null)
         {
+            // Use the type where the method was found (after auto-deref), not the original
+            // receiver type. For sized types both produce the same {ptr, {}} layout, but for
+            // unsized types (str, slices) the original receiver may be a different ref kind
+            // with a different LLVM type ({ptr, i64} vs {ptr, {}}).
+            var targetType = NeedsAutoDeref ? (LangPath)ResolvedQualifiedType! : ReceiverTypePath!;
             var refTypePath = RefTypeDefinition.GetRefModule()
                 .Append(RefTypeDefinition.GetRefName(AutoRefKind.Value))
-                .AppendGenerics([ReceiverTypePath!]);
+                .AppendGenerics([targetType]);
             var refTypeRef = ctx.GetRefItemFor(refTypePath) as TypeRefItem;
             if (refTypeRef?.Type is RefType refType)
-            {
-                var alloca = ctx.Builder.BuildAlloca(refType.TypeRef);
-                var field0 = ctx.Builder.BuildStructGEP2(refType.TypeRef, alloca, 0);
-                ctx.Builder.BuildStore(receiverVal.ValueRef, field0);
-                selfArg = new ValueRefItem { Type = refType, ValueRef = alloca };
-            }
+                selfArg = refType.WrapAsRef(ctx, receiverVal);
             else
                 selfArg = receiverVal;
         }

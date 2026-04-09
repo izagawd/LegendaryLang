@@ -1,4 +1,4 @@
-﻿// Trait implemented for str, called via method dispatch on a str variable.
+// Trait implemented for str, called via method dispatch on a str variable.
 // Tests that auto-ref wrapping correctly handles str's fat pointer {ptr, i64}.
 
 trait Greet {

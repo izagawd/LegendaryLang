@@ -168,6 +168,18 @@ public class LetStatement : IStatement
             }
         }
 
+        // Cannot move a non-Copy field out of a reference via field access.
+        // e.g., let x = borrowed_ref.field where field is non-Copy.
+        // Same principle as *ref — the value is behind a borrow and can't be moved out.
+        if (EqualsTo is ChainExpression { ResolvedKind: FieldAccessKind fak }
+            && (fak.AutoDeref || fak.AutoDerefDepth > 0)
+            && TypePath != null && !analyzer.IsTypeCopy(TypePath))
+        {
+            analyzer.AddException(new SemanticException(
+                $"Cannot move non-Copy type '{TypePath}' out of field access through a reference. " +
+                $"Use a reference instead: &borrowed.field\n{Token.GetLocationStringRepresentation()}"));
+        }
+
         // Shadowing: invalidate borrows from the old binding before replacing it
         analyzer.InvalidateBorrowsFrom(VariableDefinition.Name);
 

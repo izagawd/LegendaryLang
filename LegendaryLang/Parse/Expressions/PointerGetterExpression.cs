@@ -136,18 +136,9 @@ public class PointerGetterExpression : IExpression
         // is already a pointer (alloca) to the value. That pointer IS the reference.
         var innerVal = PointingTo.CodeGen(codeGenContext);
 
-        // Resolve the pointer type
         var ptrTypeRef = codeGenContext.GetRefItemFor(TypePath) as TypeRefItem;
         if (ptrTypeRef?.Type is RefType refType)
-        {
-            // The inner ValueRef is the address we want to store as the reference value.
-            // Allocate a {ptr, metadata} struct and store the address into field 0.
-            // Field 1 (metadata) is () for thin pointers — zero-sized, nothing to store.
-            var alloca = codeGenContext.Builder.BuildAlloca(refType.TypeRef);
-            var field0 = codeGenContext.Builder.BuildStructGEP2(refType.TypeRef, alloca, 0);
-            codeGenContext.Builder.BuildStore(innerVal.ValueRef, field0);
-            return new ValueRefItem { Type = refType, ValueRef = alloca };
-        }
+            return refType.WrapAsRef(codeGenContext, innerVal);
 
         // Fallback — shouldn't happen
         return innerVal;

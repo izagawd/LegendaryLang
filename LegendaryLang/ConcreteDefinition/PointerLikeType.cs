@@ -98,4 +98,28 @@ public abstract class PointerLikeType : Type
         context.Builder.BuildStore(metadata, metaDst);
         return new ValueRefItem { Type = this, ValueRef = alloca };
     }
+
+    /// <summary>
+    /// Creates a reference (this pointer-like type) wrapping the given receiver value.
+    /// For sized pointees: the receiver's ValueRef (alloca ptr) becomes the data pointer.
+    /// For unsized pointees (str, slices): the receiver IS a fat pointer — its data ptr
+    /// and metadata are extracted and copied into the new reference.
+    /// Used by auto-ref wrapping in method dispatch and explicit &amp; expressions.
+    /// </summary>
+    public ValueRefItem WrapAsRef(CodeGenContext context, ValueRefItem receiver)
+    {
+        if (HasNonTrivialMetadata)
+        {
+            // Unsized: receiver is already a fat pointer {ptr, metadata}.
+            // Extract both fields and build a new reference with them.
+            var loaded = receiver.Type.LoadValue(context, receiver);
+            var dataPtr = context.Builder.BuildExtractValue(loaded, 0);
+            var metadata = context.Builder.BuildExtractValue(loaded, 1);
+            return BuildFatPointer(context, dataPtr, metadata);
+        }
+
+        // Sized: receiver.ValueRef is a pointer to the value — use it as the data pointer.
+        return BuildFatPointer(context, receiver.ValueRef,
+            LLVMValueRef.CreateConstNull(MetadataTypeRef));
+    }
 }

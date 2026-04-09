@@ -196,13 +196,25 @@ public class DerefExpression : IExpression
 
         if (inner.Type is RefType refType)
         {
-            ptrVal = refType.ExtractDataPointer(context, inner);
             pointeeType = refType.PointingToType;
+
+            // Unsized pointee (str, slices): the fat pointer IS the value.
+            // Extracting just the data pointer would lose the metadata (length).
+            // Return the reference itself — callers that need the raw pointer
+            // (field access, load) will extract it themselves.
+            if (pointeeType is UnsizedType)
+                return inner;
+
+            ptrVal = refType.ExtractDataPointer(context, inner);
         }
         else if (inner.Type is RawPtrType rawPtrType)
         {
-            ptrVal = rawPtrType.ExtractDataPointer(context, inner);
             pointeeType = rawPtrType.PointingToType;
+
+            if (pointeeType is UnsizedType)
+                return inner;
+
+            ptrVal = rawPtrType.ExtractDataPointer(context, inner);
         }
         else if (inner.Type is StructType structType)
         {
@@ -224,10 +236,7 @@ public class DerefExpression : IExpression
                 throw new InvalidOperationException(
                     $"Cannot build self reference for '{structType.TypePath}'");
 
-            var selfRefAlloca = context.Builder.BuildAlloca(selfRefType.TypeRef);
-            var selfField0 = context.Builder.BuildStructGEP2(selfRefType.TypeRef, selfRefAlloca, 0);
-            context.Builder.BuildStore(inner.ValueRef, selfField0);
-            var selfArg = new ValueRefItem { Type = selfRefType, ValueRef = selfRefAlloca };
+            var selfArg = selfRefType.WrapAsRef(context, inner);
 
             // Call deref method — returns &T (an alloca of RefType)
             var derefResult = context.EmitCall((NormalLangPath)structType.TypePath!, methodName, [selfArg]);

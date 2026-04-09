@@ -1117,6 +1117,12 @@ public class ManuallyDropTests
     [Test] public void ChainMoveThroughRefBoxFailTest()
         => AssertFail("method_chain_tests/chain_move_through_ref_box_fail");
 
+    [Test] public void ChainMoveFieldThroughRefFailTest()
+        => AssertFail("method_chain_tests/chain_move_field_through_ref_fail");
+
+    [Test] public void ChainCopyFieldThroughRefOkTest()
+        => AssertSuccess("method_chain_tests/chain_copy_field_through_ref_ok", 42);
+
     // ── Fail: borrow conflicts through Box ──
 
     [Test] public void ChainBoxSharedThenUniqConflictFailTest()

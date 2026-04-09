@@ -348,16 +348,13 @@ public class MatchExpression : IExpression
                             var refTypeRef = codeGenContext.GetRefItemFor(refTypePath) as TypeRefItem;
                             if (refTypeRef?.Type is RefType refType)
                             {
-                                // Allocate a {ptr, metadata} struct and store the field address into field 0
-                                var refAlloca = codeGenContext.Builder.BuildAlloca(refType.TypeRef, bindingName);
-                                var refField0 = codeGenContext.Builder.BuildStructGEP2(refType.TypeRef, refAlloca, 0);
-                                codeGenContext.Builder.BuildStore(fieldPtr, refField0);
+                                var fieldVal = new ValueRefItem { Type = fieldType, ValueRef = fieldPtr };
+                                var wrapped = refType.WrapAsRef(codeGenContext, fieldVal);
 
                                 if (bindingName != "_")
                                 {
                                     codeGenContext.AddToDeepestScope(
-                                        new NormalLangPath(null, [bindingName]),
-                                        new ValueRefItem { Type = refType, ValueRef = refAlloca });
+                                        new NormalLangPath(null, [bindingName]), wrapped);
                                 }
                             }
                         }

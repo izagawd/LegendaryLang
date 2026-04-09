@@ -81,10 +81,8 @@ public class BinaryOperationExpression : IExpression
         if (refTypeRef?.Type is not RefType refType)
             throw new InvalidOperationException($"Cannot build &{val.Type.TypePath} reference");
 
-        var refAlloca = ctx.Builder.BuildAlloca(refType.TypeRef);
-        var field0 = ctx.Builder.BuildStructGEP2(refType.TypeRef, refAlloca, 0);
-        ctx.Builder.BuildStore(rawPtr, field0);
-        return new ValueRefItem { Type = refType, ValueRef = refAlloca };
+        var spilled = new ValueRefItem { Type = val.Type, ValueRef = rawPtr };
+        return refType.WrapAsRef(ctx, spilled);
     }
 
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)

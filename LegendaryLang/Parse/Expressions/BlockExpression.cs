@@ -308,6 +308,18 @@ public class BlockExpression : IExpression
             }
         }
 
+        // Cannot return a non-Copy field accessed through a reference.
+        if (last is not null && !last.Value.HasSemiColonAfter
+            && last.Value.Node is ChainExpression { ResolvedKind: FieldAccessKind fakRet }
+            && (fakRet.AutoDeref || fakRet.AutoDerefDepth > 0)
+            && TypePath != null && !analyzer.IsTypeCopy(TypePath))
+        {
+            var retExprNode = (IExpression)last.Value.Node;
+            analyzer.AddException(new SemanticException(
+                $"Cannot move non-Copy type '{TypePath}' out of field access through a reference. " +
+                $"Use a reference instead: &borrowed.field\n{retExprNode.Token.GetLocationStringRepresentation()}"));
+        }
+
         // Check if the block's value is a reference that borrows from a variable
         // declared in THIS scope — it would dangle after the scope exits
         if (last is not null && !last.Value.HasSemiColonAfter
