@@ -1,6 +1,6 @@
 # LegendaryLang
 
-A compiled programming language that targets native machine code via LLVM. It draws syntax inspiration from Carbon and Rust, featuring ownership semantics, trait-based polymorphism, compile-time generics, and a four-tier reference system.
+A compiled programming language that targets native machine code via LLVM. It draws syntax inspiration from Carbon and Rust, featuring ownership semantics, trait-based polymorphism, compile-time generics, and a reference system with shared and mutable borrows.
 
 ## Table of Contents
 
@@ -840,14 +840,12 @@ let _no_drop = ManuallyDrop.New(some_value);
 
 ## References and Borrowing
 
-LegendaryLang has four reference kinds with distinct aliasing and mutation guarantees. See [REFERENCES.md](REFERENCES.md) for the full compatibility table and deref hierarchy.
+LegendaryLang has two reference kinds. The borrow checker ensures references don't outlive their data and prevents use-after-move.
 
-| Kind | Syntax | Aliasing | Mutation | Coexists with |
-|------|--------|----------|----------|---------------|
-| Shared | `&T` | Multiple | Read-only (but can observe mutations from `&mut`) | `&`, `&mut`, `&const` |
-| Mutable | `&mut T` | Multiple | Read + Write | `&`, `&mut` |
-| Const | `&const T` | Multiple | Read-only (guaranteed no mutations observed) | `&`, `&const` |
-| Unique | `&mut T` | Exclusive | Read + Write | Nothing |
+| Kind | Syntax | Aliasing | Mutation |
+|------|--------|----------|----------|
+| Shared | `&T` | Multiple | Read-only (but can observe mutations from `&mut`) |
+| Mutable | `&mut T` | Multiple | Read + Write |
 
 ```
 fn increment(r: &mut i32) {
@@ -875,7 +873,7 @@ fn main() -> i32 {
 }
 ```
 
-`&mut` can always reassign any type. `&mut` can only reassign types that implement `MutReassign`:
+`&mut` can only reassign types that implement `MutReassign`:
 
 ```
 use Std.Marker.MutReassign;
@@ -906,24 +904,6 @@ fn main() -> i32 {
     let p = make Point { x: 3, y: 4 };
     let r = &p;
     r.x + r.y               // auto-deref — no need for (*r).x
-}
-```
-
-### Auto-Reborrow
-
-`&mut` references are automatically reborrowed when passed to functions, allowing reuse:
-
-```
-fn set(r: &mut i32, val: i32) {
-    *r = val;
-}
-
-fn main() -> i32 {
-    let x = 0;
-    let r = &mut x;
-    set(r, 10);              // r is reborrowed, not moved
-    set(r, 20);              // can use r again
-    *r                       // 20
 }
 ```
 
@@ -969,7 +949,7 @@ fn main() -> i32 {
 
 ### Raw Pointers
 
-Raw pointers (`*shared`, `*const`, `*mut`, `*mut`) are the unsafe counterparts of references. They are used internally by `Box` and the allocator but bypass borrow checking:
+Raw pointers (`*shared`, `*mut`) are the unsafe counterparts of references. They are used internally by `Box` and the allocator but bypass borrow checking:
 
 ```
 // Raw pointers are primarily used through Box internals
@@ -1145,9 +1125,7 @@ All four arithmetic traits are implemented for `i32` with `Output = i32`.
 |--------------|--------------------------------------------------------------|
 | `Receiver`   | Base trait for deref — declares `let Target :! type`.               |
 | `Deref`      | `fn deref(self: &Self) -> &Self.Target`                      |
-| `DerefConst` | `fn deref_const(self: &const Self) -> &const Self.Target`    |
 | `DerefMut`   | `fn deref_mut(self: &mut Self) -> &mut Self.Target`          |
-| `DerefUniq`  | `fn deref_uniq(self: &mut Self) -> &mut Self.Target`       |
 
 ## Syntax Quick Reference
 
@@ -1192,9 +1170,7 @@ impl Point { fn origin() -> Self { make Point { x: 0, y: 0 } } }
 
 // References
 let r = &x;                   // shared
-let r = &mut x;               // mutable (shared)
-let r = &const x;             // const (no mutations observed)
-let r = &mut x;              // unique (exclusive)
+let r = &mut x;               // mutable
 *r = 42;                      // deref assignment
 r.field                       // auto-deref field access
 

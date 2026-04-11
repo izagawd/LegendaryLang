@@ -1,13 +1,13 @@
 # Reference Types in LegendaryLang
 
-LegendaryLang has four reference kinds, each with distinct guarantees about aliasing and mutation.
+LegendaryLang has two reference kinds.
 
-## The Four Reference Kinds
+## The Two Reference Kinds
 
 ### `&T` — Shared Immutable Reference
 The default reference. Provides shared, read-only access to a value. Multiple `&T` references to the same value can exist simultaneously.
 
-`&T` **can observe mutations** made through a `&mut T` to the same value. This is the key difference from `&const T`.
+`&T` **can observe mutations** made through a `&mut T` to the same value.
 
 ```
 let x = 10;
@@ -22,65 +22,34 @@ Raw pointer equivalent: `*shared T`
 ### `&mut T` — Shared Mutable Reference
 A shared reference that allows mutation. Multiple `&mut T` references can exist alongside `&T` references.
 
-Cannot coexist with `&const T` — because `&const` guarantees no mutations will be observed, and `&mut` could mutate the value, violating that guarantee.
-
 ```
 let x = 10;
 let m = &mut x;
 let r = &x;       // OK — & and &mut can coexist
-let c = &const x;  // ERROR — &const and &mut are incompatible
-```
-
-Raw pointer equivalent: `*mut T`
-
-### `&const T` — Shared Immutable Reference (No Observable Mutations)
-A shared reference that guarantees the value **will not be mutated** for the lifetime of the reference. This is a stronger guarantee than `&T`.
-
-Can coexist with `&T` but **not** with `&mut T` — because `&mut` could mutate the value, breaking the no-mutation guarantee.
-
-```
-let x = 10;
-let c = &const x;
-let r = &x;        // OK — & and &const can coexist
-let m = &mut x;     // ERROR — &const and &mut are incompatible
-```
-
-Raw pointer equivalent: `*const T`
-
-### `&mut T` — Unique Reference
-Guarantees that **nothing else references the value**. Provides exclusive access — no other reference of any kind can coexist with `&mut T`.
-
-```
-let x = 10;
-let u = &mut x;
-let r = &x;        // ERROR — &mut is incompatible with everything
-let m = &mut x;     // ERROR
-let c = &const x;   // ERROR
+let m2 = &mut x;  // OK — multiple &mut allowed
 ```
 
 Raw pointer equivalent: `*mut T`
 
 ## Compatibility Table
 
-| Existing ↓ / New → | `&`  | `&mut` | `&const` | `&mut` |
-|---------------------|------|--------|----------|---------|
-| `&`                 | ✅   | ✅     | ✅       | ❌      |
-| `&mut`              | ✅   | ✅     | ❌       | ❌      |
-| `&const`            | ✅   | ❌     | ✅       | ❌      |
-| `&mut`             | ❌   | ❌     | ❌       | ❌      |
+| Existing ↓ / New → | `&`  | `&mut` |
+|---------------------|------|--------|
+| `&`                 | ✅   | ✅     |
+| `&mut`              | ✅   | ✅     |
+
+All reference kinds are compatible with each other. The borrow checker ensures references don't outlive their data and prevents use-after-move.
 
 ## Capability Hierarchy (Deref Chain Narrowing)
 
 When accessing fields through references, the outer reference narrows what the inner reference can produce:
 
 ```
-&mut  >  &mut, &const  >  &
+&mut  >  &
 ```
 
 - Through `&Wrapper`, you can only produce `&` access to fields
 - Through `&mut Wrapper`, you can produce up to `&mut` access
-- Through `&const Wrapper`, you can produce up to `&const` access
-- Through `&mut Wrapper`, you can produce any level of access
 
 Example: if `Wrapper` has field `inner: &mut Holder`, accessing through `&Wrapper` narrows the effective capability to `&` — you cannot call a method requiring `&mut Self` on the inner field.
 
@@ -92,19 +61,19 @@ fn through_shared(w: &Wrapper) -> i32 {
     // w.inner.modify() // ERROR — &mut method through & wrapper
 }
 
-fn through_uniq(w: &mut Wrapper) -> i32 {
+fn through_mut(w: &mut Wrapper) -> i32 {
     w.inner.modify()    // OK — &mut method through &mut wrapper
 }
 ```
 
 ## Borrowing Rules
 
-When a variable is borrowed, the original variable is restricted based on the reference kind:
+The borrow checker ensures that:
 
-- **`&mut` borrow**: The source variable cannot be used in any way until the `&mut` reference is no longer alive (NLL — last use determines liveness).
-- **`&mut` borrow**: Can coexist with `&` borrows. Incompatible with `&const` borrows.
-- **`&const` borrow**: Can coexist with `&` borrows. Incompatible with `&mut` borrows.
-- **`&` borrow**: Can coexist with `&`, `&mut`, and `&const` borrows.
+- References cannot outlive the data they point to (no dangling references).
+- Values that have been moved cannot be accessed.
+
+All borrow kinds are compatible — `&` and `&mut` can coexist freely.
 
 ### Borrows Through Structs and Enums
 
@@ -116,7 +85,6 @@ struct Holder['a] { val: &'a mut i32 }
 fn main() -> i32 {
     let x = 10;
     let h = make Holder { val: &mut x };
-    // x = 20;     // ERROR — x is uniquely borrowed by h
     DropNow(h);     // h is consumed, borrow released
     x               // OK — x is accessible again
 }
@@ -133,8 +101,7 @@ fn wrap(r: &mut i32) -> Holder {
 
 fn main() -> i32 {
     let x = 10;
-    let h = wrap(&mut x);   // h borrows from x
-    // let y = x;             // ERROR — x borrowed by h
+    let h = wrap(&mut x);    // h borrows from x
     DropNow(h);               // borrow released
     x                         // OK
 }
@@ -149,15 +116,13 @@ Each reference kind has a corresponding deref trait:
 | Reference | Deref Trait  | Method               | Returns     |
 |-----------|-------------|----------------------|-------------|
 | `&T`      | `Deref`      | `deref(&Self)`       | `&Target`   |
-| `&const T`| `DerefConst` | `deref_const(&const Self)` | `&const Target` |
 | `&mut T`  | `DerefMut`   | `deref_mut(&mut Self)`   | `&mut Target`   |
-| `&mut T` | `DerefUniq`  | `deref_uniq(&mut Self)`  | `&mut Target`  |
 
 Smart pointers (like `Box(T)`) implement these traits to enable transparent field access and method calls through the pointer.
 
 ## MutReassign Trait
 
-By default, reassigning a value through `&mut` is forbidden. Only `&mut` allows arbitrary reassignment. To allow reassignment through `&mut`, a type must implement the `MutReassign` marker trait:
+By default, reassigning a value through `&mut` is restricted to types that implement the `MutReassign` marker trait:
 
 ```
 use Std.Marker.MutReassign;
@@ -179,7 +144,6 @@ fn main() -> i32 {
 - All primitive types (`i32`, `u8`, `usize`, `bool`), references, and raw pointers implement `MutReassign` automatically.
 - Structs can implement `MutReassign` only if **all fields** implement `MutReassign`.
 - Enums can implement `MutReassign` only if they are **flat** (all unit variants, no payload).
-- `&mut` always allows reassignment regardless of `MutReassign`.
 - `MutReassign` is auto-imported (like `Copy` and `Box`).
 
 ### Why?
@@ -217,30 +181,6 @@ The binding's reference kind matches the scrutinee's reference kind:
 | `Enum` (by value) | `T` (copy) |
 | `&Enum` | `&T` |
 | `&mut Enum` | `&mut T` |
-| `&const Enum` | `&const T` |
-| `&mut Enum` | `&mut T` |
-
-## Auto-Reborrow
-
-When a `&mut` reference is passed to a function, it is automatically reborrowed rather than moved. This allows reusing the reference after the call:
-
-```
-fn set(r: &mut i32, val: i32) {
-    *r = val;
-}
-
-fn main() -> i32 {
-    let x = 0;
-    let r = &mut x;
-    set(r, 10);     // auto-reborrow — r is NOT consumed
-    set(r, 20);     // can still use r
-    *r              // 20
-}
-```
-
-This matches Rust's `&mut` auto-reborrow behavior. Without auto-reborrow, `&mut` would be moved on first use (since it's non-Copy), making it impractical for exclusive references.
-
-Note: `let p = r` still moves `&mut` — auto-reborrow only applies to function/method arguments.
 
 ## Non-Lexical Lifetimes (NLL)
 
@@ -261,7 +201,7 @@ Without NLL, `x + val` would fail because `r` is still in scope.
 
 | Borrower type | Borrow expiration |
 |---------------|-------------------|
-| Reference (`&T`, `&mut T`, etc.) | Last use (NLL) |
+| Reference (`&T`, `&mut T`) | Last use (NLL) |
 | Copy type | Last use (NLL) |
 | Non-Copy, non-reference, **without Drop** | Scope exit (moved = released early) |
 | Non-Copy, non-reference, **with Drop** | Scope exit (Drop accesses borrowed data) |
@@ -285,7 +225,6 @@ fn main() -> i32 {
     let x = 5;
     let h = make Holder { r: &mut x };
     let h2 = PassAround(h);    // h2 still borrows x
-    // x = 10;                  // ERROR — x borrowed by h2
     0
 }
 ```
