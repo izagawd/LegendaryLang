@@ -229,6 +229,12 @@ public class BinaryOperationExpression : IExpression
         // Comparison operators: check PartialEq/PartialOrd traits
         if (IsComparisonOperator(op))
         {
+            // Coerce numeric literals to match the other operand's type
+            if (Right is NumberExpression rightNum && Left.TypePath != null)
+                rightNum.TryCoerceToType(Left.TypePath);
+            else if (Left is NumberExpression leftNum && Right.TypePath != null)
+                leftNum.TryCoerceToType(Right.TypePath);
+
             var traitPath = GetOperatorTraitPath(op);
             if (traitPath != null)
             {
@@ -259,6 +265,12 @@ public class BinaryOperationExpression : IExpression
             TypePath = LangPath.VoidBaseLangPath;
             return;
         }
+
+        // Coerce numeric literals to match the other operand's type
+        if (Right is NumberExpression rightArithNum && Left.TypePath != null)
+            rightArithNum.TryCoerceToType(Left.TypePath);
+        else if (Left is NumberExpression leftArithNum && Right.TypePath != null)
+            leftArithNum.TryCoerceToType(Right.TypePath);
 
         var arithmeticTraitWithRhs = arithmeticTraitPath.AppendGenerics([Right.TypePath!]);
 

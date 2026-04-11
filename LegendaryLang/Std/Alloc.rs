@@ -20,8 +20,8 @@ impl[T:! Sized] Gc(T) {
     fn New(val: T) -> Self {
         let s: usize = SizeOf(T);
         let a: usize = AlignOf(T);
-        let raw: *mut u8 = Alloc(s, a);
-        let typed: *mut T = PtrWrite(raw, val);
+        let raw_ptr: *mut u8 = Alloc(s, a);
+        let typed: *mut T = PtrWrite(raw_ptr, val);
         make Gc { ptr: typed }
     }
 }
@@ -43,8 +43,8 @@ impl[T:! Sized] GcMut(T) {
     fn New(val: T) -> GcMut(T) {
         let s: usize = SizeOf(T);
         let a: usize = AlignOf(T);
-        let raw: *mut u8 = Alloc(s, a);
-        let typed: *mut T = PtrWrite(raw, val);
+        let raw_ptr: *mut u8 = Alloc(s, a);
+        let typed: *mut T = PtrWrite(raw_ptr, val);
         make GcMut { ptr: typed }
     }
 }

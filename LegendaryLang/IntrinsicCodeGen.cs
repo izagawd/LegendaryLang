@@ -29,6 +29,8 @@ public static class IntrinsicCodeGen
         ["PtrWrite"] = PtrModule,
         ["PtrAsU8"] = PtrModule,
         ["DestructPtr"] = PtrModule,
+        ["AddrEq"] = PtrModule,
+        ["GetMetadata"] = PtrModule,
         ["TryCastPrimitive"] = PrimitiveModule,
         ["PrintStr"] = FmtModule,
         ["PrintLnStr"] = FmtModule,
@@ -75,6 +77,8 @@ public static class IntrinsicCodeGen
             "PtrWrite" => EmitPtrWrite(function, context),
             "PtrAsU8" => EmitPtrAsU8(function, context),
             "DestructPtr" => EmitDestructPtr(function, context),
+            "AddrEq" => EmitAddrEq(function, context),
+            "GetMetadata" => EmitGetMetadata(function, context),
             "TryCastPrimitive" => EmitTryCastPrimitive(function, context),
             "PrintStr" => EmitPrintStr(function, context),
             "PrintLnStr" => EmitPrintLnStr(function, context),
@@ -227,6 +231,52 @@ public static class IntrinsicCodeGen
 
         var voidVal = context.GetVoid();
         context.Builder.BuildRet(voidVal.LoadValue(context));
+        return true;
+    }
+
+    // ── Pointer comparison/inspection intrinsics ──
+
+    /// <summary>
+    /// AddrEq[A, B](a: *shared A, b: *shared B) → bool.
+    /// Compares the data pointers (field 0) of two raw pointers, ignoring metadata.
+    /// Works uniformly for both thin and fat pointers.
+    /// </summary>
+    private static bool EmitAddrEq(Function function, CodeGenContext context)
+    {
+        if (function.Arguments.Length != 2) return false;
+
+        var a = function.Arguments[0];
+        var b = function.Arguments[1];
+        var aType = a.Type as PointerLikeType;
+        var bType = b.Type as PointerLikeType;
+        if (aType == null || bType == null) return false;
+
+        var aPtr = aType.ExtractDataPointer(context,
+            new ValueRefItem { Type = aType, ValueRef = a.Alloca });
+        var bPtr = bType.ExtractDataPointer(context,
+            new ValueRefItem { Type = bType, ValueRef = b.Alloca });
+
+        var result = context.Builder.BuildICmp(LLVMIntPredicate.LLVMIntEQ, aPtr, bPtr, "addr_eq");
+        context.Builder.BuildRet(result);
+        return true;
+    }
+
+    /// <summary>
+    /// GetMetadata[T: MetaSized](ptr: *shared T) → T.Metadata.
+    /// Extracts the metadata field (field 1) from a raw pointer.
+    /// For thin pointers returns () (empty struct), for fat pointers returns usize (length).
+    /// </summary>
+    private static bool EmitGetMetadata(Function function, CodeGenContext context)
+    {
+        if (function.Arguments.Length != 1) return false;
+
+        var arg = function.Arguments[0];
+        var ptrType = arg.Type as PointerLikeType;
+        if (ptrType == null) return false;
+
+        var metadata = ptrType.ExtractMetadata(context,
+            new ValueRefItem { Type = ptrType, ValueRef = arg.Alloca });
+        context.Builder.BuildRet(metadata);
         return true;
     }
 

@@ -11,6 +11,12 @@ public class PointerGetterExpression : IExpression
     private readonly RefKind _refKind;
     public RefKind RefKind => _refKind;
 
+    /// <summary>
+    /// True for &amp;raw / &amp;raw mut expressions that produce raw pointers (*shared T / *mut T)
+    /// instead of references (&amp;T / &amp;mut T). Raw pointer casts skip borrow checking.
+    /// </summary>
+    public bool IsRaw { get; }
+
     public static PointerGetterExpression Parse(Parser parser)
     {
         var popped = parser.Pop();
@@ -19,18 +25,27 @@ public class PointerGetterExpression : IExpression
             throw new ExpectedParserException(parser,[ParseType. Ampersand],popped);
         }
 
+        // Check for &raw / &raw mut → produces raw pointers instead of references
+        bool isRaw = false;
+        if (parser.Peek() is RawToken)
+        {
+            parser.Pop();
+            isRaw = true;
+        }
+
         var refKind = RefKindParser.Parse(parser);
 
         var expr = IExpression.ParsePrimary(parser);
-        return new PointerGetterExpression(expr, ampersandToken, refKind);
+        return new PointerGetterExpression(expr, ampersandToken, refKind, isRaw);
     }
 
     
-    public PointerGetterExpression(IExpression pointingTo, AmpersandToken token, RefKind refKind)
+    public PointerGetterExpression(IExpression pointingTo, AmpersandToken token, RefKind refKind, bool isRaw = false)
     {
         _refKind = refKind;
         PointingTo = pointingTo;
         Token = token;
+        IsRaw = isRaw;
     }
     public IExpression PointingTo { get; }
     public IEnumerable<ISyntaxNode> Children => [PointingTo];
@@ -41,6 +56,22 @@ public class PointerGetterExpression : IExpression
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        if (IsRaw)
+        {
+            // Raw pointer cast: no borrow checking, just analyze the inner expression
+            PointingTo.Analyze(analyzer);
+
+            // Validate target
+            if (PointingTo is not FieldAccessExpression && PointingTo is not PathExpression
+                && PointingTo is not ChainExpression && PointingTo is not DerefExpression)
+            {
+                analyzer.AddException(new SemanticException(
+                    "Raw pointer target must be a field access, variable access, or dereference\n" +
+                    Token.GetLocationStringRepresentation()));
+            }
+            return;
+        }
+
         // Core borrow analysis — shared with comparison operator sugar
         AnalyzeBorrow(PointingTo, _refKind, analyzer);
 
@@ -118,18 +149,31 @@ public class PointerGetterExpression : IExpression
     }
 
     public bool HasGuaranteedExplicitReturn => PointingTo.HasGuaranteedExplicitReturn;
-    public LangPath? TypePath => RefTypeDefinition.GetRefModule()
-        .Append(RefTypeDefinition.GetRefName(_refKind))
-        .AppendGenerics([PointingTo.TypePath]);
-    public bool IsTemporary => true; // creates new reference
+    public LangPath? TypePath => IsRaw
+        ? RawPtrTypeDefinition.GetRawPtrModule()
+            .Append(RawPtrTypeDefinition.GetRawPtrName(_refKind))
+            .AppendGenerics([PointingTo.TypePath])
+        : RefTypeDefinition.GetRefModule()
+            .Append(RefTypeDefinition.GetRefName(_refKind))
+            .AppendGenerics([PointingTo.TypePath]);
+    public bool IsTemporary => true; // creates new reference/pointer
 
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
     {
         // The inner expression's CodeGen returns a ValueRefItem whose ValueRef
-        // is already a pointer (alloca) to the value. That pointer IS the reference.
+        // is already a pointer (alloca) to the value. That pointer IS the reference/raw pointer.
         var innerVal = PointingTo.CodeGen(codeGenContext);
 
         var ptrTypeRef = codeGenContext.GetRefItemFor(TypePath) as TypeRefItem;
+
+        if (IsRaw)
+        {
+            // Raw pointer: same LLVM layout as references, just different type wrapper
+            if (ptrTypeRef?.Type is RawPtrType rawPtrType)
+                return rawPtrType.WrapAsRef(codeGenContext, innerVal);
+            return innerVal;
+        }
+
         if (ptrTypeRef?.Type is RefType refType)
             return refType.WrapAsRef(codeGenContext, innerVal);
 

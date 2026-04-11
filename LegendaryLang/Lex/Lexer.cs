@@ -301,6 +301,9 @@ public static class Lexer
                         case "mut":
                             file.AddToken(new MutToken(file, column, line));
                             break;
+                        case "raw":
+                            file.AddToken(new RawToken(file, column, line));
+                            break;
                         case "while":
                             file.AddToken(new WhileToken(file, column, line));
                             break;

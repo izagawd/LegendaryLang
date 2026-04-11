@@ -1,11 +1,6 @@
 ﻿use Std.Ops.Into;
-use Std.Ops.TryInto;
-use Std.Fmt.ToString;
 fn main() -> i32{
-    let made : usize =  SizeOf(Gc(str));
-    match (usize as TryInto(i32)).TryInto(made) {
-        Option.Some(gotten) => gotten,
-        _ => 0
-        }
-    
+    let made =  GcMut.New(45);
+    let dd: Gc(i32) = made.Into();
+    4
 }
