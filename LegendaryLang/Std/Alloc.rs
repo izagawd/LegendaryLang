@@ -1,8 +1,6 @@
-use Std.Ops.Drop;
 use Std.Deref.Receiver;
 use Std.Deref.Deref;
 use Std.Deref.DerefMut;
-use Std.Mem.ManuallyDrop;
 use Std.Mem.SizeOf;
 use Std.Mem.AlignOf;
 use Std.Ptr.PtrWrite;
@@ -24,12 +22,6 @@ impl[T:! type] Gc(T) {
         let raw: *mut u8 = Alloc(s, a);
         let typed: *mut T = PtrWrite(raw, val);
         make Gc { ptr: typed }
-    }
-
-    fn Leak(b: Gc(T)) -> &'static mut T {
-        let ptr: *mut T = b.ptr;
-        let _prevent_drop = ManuallyDrop.New(b);
-        &mut *ptr
     }
 }
 

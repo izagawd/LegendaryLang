@@ -1,4 +1,4 @@
-// A non-Copy smart pointer that wraps a Box internally and signals its drop
+// A non-Copy smart pointer that wraps a Gc internally and signals its drop
 // via a mutation side-channel. This verifies that when *Wrapper.New(&mut counter, 7)
 // is used as a temporary, Wrapper's Drop impl fires and increments counter,
 // proving the temporary was properly dropped.
@@ -9,13 +9,13 @@ use Std.Deref.Receiver;
 use Std.Deref.Deref;
 
 struct Wrapper['a] {
-    inner: Box(i32),
+    inner: Gc(i32),
     dropped: &'a mut i32
 }
 
 impl['a] Wrapper['a] {
     fn New(dropped: &'a mut i32, val: i32) -> Wrapper['a] {
-        make Wrapper { inner: Box.New(val), dropped: dropped }
+        make Wrapper { inner: Gc.New(val), dropped: dropped }
     }
 }
 

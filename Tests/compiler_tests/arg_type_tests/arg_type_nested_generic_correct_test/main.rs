@@ -3,11 +3,11 @@ impl Copy for Foo {}
 impl Foo {
     fn get(self: &Self) -> i32 { self.val }
 }
-fn take_box(b: &Box(Foo)) -> i32 {
+fn take_box(b: &Gc(Foo)) -> i32 {
     b.get()
 }
 fn main() -> i32 {
     let f = make Foo { val: 42 };
-    let b = Box(Foo).New(f);
+    let b = Gc(Foo).New(f);
     take_box(&b)
 }

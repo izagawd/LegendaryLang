@@ -125,12 +125,6 @@ public class DropTests
     }
 
     // ═══════════════════════════════════════════════════════════════
-    //  BOX DESTRUCT TESTS — DestructPtr intrinsic
-    // ═══════════════════════════════════════════════════════════════
-
-    [Test] public void DropBoxDestructsInnerTest() => AssertSuccess("drop_tests/drop_box_destructs_inner_test", 1);
-    [Test] public void DropBoxDestructsNestedFieldTest() => AssertSuccess("drop_tests/drop_box_destructs_nested_field_test", 1);
-
     // ═══════════════════════════════════════════════════════════════
     //  RETURN VALUE OWNERSHIP — returned values must NOT be dropped
     // ═══════════════════════════════════════════════════════════════

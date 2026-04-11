@@ -4,89 +4,89 @@ using static Tests.CompilerTestHelper;
 
 namespace Tests;
 
-public class BoxTests
+public class GcTests
 {
-    // ── Basic Box operations ──
+    // ── Basic Gc operations ──
 
-    [Test] public void BoxBasicTest() => AssertSuccess("box_tests/box_basic_test", 42);
+    [Test] public void GcBasicTest() => AssertSuccess("gc_tests/gc_basic_test", 42);
 
-    [Test] public void BoxDropTest() => AssertSuccess("box_tests/box_drop_test", 5);
+    [Test] public void GcDropTest() => AssertSuccess("gc_tests/gc_drop_test", 5);
 
-    [Test] public void BoxStructTest() => AssertSuccess("box_tests/box_struct_test", 42);
+    [Test] public void GcStructTest() => AssertSuccess("gc_tests/gc_struct_test", 42);
 
-    [Test] public void BoxMoveTest() => AssertSuccess("box_tests/box_move_test", 77);
+    [Test] public void GcMoveTest() => AssertSuccess("gc_tests/gc_move_test", 77);
 
-    [Test] public void RawPtrBasicTest() => AssertSuccess("box_tests/rawptr_basic_test", 42);
+    [Test] public void RawPtrBasicTest() => AssertSuccess("gc_tests/rawptr_basic_test", 42);
 
     // ── Deref assign ──
 
     [Test]
-    public void BoxDerefAssignTest()
+    public void GcDerefAssignTest()
     {
         // *b = 99 should write to heap, *b should read 99
-        AssertSuccess("box_tests/box_deref_assign_test", 99);
+        AssertSuccess("gc_tests/gc_deref_assign_test", 99);
     }
 
     [Test]
-    public void BoxDerefReadAfterAssignTest()
+    public void GcDerefReadAfterAssignTest()
     {
         // *b = Pair{10,32}, (*b).x + (*b).y = 42
-        AssertSuccess("box_tests/box_deref_read_after_assign_test", 42);
+        AssertSuccess("gc_tests/gc_deref_read_after_assign_test", 42);
     }
 
     // ── Use-after-free prevention ──
 
     [Test]
-    public void BoxReturnDerefTest()
+    public void GcReturnDerefTest()
     {
-        // fn get_val(b: Box<i32>) -> i32 { *b }
-        // Return value must survive Box.Drop
-        AssertSuccess("box_tests/box_return_deref_test", 42);
+        // fn get_val(b: Gc<i32>) -> i32 { *b }
+        // Return value must survive Gc.Drop
+        AssertSuccess("gc_tests/gc_return_deref_test", 42);
     }
 
     [Test]
-    public void BoxDropScopeTest()
+    public void GcDropScopeTest()
     {
         // Value from *b inside inner scope must survive scope exit
-        AssertSuccess("box_tests/box_drop_scope_test", 42);
+        AssertSuccess("gc_tests/gc_drop_scope_test", 42);
     }
 
     // ── Multiple operations ──
 
     [Test]
-    public void BoxMultipleDerefTest()
+    public void GcMultipleDerefTest()
     {
         // Multiple *b reads on same box (i32 is Copy): 7+7+7 = 21
-        AssertSuccess("box_tests/box_multiple_deref_test", 21);
+        AssertSuccess("gc_tests/gc_multiple_deref_test", 21);
     }
 
     [Test]
-    public void BoxTwoBoxesTest()
+    public void GcTwoGcsTest()
     {
         // Two boxes in same scope, both dropped correctly: 10+32 = 42
-        AssertSuccess("box_tests/box_two_boxes_test", 42);
+        AssertSuccess("gc_tests/gc_two_boxes_test", 42);
     }
 
     [Test]
-    public void BoxNestedStructTest()
+    public void GcNestedStructTest()
     {
-        // Box<Outer> with nested structs, field access through deref: 10+32 = 42
-        AssertSuccess("box_tests/box_nested_struct_test", 42);
+        // Gc<Outer> with nested structs, field access through deref: 10+32 = 42
+        AssertSuccess("gc_tests/gc_nested_struct_test", 42);
     }
 
     [Test]
-    public void BoxUniqDerefInStructTest()
+    public void GcUniqDerefInStructTest()
     {
         // &mut *box stored in a struct field, then accessed via *b.dd → 5
-        AssertSuccess("box_tests/box_uniq_deref_in_struct_test", 5);
+        AssertSuccess("gc_tests/gc_uniq_deref_in_struct_test", 5);
     }
 
     [Test]
-    public void BoxUniqDerefStructShadowTest()
+    public void GcUniqDerefStructShadowTest()
     {
-        // Same as above but the Box binding is shadowed by the struct — old Box
+        // Same as above but the Gc binding is shadowed by the struct — old Gc
         // still lives on the stack, reference remains valid → *a.dd == 5
-        AssertSuccess("box_tests/box_uniq_deref_struct_shadow_test", 5);
+        AssertSuccess("gc_tests/gc_uniq_deref_struct_shadow_test", 5);
     }
 }
 
@@ -97,21 +97,21 @@ public class DropFieldTests
     public void DropTransitiveFieldTest()
     {
         // A(Drop +10) -> B(no Drop) -> C(Drop +1) = 11
-        AssertSuccess("box_tests/drop_transitive_field_test", 11);
+        AssertSuccess("gc_tests/drop_transitive_field_test", 11);
     }
 
     [Test]
     public void DropTransitiveNoParentTest()
     {
         // A(no Drop) -> B(no Drop) -> C(Drop +1) = 1
-        AssertSuccess("box_tests/drop_transitive_no_parent_test", 1);
+        AssertSuccess("gc_tests/drop_transitive_no_parent_test", 1);
     }
 
     [Test]
     public void DropMultiFieldTest()
     {
         // Multi(no Drop) has two Dropper fields (each +1) = 2
-        AssertSuccess("box_tests/drop_multi_field_test", 2);
+        AssertSuccess("gc_tests/drop_multi_field_test", 2);
     }
 
 
@@ -208,15 +208,15 @@ public class DropFieldTests
         [Test]
         public void DerefRefBoxChainTest()
         {
-            // &Box(Foo) → Box(Foo) → Foo, 2-level chain = 42
-            AssertSuccess("deref_hierarchy_tests/deref_ref_box_chain_test", 42);
+            // &Gc(Foo) → Gc(Foo) → Foo, 2-level chain = 42
+            AssertSuccess("deref_hierarchy_tests/deref_ref_gc_chain_test", 42);
         }
 
         [Test]
         public void DerefBoxChainMethodTest()
         {
-            // Box<Box(Foo)> → Box(Foo) → Foo, 2-level smart pointer chain = 42
-            AssertSuccess("deref_hierarchy_tests/deref_box_chain_method_test", 42);
+            // Gc<Gc(Foo)> → Gc(Foo) → Foo, 2-level smart pointer chain = 42
+            AssertSuccess("deref_hierarchy_tests/deref_gc_chain_method_test", 42);
         }
 
         // ── Generic deref bounds ──
@@ -397,21 +397,6 @@ public class DropFieldTests
             AssertSuccess("borrow_method_tests/borrow_fn_return_shared_input_coexist_test", 42);
         }
 
-        [Test]
-        public void BorrowFnReturnStaticNoLockTest()
-        {
-            // Box.Leak returns &'static mut — no borrow on source = 42
-            AssertSuccess("borrow_method_tests/borrow_fn_return_static_no_lock_test", 42);
-        }
-
-        [Test]
-        public void BorrowFnSharedInputUniqOutputCoexistTest()
-        {
-            // fn takes &i32, returns &mut i32 — borrow tracked as shared (from input)
-            // additional &x OK while returned &mut alive: 21 + 21 = 42
-            AssertSuccess("borrow_method_tests/borrow_fn_shared_input_uniq_output_coexist_test", 42);
-        }
-
 
         [Test]
         public void BorrowEnumVariantReleasedAfterMoveTest()
@@ -552,14 +537,14 @@ public class DropFieldTests
         [Test]
         public void ArgTypeNestedGenericCorrectTest()
         {
-            // &Box(Foo) correct = 42
+            // &Gc(Foo) correct = 42
             AssertSuccess("arg_type_tests/arg_type_nested_generic_correct_test", 42);
         }
 
         [Test]
         public void ArgTypeGenericOnFnNotTypeFailTest()
         {
-            // Box(i32).New(42) — generic belongs on Box, not new
+            // Gc(i32).New(42) — generic belongs on Gc, not new
             AssertFail("arg_type_tests/arg_type_generic_on_fn_not_type_fail_test");
         }
 
@@ -634,13 +619,6 @@ public class DropFieldTests
         {
             // Counter.drop adds 10, but ManuallyDrop prevents it → result stays 0
             AssertSuccess("drop_tests/manually_drop_prevents_drop_test", 0);
-        }
-
-        [Test]
-        public void ManuallyDropBoxLeakTest()
-        {
-            // Box.Leak uses ManuallyDrop internally → no use-after-free = 42
-            AssertSuccess("drop_tests/manually_drop_box_leak_test", 42);
         }
 
         [Test]
@@ -810,37 +788,37 @@ public class DropFieldTests
         public void ChainSharedReturnsRefFieldAccessTest()
             => AssertSuccess("method_chain_tests/chain_shared_returns_ref_field_access", 42);
 
-        // ── Chained calls through Box auto-deref ──
+        // ── Chained calls through Gc auto-deref ──
 
         [Test]
         public void ChainBoxSharedSharedTest()
-            => AssertSuccess("method_chain_tests/chain_box_shared_shared", 42);
+            => AssertSuccess("method_chain_tests/chain_gc_shared_shared", 42);
 
         [Test]
         public void ChainBoxRefReturnThenMethodTest()
-            => AssertSuccess("method_chain_tests/chain_box_ref_return_then_method", 42);
+            => AssertSuccess("method_chain_tests/chain_gc_ref_return_then_method", 42);
 
         [Test]
         public void ChainBoxConsumeThenMethodTest()
-            => AssertSuccess("method_chain_tests/chain_box_consume_inner_then_method", 42);
+            => AssertSuccess("method_chain_tests/chain_gc_consume_inner_then_method", 42);
 
         [Test]
         public void ChainBoxFieldThenMethodTest()
-            => AssertSuccess("method_chain_tests/chain_box_field_then_method", 42);
+            => AssertSuccess("method_chain_tests/chain_gc_field_then_method", 42);
 
         [Test]
         public void ChainBoxNestedFieldDerefTest()
-            => AssertSuccess("method_chain_tests/chain_box_nested_field_deref", 42);
+            => AssertSuccess("method_chain_tests/chain_gc_nested_field_deref", 42);
 
-        // ── Sequential calls on Box (mutation + read, NLL) ──
+        // ── Sequential calls on Gc (mutation + read, NLL) ──
 
         [Test]
         public void ChainBoxUniqThenSharedTest()
-            => AssertSuccess("method_chain_tests/chain_box_uniq_then_shared", 42);
+            => AssertSuccess("method_chain_tests/chain_gc_uniq_then_shared", 42);
 
         [Test]
         public void ChainBoxMutThenSharedTest()
-            => AssertSuccess("method_chain_tests/chain_box_mut_then_shared", 42);
+            => AssertSuccess("method_chain_tests/chain_gc_mut_then_shared", 42);
 
         [Test]
         public void ChainNllBorrowExpiresThenChainTest()
@@ -854,7 +832,7 @@ public class DropFieldTests
 
         [Test]
         public void ChainDoubleDerefRefBoxTest()
-            => AssertSuccess("method_chain_tests/chain_double_deref_ref_box", 42);
+            => AssertSuccess("method_chain_tests/chain_double_deref_ref_gc", 42);
 
         [Test]
         public void ChainCopySelfThroughRefTwiceTest()
@@ -868,7 +846,7 @@ public class DropFieldTests
 
         [Test]
         public void ChainMoveThroughRefBoxFailTest()
-            => AssertFail("method_chain_tests/chain_move_through_ref_box_fail");
+            => AssertFail("method_chain_tests/chain_move_through_ref_gc_fail");
 
         [Test]
         public void ChainMoveFieldThroughRefFailTest()
@@ -878,12 +856,12 @@ public class DropFieldTests
         public void ChainCopyFieldThroughRefOkTest()
             => AssertSuccess("method_chain_tests/chain_copy_field_through_ref_ok", 42);
 
-        // ── Fail: borrow conflicts through Box ──
+        // ── Fail: borrow conflicts through Gc ──
 
 
         [Test]
         public void ChainBoxSharedThenMutCoexistTest()
-            => AssertSuccess("method_chain_tests/chain_box_shared_then_mut_coexist_test", 99);
+            => AssertSuccess("method_chain_tests/chain_gc_shared_then_mut_coexist_test", 99);
 
         // ── Fail: use after move ──
 
@@ -903,7 +881,7 @@ public class DropFieldTests
 
         [Test]
         public void ChainBoxRefEscapeScopeFailTest()
-            => AssertFail<DanglingReferenceError>("method_chain_tests/chain_box_ref_escape_scope_fail");
+            => AssertFail<DanglingReferenceError>("method_chain_tests/chain_gc_ref_escape_scope_fail");
 
         [Test]
         public void ChainTemporaryLifetimeRefEscapeFailTest()
@@ -916,7 +894,7 @@ public class DropFieldTests
         [Test]
         public void TemporaryDerefBoxFailTest()
         {
-            AssertFail<GenericSemanticError>("drop_tests/drop_temporary_deref_box_test");
+            AssertFail<GenericSemanticError>("drop_tests/drop_temporary_deref_gc_test");
         }
 
         [Test]

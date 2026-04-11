@@ -562,9 +562,6 @@ public class RefBorrowThroughGenericTests
     [Test] public void RefReturnNoRefParamFailTest() =>
         AssertFail<GenericSemanticError>("ref_tests/ref_return_no_ref_param_fail_test");
 
-    [Test] public void RefReturnNoRefParamStaticOkTest() =>
-        AssertSuccess("ref_tests/ref_return_no_ref_param_static_ok_test", 42);
-
     [Test] public void RefTraitReturnNoRefParamFailTest() =>
         AssertFail<GenericSemanticError>("ref_tests/ref_trait_return_no_ref_param_fail_test");
 

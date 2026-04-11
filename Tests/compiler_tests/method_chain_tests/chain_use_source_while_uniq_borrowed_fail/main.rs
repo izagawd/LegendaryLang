@@ -5,13 +5,13 @@ use Std.Deref.Receiver;
 use Std.Deref.Deref;
 
 struct Wrapper['a] {
-    inner: Box(i32),
+    inner: Gc(i32),
     dropped: &'a mut i32
 }
 
 impl['a] Wrapper['a] {
     fn New(dropped: &'a mut i32, val: i32) -> Wrapper['a] {
-        make Wrapper { inner: Box.New(val), dropped: dropped }
+        make Wrapper { inner: Gc.New(val), dropped: dropped }
     }
 }
 

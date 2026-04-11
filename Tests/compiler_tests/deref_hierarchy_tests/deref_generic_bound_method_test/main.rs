@@ -12,6 +12,6 @@ fn call_through(T:! Deref(Target = Foo), t: &T) -> i32 {
 
 fn main() -> i32 {
     let f = make Foo { val: 42 };
-    let b = Box(Foo).New(f);
-    call_through(Box(Foo), &b)
+    let b = Gc(Foo).New(f);
+    call_through(Gc(Foo), &b)
 }
