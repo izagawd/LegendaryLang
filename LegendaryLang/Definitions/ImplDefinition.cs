@@ -639,8 +639,6 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             method.Analyze(analyzer);
         analyzer.PopImplLifetimes();
 
-        analyzer.PopTraitBounds();
-
         // Validate associated types
         foreach (var traitAT in traitDef.AssociatedTypes)
         {
@@ -899,6 +897,8 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                 }
             }
         }
+
+        analyzer.PopTraitBounds();
     }
 
     /// <summary>

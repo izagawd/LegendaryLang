@@ -27,8 +27,8 @@ All in `/mnt/transcripts/`:
 ### Type System
 - **Primitives**: i32, u8, usize, bool — defined in `Std/Primitive.rs`, registered via `PrimitiveTypeGenerator`
 - **str**: unsized primitive (`IsUnsized = true`), `StrTypeDefinition`
-- **References**: 4 kinds — `&T` (shared), `&const T`, `&mut T`, `&mut T`. Defined in `RefTypeDefinition`
-- **Raw pointers**: 4 kinds — `*shared T`, `*const T`, `*mut T`, `*mut T`. Defined in `RawPtrTypeDefinition`
+- **References**: 4 kinds — `&T` (shared), `&const T`, `&mut T`, `&uniq T`. Defined in `RefTypeDefinition`
+- **Raw pointers**: 4 kinds — `*shared T`, `*const T`, `*mut T`, `*uniq T`. Defined in `RawPtrTypeDefinition`
 - **Fat pointers**: `&const str` is `{ptr, usize}` struct. `PointerLikeType` handles thin vs fat.
 - **Tuples**: `()` (void), `(T,)` (1-tuple), `(T, U)` (2-tuple). `TupleLangPath` + `TupleTypeDefinition`
 - **Box**: `Std/Alloc.rs` — heap allocation, implements Deref traits
@@ -111,7 +111,7 @@ All in `/mnt/transcripts/`:
 - Copy/MutReassign impls for all primitives, `()`, all ref/ptr types with `T:! MetaSized`
 
 ### Ops.rs
-- `Drop { fn Drop(self: &mut Self); }`
+- `Drop { fn Drop(self: &uniq Self); }`
 - `Add/Sub/Mul/Div(Rhs): Sized` — binary operators, take Self by value
 - Impls for i32, u8, usize (all arithmetic ops)
 - `PartialEq/Eq` — comparison by reference (`&Self`)
@@ -139,7 +139,7 @@ All in `/mnt/transcripts/`:
    - `*A T as *B T` — change restriction only
    - `*A T as *A U` — change pointee only
    - `&A T as *A T` — ref to raw ptr (same restriction)
-   - NO jumps: `*mut i32 as *const u8` rejected, must do two casts
+   - NO jumps: `*uniq i32 as *const u8` rejected, must do two casts
 
 3. **`FromRawParts` family** (in Std/Ptr.rs):
    - `fn FromRawParts(T:! MetaSized, ptr: *shared (), metadata: (T as MetaSized).Metadata) -> *shared T`

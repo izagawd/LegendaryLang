@@ -13,47 +13,39 @@ fn Alloc(size: usize, align: usize) -> *mut u8;
 fn Dealloc(ptr: *mut u8, size: usize, align: usize);
 fn AllocZeroed(size: usize, align: usize) -> *mut u8;
 
-struct Box(T:! type) {
+struct Gc(T:! type) {
     ptr: *mut T
 }
 
-impl[T:! type] Box(T) {
-    fn New(val: T) -> Box(T) {
+impl[T:! type] Gc(T) {
+    fn New(val: T) -> Gc(T) {
         let s: usize = SizeOf(T);
         let a: usize = AlignOf(T);
         let raw: *mut u8 = Alloc(s, a);
         let typed: *mut T = PtrWrite(raw, val);
-        make Box { ptr: typed }
+        make Gc { ptr: typed }
     }
 
-    fn Leak(b: Box(T)) -> &'static mut T {
+    fn Leak(b: Gc(T)) -> &'static mut T {
         let ptr: *mut T = b.ptr;
         let _prevent_drop = ManuallyDrop.New(b);
         &mut *ptr
     }
 }
 
-impl[T:! type] Drop for Box(T) {
-    fn Drop(self: &mut Self) {
-        DestructPtr(self.ptr);
-        let p: *mut u8 = PtrAsU8(self.ptr);
-        let s: usize = SizeOf(T);
-        let a: usize = AlignOf(T);
-        Dealloc(p, s, a);
-    }
-}
+impl[T:! MetaSized] Copy for Gc(T) {}
 
-impl[T:! type] Receiver for Box(T) {
+impl[T:! type] Receiver for Gc(T) {
     let Target :! type = T;
 }
 
-impl[T:! type] Deref for Box(T) {
+impl[T:! type] Deref for Gc(T) {
     fn deref(self: &Self) -> &T {
         &*self.ptr
     }
 }
 
-impl[T:! type] DerefMut for Box(T) {
+impl[T:! type] DerefMut for Gc(T) {
     fn deref_mut(self: &mut Self) -> &mut T {
         &mut *self.ptr
     }

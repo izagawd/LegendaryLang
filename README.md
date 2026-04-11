@@ -21,7 +21,7 @@ A compiled programming language that targets native machine code via LLVM. It dr
 - [Move Semantics and Copy](#move-semantics-and-copy)
 - [Drop and RAII](#drop-and-raii)
 - [References and Borrowing](#references-and-borrowing)
-- [Box and Heap Allocation](#box-and-heap-allocation)
+- [Gc and Heap Allocation](#gc-and-heap-allocation)
 - [Qualified Trait Calls](#qualified-trait-calls)
 - [Imports](#imports)
 - [Standard Library](#standard-library)
@@ -949,26 +949,26 @@ fn main() -> i32 {
 
 ### Raw Pointers
 
-Raw pointers (`*shared`, `*mut`) are the unsafe counterparts of references. They are used internally by `Box` and the allocator but bypass borrow checking:
+Raw pointers (`*shared`, `*mut`) are the unsafe counterparts of references. They are used internally by `Gc` and the allocator but bypass borrow checking:
 
 ```
-// Raw pointers are primarily used through Box internals
-let b: Box(i32) = Box.New(42);
-*b                            // auto-derefs through Box's Deref impl
+// Raw pointers are primarily used through Gc internals
+let b: Gc(i32) = Gc.New(42);
+*b                            // auto-derefs through Gc's Deref impl
 ```
 
-## Box and Heap Allocation
+## Gc and Heap Allocation
 
-`Box(T)` allocates a value on the heap. It automatically frees memory when dropped:
+`Gc(T)` allocates a value on the heap. It automatically frees memory when dropped:
 
 ```
 fn main() -> i32 {
-    let b: Box(i32) = Box.New(42);
+    let b: Gc(i32) = Gc.New(42);
     *b                          // dereference — 42
 }
 ```
 
-`Box` auto-derefs through method calls:
+`Gc` auto-derefs through method calls:
 
 ```
 struct Foo { x: i32, y: i32 }
@@ -980,8 +980,8 @@ impl Foo {
 }
 
 fn main() -> i32 {
-    let b: Box(Foo) = Box.New(make Foo { x: 10, y: 32 });
-    b.sum()                     // auto-derefs Box(Foo) to call Foo.sum
+    let b: Gc(Foo) = Gc.New(make Foo { x: 10, y: 32 });
+    b.sum()                     // auto-derefs Gc(Foo) to call Foo.sum
 }
 ```
 
@@ -1037,7 +1037,7 @@ impl Std.Ops.Add(i32) for MyType {
 }
 ```
 
-`Copy`, `Box`, `MutReassign`, and `Option` are auto-imported and always available without a `use` statement.
+`Copy`, `Gc`, `MutReassign`, and `Option` are auto-imported and always available without a `use` statement.
 
 ### The `crate` Keyword
 
@@ -1101,7 +1101,7 @@ All four arithmetic traits are implemented for `i32` with `Output = i32`.
 
 | Item               | Description                                        |
 |--------------------|----------------------------------------------------|
-| `Box(T)`           | Heap-allocated smart pointer. Freed on drop.       |
+| `Gc(T)`           | Heap-allocated smart pointer. Freed on drop.       |
 
 ### `Std.Mem`
 

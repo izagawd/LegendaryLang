@@ -118,7 +118,7 @@ Each reference kind has a corresponding deref trait:
 | `&T`      | `Deref`      | `deref(&Self)`       | `&Target`   |
 | `&mut T`  | `DerefMut`   | `deref_mut(&mut Self)`   | `&mut Target`   |
 
-Smart pointers (like `Box(T)`) implement these traits to enable transparent field access and method calls through the pointer.
+Smart pointers (like `Gc(T)`) implement these traits to enable transparent field access and method calls through the pointer.
 
 ## MutReassign Trait
 
@@ -144,7 +144,7 @@ fn main() -> i32 {
 - All primitive types (`i32`, `u8`, `usize`, `bool`), references, and raw pointers implement `MutReassign` automatically.
 - Structs can implement `MutReassign` only if **all fields** implement `MutReassign`.
 - Enums can implement `MutReassign` only if they are **flat** (all unit variants, no payload).
-- `MutReassign` is auto-imported (like `Copy` and `Box`).
+- `MutReassign` is auto-imported (like `Copy` and `Gc`).
 
 ### Why?
 
