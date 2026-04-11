@@ -11,6 +11,29 @@ fn Alloc(size: usize, align: usize) -> *mut u8;
 fn Dealloc(ptr: *mut u8, size: usize, align: usize);
 fn AllocZeroed(size: usize, align: usize) -> *mut u8;
 
+struct Gc(T:! type) {
+    ptr: *mut T
+}
+impl[T:! type] Copy for Gc(T) {}
+impl[T:! Sized] Gc(T) {
+    fn New(val: T) -> Self {
+        let s: usize = SizeOf(T);
+        let a: usize = AlignOf(T);
+        let raw: *mut u8 = Alloc(s, a);
+        let typed: *mut T = PtrWrite(raw, val);
+        make Gc { ptr: typed }
+    }
+}
+impl[T:! type] Receiver for Gc(T) {
+    let Target :! type = T;
+}
+
+impl[T:! type] Deref for Gc(T) {
+    fn deref(self: &Self) -> &T {
+        &*self.ptr
+    }
+}
+
 struct GcMut(T:! type) {
     ptr: *mut T
 }
