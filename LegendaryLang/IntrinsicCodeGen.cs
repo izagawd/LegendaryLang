@@ -255,7 +255,7 @@ public static class IntrinsicCodeGen
     // ── Primitive conversion intrinsic ──
 
     /// <summary>
-    /// TryCastPrimitive[From:! Primitive](To:! Primitive, input: From) -> Option(To)
+    /// TryCastPrimitive[From:! Sized +Primitive](To:! Sized +Primitive, input: From) -> Option(To)
     /// Converts between primitive numeric types with range checking.
     /// Returns Some(converted) if the value fits, None otherwise.
     /// GenericArguments[0] = From, GenericArguments[1] = To.

@@ -1,4 +1,4 @@
-enum Foo[T:! type] {
+enum Foo[T:! Sized] {
     Some(T),
     None
 }

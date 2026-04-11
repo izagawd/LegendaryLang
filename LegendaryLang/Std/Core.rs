@@ -1,4 +1,4 @@
-enum Option(T:! type) {
+enum Option(T:! Sized) {
     Some(T),
     None
 }

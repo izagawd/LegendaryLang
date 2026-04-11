@@ -1,4 +1,4 @@
-fn identity(T:! Copy, x: T) -> T {
+fn identity(T:! Sized +Copy, x: T) -> T {
     x
 }
 fn main() -> i32 {

@@ -9,7 +9,7 @@ impl['a] Drop for Dropper['a] {
     }
 }
 
-fn take_and_drop(T:! Drop, val: T) -> i32 {
+fn take_and_drop(T:! Sized +Drop, val: T) -> i32 {
     0
 }
 

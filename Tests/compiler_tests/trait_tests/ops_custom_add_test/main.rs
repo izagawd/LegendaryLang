@@ -6,7 +6,7 @@ struct Vec2 {
 impl Copy for Vec2 {}
 
 impl Std.Ops.Add(Vec2) for Vec2 {
-    let Output :! type = i32;
+    let Output :! Sized = i32;
     fn Add(lhs: Vec2, rhs: Vec2) -> i32 {
         lhs.x + rhs.x + lhs.y + rhs.y
     }

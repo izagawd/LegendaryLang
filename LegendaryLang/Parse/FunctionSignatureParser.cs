@@ -34,7 +34,7 @@ public static class FunctionSignatureParser
     public record ReturnTypeResult(LangPath ReturnTypePath, string? ReturnLifetime);
 
     /// <summary>
-    /// Parse the bounds after :! — either 'type' (unconstrained) or TraitBound + TraitBound + ...
+    /// Parse the bounds after :! Sized +— either 'type' (unconstrained) or TraitBound + TraitBound + ...
     /// Shared by generic params, associated type declarations, and impl associated types.
     /// </summary>
     public static List<TraitBound> ParseComptimeBounds(Parser parser)
@@ -54,8 +54,8 @@ public static class FunctionSignatureParser
     }
 
     /// <summary>
-    /// Parse implicit/deduced generic parameters in bracket syntax: ['a, T:! type].
-    /// Lifetimes must come first. Only :! (comptime) allowed in [].
+    /// Parse implicit/deduced generic parameters in bracket syntax: ['a, T:! Sized].
+    /// Lifetimes must come first. Only :! Sized +(comptime) allowed in [].
     /// Returns null if next token is not [.
     /// </summary>
     public static GenericParamsResult? ParseImplicitGenericParams(Parser parser)
@@ -77,7 +77,7 @@ public static class FunctionSignatureParser
             else break;
         }
 
-        // Parse comptime parameters: T:! type, U:! Trait + Bar
+        // Parse comptime parameters: T:! Sized, U:! Sized +Trait + Bar
         while (parser.Peek() is not RightBracketToken)
         {
             var paramIdent = Identifier.Parse(parser);
@@ -138,7 +138,7 @@ public static class FunctionSignatureParser
     }
 
     /// <summary>
-    /// Parse parameters in parentheses: (T:! type, x: i32, U:! Trait).
+    /// Parse parameters in parentheses: (T:! Sized, x: i32, U:! Sized +Trait).
     /// Handles both comptime (:!) and runtime (:) params uniformly.
     /// Shared by functions, traits, structs, enums — semantic analysis
     /// validates whether runtime params are allowed in a given context.
@@ -159,7 +159,7 @@ public static class FunctionSignatureParser
 
         while (parser.Peek() is not RightParenthesisToken)
         {
-            // Check for comptime param: T:! type or T:! Trait
+            // Check for comptime param: T:! Sized or T:! Sized +Trait
             if (parser.Peek() is IdentifierToken && parser.PeekAt(1) is ColonBangToken)
             {
                 var paramIdent = Identifier.Parse(parser);

@@ -2,7 +2,7 @@ struct Holder['a] {
     r: &'a mut i32
 }
 
-fn DropIt[T:! type](x: T) {}
+fn DropIt[T:! Sized](x: T) {}
 
 fn main() -> i32 {
     let a = 5;

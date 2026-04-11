@@ -1,6 +1,6 @@
 use Std.Ops.Add;
 use Std.Ops.Sub;
-fn compute(T:! Add(T, Output = T) + Sub(T, Output = T) + Copy, one: T, two: T) -> T {
+fn compute(T:! Sized +Add(T, Output = T) + Sub(T, Output = T) + Copy, one: T, two: T) -> T {
     one + two - two
 }
 

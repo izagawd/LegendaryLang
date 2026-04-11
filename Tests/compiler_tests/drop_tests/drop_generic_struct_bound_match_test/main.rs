@@ -2,12 +2,12 @@ use Std.Ops.Drop;
 trait Marker {}
 impl Marker for i32 {}
 
-struct Wrapper['a](T:! Marker) {
+struct Wrapper['a](T:! Sized +Marker) {
     val: T,
     r: &'a mut i32
 }
 
-impl['a, T:! Marker] Drop for Wrapper('a, T) {
+impl['a, T:! Sized +Marker] Drop for Wrapper('a, T) {
     fn Drop(self: &mut Self) {
         *self.r = *self.r + 1;
     }

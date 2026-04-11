@@ -1,5 +1,5 @@
 use Std.Ops.Sub;
-fn do_sub[T:! Sub(T) + Copy](a: T, b: T) -> (T as Sub(T)).Output {
+fn do_sub[T:! Sized +Sub(T) + Copy](a: T, b: T) -> (T as Sub(T)).Output {
     a - b
 }
 

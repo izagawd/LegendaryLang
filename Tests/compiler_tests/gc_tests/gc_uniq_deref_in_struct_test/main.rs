@@ -1,4 +1,4 @@
-struct Idk['a](T:! type) {
+struct Idk['a](T:! Sized) {
     dd: &'a mut T
 }
 

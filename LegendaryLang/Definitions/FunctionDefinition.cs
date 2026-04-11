@@ -47,7 +47,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
     /// <summary>
     /// Layout of params in () as seen by the caller.
     /// true = comptime type param (:!), false = runtime param (:).
-    /// Handles interleaving: fn foo(T:! type, x: i32, U:! type) → [true, false, true]
+    /// Handles interleaving: fn foo(T:! Sized, x: i32, U:! Sized) → [true, false, true]
     /// Empty for functions with no () comptime params.
     /// </summary>
     public ImmutableArray<bool> CallParamLayout { get; }
@@ -179,7 +179,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
             }
         }
 
-        var bounds = SemanticAnalyzer.BuildGenericBoundsWithImplicitSized(GenericParameters);
+        var bounds = SemanticAnalyzer.BuildGenericBounds(GenericParameters);
         analyzer.PushTraitBounds(bounds);
 
         // Resolve qualified associated type paths in return type (e.g., T.Output, (T as Add(T)).Output)

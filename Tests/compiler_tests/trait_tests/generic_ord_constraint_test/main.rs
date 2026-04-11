@@ -1,6 +1,6 @@
 use Std.Ops.PartialOrd;
 
-fn max_of[T:! PartialOrd(T) + Copy](a: T, b: T) -> T {
+fn max_of[T:! Sized +PartialOrd(T) + Copy](a: T, b: T) -> T {
     if a > b { a } else { b }
 }
 

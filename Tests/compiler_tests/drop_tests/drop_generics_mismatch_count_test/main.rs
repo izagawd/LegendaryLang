@@ -1,9 +1,9 @@
 use Std.Ops.Drop;
-struct Wrapper(T:! type) {
+struct Wrapper(T:! Sized) {
     val: T
 }
 
-impl[T:! type, U:! type] Drop for Wrapper(T) {
+impl[T:! Sized, U:! Sized] Drop for Wrapper(T) {
     fn Drop(self: &mut Self) {}
 }
 

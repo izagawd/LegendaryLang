@@ -452,20 +452,11 @@ fn add_twice[T:! Add(T) + Copy](a: T, b: T) -> (T as Add(T)).Output {
 
 ### Sized and MetaSized
 
-By default, `T:! type` implies `T: Sized` — only types with a known compile-time size are accepted. This means unsized types like `str` and slices (`[T]`) cannot be used where `T:! type` is expected.
-
-To accept both sized and unsized types, use `T:! MetaSized`:
+`T:! type` places no size constraint on `T` — it accepts both sized and unsized types. To require a type with a known compile-time size, use `T:! Sized` explicitly:
 
 ```
-fn get_metadata[T:! MetaSized](ptr: *shared T) -> (T as MetaSized).Metadata {
-    // T can be sized (metadata = ()) or unsized (metadata = usize)
-}
-```
-
-If you need both `MetaSized` and `Sized`, the explicit `Sized` wins — `T` is always sized:
-
-```
-fn example[T:! MetaSized + Sized](x: T) -> T { x }  // OK: Sized is explicit
+fn by_value[T:! Sized](x: T) -> T { x }     // T must be Sized
+fn by_ref[T:! type](x: &T) -> &T { x }      // T can be anything — references are always sized
 ```
 
 Every type implements `MetaSized`. The associated type `Metadata` is:
@@ -477,26 +468,21 @@ The `Sized` trait has `MetaSized` as a supertrait. Both are compiler-implemented
 **Structs, enums, and tuples** are `Sized` if and only if all their fields / variant payloads / components are `Sized`. If any field is unsized, the entire type becomes unsized. This propagates recursively:
 
 ```
-struct Inner[T:! MetaSized] { val: T }
-struct Outer[T:! MetaSized] { inner: Inner(T) }
+struct Inner[T:! type] { val: T }
+struct Outer[T:! type] { inner: Inner(T) }
 
 // Outer(i32) is Sized — Inner(i32) is Sized — i32 is Sized
 // Outer(str) is unsized — Inner(str) is unsized — str is unsized
 
-struct RefWrapper[T:! MetaSized] { ptr: &T }
+struct RefWrapper[T:! type] { ptr: &T }
 // RefWrapper(str) IS Sized — &str is a fat pointer, always sized
 ```
 
-In **trait definitions**, `Self` is assumed potentially unsized by default. To require `Self` to be sized (e.g., to take `self` by value), add `Sized` as a supertrait:
+Function parameters passed by value must be `Sized`. If a generic parameter is used as a by-value parameter, it needs an explicit `Sized` bound:
 
 ```
-trait Foo {
-    fn Bro(input: Self) {} // Error: Self might be unsized
-}
-
-trait Foo: Sized {
-    fn Bro(input: Self) {} // OK: Self is guaranteed Sized
-}
+fn take[T:! type](x: T) {}       // Error: T might be unsized
+fn take[T:! Sized](x: T) {}      // OK: T is guaranteed Sized
 ```
 
 ## Traits

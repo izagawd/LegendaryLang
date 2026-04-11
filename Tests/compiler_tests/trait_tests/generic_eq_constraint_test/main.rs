@@ -1,6 +1,6 @@
 use Std.Ops.PartialEq;
 
-fn are_equal[T:! PartialEq(T)](a: &T, b: &T) -> bool {
+fn are_equal[T:! Sized +PartialEq(T)](a: &T, b: &T) -> bool {
     a == b
 }
 

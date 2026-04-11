@@ -129,28 +129,28 @@ public class TraitScopeTests
     [Test]
     public void GenericTypeImplicitSizedTest()
     {
-        // T:! type → implicit Sized, can take and return by value
+        // T:! Sized → implicit Sized, can take and return by value
         AssertSuccess("trait_scope_tests/generic_type_implicit_sized_test", 42);
     }
 
     [Test]
     public void GenericMetaSizedUnsizedFailTest()
     {
-        // T:! MetaSized → might be unsized, can't take by value
+        // T:! type → might be unsized, can't take by value
         AssertFail<GenericSemanticError>("trait_scope_tests/generic_metasized_unsized_fail_test");
     }
 
     [Test]
     public void GenericSizedExplicitTest()
     {
-        // T:! Sized → explicitly Sized, can take and return by value
+        // T:! Sized +Sized → explicitly Sized, can take and return by value
         AssertSuccess("trait_scope_tests/generic_sized_explicit_test", 42);
     }
 
     [Test]
     public void GenericSizedPlusMetaSizedTest()
     {
-        // T:! Sized + MetaSized → Sized wins, can take and return by value
+ 
         AssertSuccess("trait_scope_tests/generic_sized_plus_metasized_test", 42);
     }
 }

@@ -1,4 +1,4 @@
-struct Yo(T:! type){
+struct Yo(T:! Sized){
     dd: T
 }
 struct Foo{

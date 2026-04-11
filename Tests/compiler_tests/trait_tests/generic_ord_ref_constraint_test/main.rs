@@ -1,7 +1,7 @@
 use Std.Ops.PartialOrd;
 use Std.Ops.PartialEq;
 
-fn clamp[T:! PartialOrd(T) + Copy](val: T, low: T, high: T) -> T {
+fn clamp[T:! Sized +PartialOrd(T) + Copy](val: T, low: T, high: T) -> T {
     if val < low {
         low
     } else {

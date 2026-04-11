@@ -1,16 +1,16 @@
-trait A(T:! type) {
+trait A(T:! Sized) {
     fn a_val() -> i32;
 }
-trait B(T:! type): A(T) {
+trait B(T:! Sized): A(T) {
     fn b_val() -> i32;
 }
-trait C(T:! type): B(T) {
+trait C(T:! Sized): B(T) {
     fn c_val() -> i32;
 }
-fn needs_a(U:! type, T:! A(U)) -> i32 {
+fn needs_a(U:! Sized, T:! Sized +A(U)) -> i32 {
     T.a_val()
 }
-fn needs_c(U:! type, T:! C(U)) -> i32 {
+fn needs_c(U:! Sized, T:! Sized +C(U)) -> i32 {
     needs_a(U, T) + T.c_val()
 }
 impl A(i32) for i32 {

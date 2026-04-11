@@ -1,3 +1,3 @@
-struct Wrapper(T:! MetaSized) { val: T }
-fn unwrap[T:! MetaSized](w: Wrapper(T)) -> T { w.val }
+struct Wrapper(T:! type) { val: T }
+fn unwrap[T:! type](w: Wrapper(T)) -> T { w.val }
 fn main() -> i32 { 0 }

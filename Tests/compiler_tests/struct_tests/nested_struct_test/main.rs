@@ -1,6 +1,6 @@
 ﻿struct Bro{val: i32}
 struct Dd{ bro: Bro}
-fn kk[T:! type](bruh: T) -> T{
+fn kk[T:! Sized](bruh: T) -> T{
     if (true){
         bruh
     } else{

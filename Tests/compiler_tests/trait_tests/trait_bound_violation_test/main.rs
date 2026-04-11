@@ -6,7 +6,7 @@ impl Foo for i32{
         3
     }
 }
-fn the_fooer(T:! Foo) -> i32{
+fn the_fooer(T:! Sized +Foo) -> i32{
     T.bro()
 }
 fn main() -> i32{

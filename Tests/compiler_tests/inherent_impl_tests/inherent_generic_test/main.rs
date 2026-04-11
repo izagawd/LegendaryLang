@@ -1,8 +1,8 @@
-struct Wrapper(T:! type) {
+struct Wrapper(T:! Sized) {
     val: T
 }
 
-impl[T:! Copy] Wrapper(T) {
+impl[T:! Sized +Copy] Wrapper(T) {
     fn get_val(self: &Self) -> T {
         self.val
     }

@@ -1,10 +1,10 @@
 use Std.Ops.Add;
 
-struct Inner(T:! Add(T)) {
+struct Inner(T:! Sized +Add(T)) {
     val: (T as Add(T)).Output
 }
 
-struct Outer(T:! Add(T)) {
+struct Outer(T:! Sized +Add(T)) {
     inner: Inner(T)
 }
 

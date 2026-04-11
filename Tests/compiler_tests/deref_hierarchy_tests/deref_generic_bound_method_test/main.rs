@@ -6,7 +6,7 @@ impl Foo {
     fn get(self: &Self) -> i32 { self.val }
 }
 
-fn call_through(T:! Deref(Target = Foo), t: &T) -> i32 {
+fn call_through(T:! Sized +Deref(Target = Foo), t: &T) -> i32 {
     t.get()
 }
 

@@ -861,7 +861,7 @@ public class GenericComparisonTests
     [Test]
     public void GenericEqNoConstraintFailTest()
     {
-        // T:! type has no PartialEq bound — == should fail
+        // T:! Sized has no PartialEq bound — == should fail
         AssertFail<GenericSemanticError>("trait_tests/generic_eq_no_constraint_fail_test");
     }
 }

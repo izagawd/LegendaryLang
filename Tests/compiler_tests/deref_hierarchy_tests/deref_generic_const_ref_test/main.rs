@@ -6,7 +6,7 @@ impl Foo {
     fn faah(self: &Self) -> i32 { 42 }
 }
 
-fn bro(T:! Deref(Target = Foo), dd: T) -> i32 {
+fn bro(T:! Sized +Deref(Target = Foo), dd: T) -> i32 {
     dd.faah()
 }
 

@@ -1,4 +1,4 @@
-struct Wrapper(T:! type) {
+struct Wrapper(T:! Sized) {
     val: T
 }
 
@@ -12,7 +12,7 @@ impl HasValue for Wrapper(i32) {
     }
 }
 
-fn get_it(T:! HasValue, thing: T) -> i32 {
+fn get_it(T:! Sized +HasValue, thing: T) -> i32 {
     HasValue.get_value(thing)
 }
 

@@ -1,9 +1,9 @@
 trait Producer: Sized {
-    let Item :! MetaSized;
+    let Item :! type;
     fn produce(self: Self) -> &'static (Self as Producer).Item;
 }
 
-struct Holder['a](T:! Producer) {
+struct Holder['a](T:! Sized +Producer) {
     ptr: &'a (T as Producer).Item
 }
 

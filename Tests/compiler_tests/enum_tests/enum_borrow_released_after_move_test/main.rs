@@ -7,7 +7,7 @@ enum MaybeHolder['a] {
     Empty
 }
 
-fn DropNow[T:! type](x: T) {}
+fn DropNow[T:! Sized](x: T) {}
 
 fn main() -> i32 {
     let x = 5;

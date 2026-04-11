@@ -1,7 +1,7 @@
 trait Marker {}
 
 impl Marker for i32 {
-    let Bogus :! type = bool;
+    let Bogus :! Sized = bool;
 }
 
 fn main() -> i32 {

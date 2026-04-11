@@ -1,4 +1,4 @@
-fn Pass[T:! type](x: T) -> T { x }
+fn Pass[T:! Sized](x: T) -> T { x }
 
 fn main() -> i32 {
     let x = Pass(Option.Some(42));

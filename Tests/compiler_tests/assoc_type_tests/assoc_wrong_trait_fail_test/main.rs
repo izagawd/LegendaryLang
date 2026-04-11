@@ -1,5 +1,5 @@
 use Std.Ops.Add;
-fn dd[T:! Copy](one: T) -> (T as Add(T)).Output {
+fn dd[T:! Sized +Copy](one: T) -> (T as Add(T)).Output {
     one
 }
 fn main() -> i32 {

@@ -1,11 +1,11 @@
-fn SizeOf(T:! type) -> usize;
-fn AlignOf(T:! type) -> usize;
+fn SizeOf(T:! Sized) -> usize;
+fn AlignOf(T:! Sized) -> usize;
 
-struct ManuallyDrop(T:! type) {
+struct ManuallyDrop(T:! Sized) {
     val: T
 }
 
-impl[T:! type] ManuallyDrop(T) {
+impl[T:! Sized] ManuallyDrop(T) {
     fn New(val: T) -> ManuallyDrop(T) {
         make ManuallyDrop { val: val }
     }

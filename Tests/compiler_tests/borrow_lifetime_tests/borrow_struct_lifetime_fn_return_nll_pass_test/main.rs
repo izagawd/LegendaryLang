@@ -6,7 +6,7 @@ fn wrap(r: &mut i32) -> Holder {
     make Holder { val: r }
 }
 
-fn DropNow[T:! type](input: T) {}
+fn DropNow[T:! Sized](input: T) {}
 
 fn main() -> i32 {
     let x = 10;

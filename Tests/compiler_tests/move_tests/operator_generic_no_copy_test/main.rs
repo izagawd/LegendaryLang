@@ -1,5 +1,5 @@
 use Std.Ops.Add;
-fn use_twice(T:! Add(T), a: T, b: T) -> i32 {
+fn use_twice(T:! Sized +Add(T), a: T, b: T) -> i32 {
     let x = a + b;
     let y = a + b;
     5

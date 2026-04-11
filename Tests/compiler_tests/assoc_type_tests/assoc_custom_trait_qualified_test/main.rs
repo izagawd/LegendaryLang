@@ -1,9 +1,9 @@
 trait Maker: Sized {
-    let Product :! type;
+    let Product :! Sized;
     fn make(x: i32) -> Self.Product;
 }
 impl Maker for i32 {
-    let Product :! type = i32;
+    let Product :! Sized = i32;
     fn make(x: i32) -> i32 {
         x
     }

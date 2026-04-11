@@ -4,7 +4,7 @@ trait HasVal {
 impl HasVal for i32 {
     fn Val() -> i32 { 42 }
 }
-fn get_val(T:! HasVal) -> i32 {
+fn get_val(T:! Sized +HasVal) -> i32 {
     T.Val()
 }
 fn main() -> i32 {

@@ -6,7 +6,7 @@ impl['a] Drop for Counter['a] {
     fn Drop(self: &mut Self) { *self.r = *self.r + 1; }
 }
 
-fn suppress[T:! type](val: T) {
+fn suppress[T:! Sized](val: T) {
     let _md = ManuallyDrop.New(val);
 }
 

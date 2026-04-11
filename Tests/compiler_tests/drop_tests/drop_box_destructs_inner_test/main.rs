@@ -11,7 +11,7 @@ impl['a] Drop for Droppable['a] {
     }
 }
 
-fn DropNow[T:! type](input: T) {}
+fn DropNow[T:! Sized](input: T) {}
 
 fn main() -> i32 {
     let counter = 0;

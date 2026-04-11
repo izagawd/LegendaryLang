@@ -1,11 +1,11 @@
 use Std.Ops.Drop;
 trait Foo {}
 
-struct Wrapper(T:! Foo) {
+struct Wrapper(T:! Sized +Foo) {
     val: T
 }
 
-impl[T:! type] Drop for Wrapper(T) {
+impl[T:! Sized] Drop for Wrapper(T) {
     fn Drop(self: &mut Self) {}
 }
 

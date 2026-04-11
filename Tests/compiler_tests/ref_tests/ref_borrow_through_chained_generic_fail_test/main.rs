@@ -2,8 +2,8 @@ struct Holder['a]{
     r: &'a mut i32
 }
 
-fn Pass1[T:! type](input: T) -> T { input }
-fn Pass2[T:! type](input: T) -> T { input }
+fn Pass1[T:! Sized](input: T) -> T { input }
+fn Pass2[T:! Sized](input: T) -> T { input }
 
 fn main() -> i32 {
     let x = 5;

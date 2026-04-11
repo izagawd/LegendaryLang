@@ -1,4 +1,4 @@
-fn bad_eq[T:! type](a: &T, b: &T) -> bool {
+fn bad_eq[T:! Sized](a: &T, b: &T) -> bool {
     a == b
 }
 

@@ -4,55 +4,55 @@ trait Drop {
     fn Drop(self: &mut Self);
 }
 
-trait Add(Rhs:! type): Sized {
-    let Output :! type;
+trait Add(Rhs:! Sized): Sized {
+    let Output :! Sized;
     fn Add(lhs: Self, rhs: Rhs) -> Self.Output;
 }
 
-trait Sub(Rhs:! type): Sized {
-    let Output :! type;
+trait Sub(Rhs:! Sized): Sized {
+    let Output :! Sized;
     fn Sub(lhs: Self, rhs: Rhs) -> Self.Output;
 }
 
-trait Mul(Rhs:! type): Sized {
-    let Output :! type;
+trait Mul(Rhs:! Sized): Sized {
+    let Output :! Sized;
     fn Mul(lhs: Self, rhs: Rhs) -> Self.Output;
 }
 
-trait Div(Rhs:! type): Sized {
-    let Output :! type;
+trait Div(Rhs:! Sized): Sized {
+    let Output :! Sized;
     fn Div(lhs: Self, rhs: Rhs) -> Self.Output;
 }
 
 impl Add(i32) for i32 {
-    let Output :! type = i32;
+    let Output :! Sized = i32;
     fn Add(lhs: i32, rhs: i32) -> i32 {
         lhs + rhs
     }
 }
 
 impl Sub(i32) for i32 {
-    let Output :! type = i32;
+    let Output :! Sized = i32;
     fn Sub(lhs: i32, rhs: i32) -> i32 {
         lhs - rhs
     }
 }
 
 impl Mul(i32) for i32 {
-    let Output :! type = i32;
+    let Output :! Sized = i32;
     fn Mul(lhs: i32, rhs: i32) -> i32 {
         lhs * rhs
     }
 }
 
 impl Div(i32) for i32 {
-    let Output :! type = i32;
+    let Output :! Sized = i32;
     fn Div(lhs: i32, rhs: i32) -> i32 {
         lhs / rhs
     }
 }
 
-trait PartialEq(Rhs:! type) {
+trait PartialEq(Rhs:! Sized) {
     fn Eq(lhs: &Self, rhs: &Rhs) -> bool;
     fn Ne(lhs: &Self, rhs: &Rhs) -> bool {
         !(Self as PartialEq(Rhs)).Eq(lhs, rhs)
@@ -61,7 +61,7 @@ trait PartialEq(Rhs:! type) {
 
 trait Eq: PartialEq(Self) {}
 
-trait PartialOrd(Rhs:! type): PartialEq(Rhs) {
+trait PartialOrd(Rhs:! Sized): PartialEq(Rhs) {
     fn partial_cmp(lhs: &Self, rhs: &Rhs) -> Option(Ordering) {
         if (Self as PartialOrd(Rhs)).Lt(lhs, rhs) {
             Option.Some(Ordering.Less)
@@ -132,28 +132,28 @@ impl PartialOrd(u8) for u8 {
 impl Ord for u8 {}
 
 impl Add(u8) for u8 {
-    let Output :! type = u8;
+    let Output :! Sized = u8;
     fn Add(lhs: u8, rhs: u8) -> u8 {
         lhs + rhs
     }
 }
 
 impl Sub(u8) for u8 {
-    let Output :! type = u8;
+    let Output :! Sized = u8;
     fn Sub(lhs: u8, rhs: u8) -> u8 {
         lhs - rhs
     }
 }
 
 impl Mul(u8) for u8 {
-    let Output :! type = u8;
+    let Output :! Sized = u8;
     fn Mul(lhs: u8, rhs: u8) -> u8 {
         lhs * rhs
     }
 }
 
 impl Div(u8) for u8 {
-    let Output :! type = u8;
+    let Output :! Sized = u8;
     fn Div(lhs: u8, rhs: u8) -> u8 {
         lhs / rhs
     }
@@ -179,46 +179,46 @@ impl PartialOrd(usize) for usize {
 impl Ord for usize {}
 
 impl Add(usize) for usize {
-    let Output :! type = usize;
+    let Output :! Sized = usize;
     fn Add(lhs: usize, rhs: usize) -> usize {
         lhs + rhs
     }
 }
 
 impl Sub(usize) for usize {
-    let Output :! type = usize;
+    let Output :! Sized = usize;
     fn Sub(lhs: usize, rhs: usize) -> usize {
         lhs - rhs
     }
 }
 
 impl Mul(usize) for usize {
-    let Output :! type = usize;
+    let Output :! Sized = usize;
     fn Mul(lhs: usize, rhs: usize) -> usize {
         lhs * rhs
     }
 }
 
 impl Div(usize) for usize {
-    let Output :! type = usize;
+    let Output :! Sized = usize;
     fn Div(lhs: usize, rhs: usize) -> usize {
         lhs / rhs
     }
 }
 
-impl[T:! PartialEq(T)] PartialEq(&T) for &T {
+impl[T:! Sized +PartialEq(T)] PartialEq(&T) for &T {
     fn Eq(lhs: &&T, rhs: &&T) -> bool {
         (T as PartialEq(T)).Eq(*lhs, *rhs)
     }
 }
 
-impl[T:! PartialEq(T)] PartialEq(&mut T) for &mut T {
+impl[T:! Sized +PartialEq(T)] PartialEq(&mut T) for &mut T {
     fn Eq(lhs: &&mut T, rhs: &&mut T) -> bool {
         (T as PartialEq(T)).Eq(*lhs, *rhs)
     }
 }
 
-impl[T:! PartialOrd(T)] PartialOrd(&T) for &T {
+impl[T:! Sized +PartialOrd(T)] PartialOrd(&T) for &T {
     fn Lt(lhs: &&T, rhs: &&T) -> bool {
         (T as PartialOrd(T)).Lt(*lhs, *rhs)
     }
@@ -227,7 +227,7 @@ impl[T:! PartialOrd(T)] PartialOrd(&T) for &T {
     }
 }
 
-impl[T:! PartialOrd(T)] PartialOrd(&mut T) for &mut T {
+impl[T:! Sized +PartialOrd(T)] PartialOrd(&mut T) for &mut T {
     fn Lt(lhs: &&mut T, rhs: &&mut T) -> bool {
         (T as PartialOrd(T)).Lt(*lhs, *rhs)
     }
@@ -236,6 +236,6 @@ impl[T:! PartialOrd(T)] PartialOrd(&mut T) for &mut T {
     }
 }
 
-trait TryInto(T:! type): Sized {
+trait TryInto(T:! Sized): Sized {
     fn TryInto(self: Self) -> Option(T);
 }

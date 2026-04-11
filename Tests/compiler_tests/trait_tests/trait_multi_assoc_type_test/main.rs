@@ -1,12 +1,12 @@
 trait Transform {
-    let Input :! type;
-    let Output :! type;
+    let Input :! Sized;
+    let Output :! Sized;
     fn transform(x: i32) -> i32;
 }
 
 impl Transform for i32 {
-    let Input :! type = bool;
-    let Output :! type = i32;
+    let Input :! Sized = bool;
+    let Output :! Sized = i32;
     fn transform(x: i32) -> i32 {
         x + 1
     }

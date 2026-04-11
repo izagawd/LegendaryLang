@@ -4,10 +4,10 @@ trait Base {
 trait Child: Base {
     fn child_val() -> i32;
 }
-fn use_base(T:! Base) -> i32 {
+fn use_base(T:! Sized +Base) -> i32 {
     T.base_val()
 }
-fn use_child(T:! Child) -> i32 {
+fn use_child(T:! Sized +Child) -> i32 {
     use_base(T) + T.child_val()
 }
 impl Base for i32 {

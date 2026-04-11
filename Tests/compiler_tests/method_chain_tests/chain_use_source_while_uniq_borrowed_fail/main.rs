@@ -15,7 +15,7 @@ impl['a] Wrapper['a] {
     }
 }
 
-impl['a] Receiver for Wrapper['a] { let Target:! type = i32; }
+impl['a] Receiver for Wrapper['a] { let Target:! Sized = i32; }
 impl['a] Deref for Wrapper['a] {
     fn deref(self: &Self) -> &i32 { &*self.inner }
 }

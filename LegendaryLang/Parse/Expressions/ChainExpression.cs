@@ -1098,25 +1098,12 @@ public class MethodCallKind : IChainKind
     private static RefKind? DetectAutoRefKind(LangPath? selfParamType)
         => RefTypeDefinition.TryExtractRefKindFromPath(selfParamType);
 
-    private static RefKind? GetReceiverAccessCapability(IExpression expr)
-    {
-        RefKind? cap = null;
-        var current = expr;
-        while (current is FieldAccessExpression fae)
-        {
-            var callerType = fae.Caller.TypePath;
-            var rk = RefTypeDefinition.TryExtractRefKindFromPath(callerType);
-            if (rk != null)
-            { cap = cap == null ? rk : MinRefKindCapability(cap.Value, rk.Value); }
-            current = fae.Caller;
-        }
-        return cap;
-    }
-
     internal static RefKind MinRefKindCapability(RefKind a, RefKind b)
     {
-        if (a == RefKind.Shared || b == RefKind.Shared) return RefKind.Shared;
-        return a;
+        // Innermost reference determines capability — later value wins.
+        // &&mut T → can mutate (inner &mut wins over outer &)
+        // &mut &T → cannot mutate (inner & wins over outer &mut)
+        return b;
     }
 
     internal static RefKind? GetDerefCapability(LangPath? typePath, SemanticAnalyzer analyzer)
@@ -1758,7 +1745,7 @@ public class ChainExpression : IExpression
 
         // Use CallParamLayout to separate comptime type args from runtime args.
         // Layout tells us which positions in () are comptime vs runtime,
-        // supporting interleaving: fn foo(T:! type, x: i32, U:! type) → [true, false, true]
+        // supporting interleaving: fn foo(T:! Sized, x: i32, U:! Sized) → [true, false, true]
         var funcDef = analyzer.GetDefinition(nlp) as FunctionDefinition;
 
         var typeArgs = new List<LangPath>();

@@ -1,4 +1,4 @@
-struct Wrapper(T:! type) {
+struct Wrapper(T:! Sized) {
     val: T
 }
 

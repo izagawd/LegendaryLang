@@ -1,9 +1,9 @@
 trait Producer: Sized {
-    let Item :! MetaSized;
+    let Item :! type;
 }
 
 impl Producer for i32 {
-    let Item :! type = i32;
+    let Item :! Sized = i32;
 }
 
 fn main() -> i32 { 0 }

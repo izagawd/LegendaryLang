@@ -1,9 +1,9 @@
-struct Pair(A:! type, B:! type) {
+struct Pair(A:! Sized, B:! Sized) {
     first: A,
     second: B
 }
 
-fn make_pair[A:! Copy, B:! Copy](a: A, b: B) -> Pair(A, B) {
+fn make_pair[A:! Sized +Copy, B:! Sized +Copy](a: A, b: B) -> Pair(A, B) {
     make Pair(A, B) { first : a, second : b }
 }
 

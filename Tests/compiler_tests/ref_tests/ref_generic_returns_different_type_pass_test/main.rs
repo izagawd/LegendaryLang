@@ -2,7 +2,7 @@ struct Holder['a] {
     r: &'a mut i32
 }
 
-fn Consume[T:! type](x: T) -> i32 {
+fn Consume[T:! Sized](x: T) -> i32 {
     42
 }
 

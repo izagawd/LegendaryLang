@@ -1,8 +1,8 @@
 fn main() -> i32 {
-    struct Idk(T:! type) {
+    struct Idk(T:! Sized) {
         val: T
     }
-    struct Idk(U:! type) {
+    struct Idk(U:! Sized) {
         val: U
     }
     0

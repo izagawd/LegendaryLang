@@ -1,5 +1,5 @@
 trait Maker: Sized {
-    let Product :! Copy;
+    let Product :! Sized +Copy;
     fn make(input: Self) -> i32;
 }
 
@@ -8,7 +8,7 @@ struct Foo {
 }
 
 impl Maker for Foo {
-    let Product :! Copy = i32;
+    let Product :! Sized +Copy = i32;
     fn make(input: Foo) -> i32 {
         input.val
     }

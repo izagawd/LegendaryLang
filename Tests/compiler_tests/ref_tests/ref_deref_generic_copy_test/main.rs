@@ -1,4 +1,4 @@
-fn deref_twice[T:! Copy](r: &T) -> T {
+fn deref_twice[T:! Sized +Copy](r: &T) -> T {
     let a = *r;
     a
 }

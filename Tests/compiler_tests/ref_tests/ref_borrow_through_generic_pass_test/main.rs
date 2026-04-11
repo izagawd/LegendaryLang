@@ -2,11 +2,11 @@ struct Holder['a]{
     r: &'a mut i32
 }
 
-fn PassAround[T:! type](input: T) -> T {
+fn PassAround[T:! Sized](input: T) -> T {
     input
 }
 
-fn DropNow[T:! type](input: T) {}
+fn DropNow[T:! Sized](input: T) {}
 
 fn main() -> i32 {
     let x = 5;

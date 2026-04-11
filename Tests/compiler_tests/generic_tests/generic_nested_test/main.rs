@@ -1,6 +1,6 @@
 ﻿
 
-fn kk(T:! type, bruh: i32) -> i32{
+fn kk(T:! Sized, bruh: i32) -> i32{
     if (bruh > 5){
         bruh = bruh - 1;
         dd(T, bruh)
@@ -10,7 +10,7 @@ fn kk(T:! type, bruh: i32) -> i32{
    
 }
 
-fn dd(T:! type, idk: i32) -> i32{
+fn dd(T:! Sized, idk: i32) -> i32{
     return kk(T, idk);
     }
 fn main() -> i32{

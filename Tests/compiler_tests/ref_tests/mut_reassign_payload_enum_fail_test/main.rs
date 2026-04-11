@@ -1,6 +1,6 @@
 use Std.Marker.MutReassign;
 
-enum Maybe(T:! type) {
+enum Maybe(T:! Sized) {
     Some(T),
     None
 }

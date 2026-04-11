@@ -2,7 +2,7 @@ use Std.Marker.Primitive;
 use Std.Ops.TryInto;
 use Std.Primitive.TryCastPrimitive;
 
-fn TryCastPrimitive[From:! Primitive](To:! Primitive, input: From) -> Option(To);
+fn TryCastPrimitive[From:! Sized +Primitive](To:! Sized +Primitive, input: From) -> Option(To);
 
 impl TryInto(u8) for i32 {
     fn TryInto(self: i32) -> Option(u8) {

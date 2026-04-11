@@ -1,8 +1,8 @@
-struct Wrapper(T:! type) {
+struct Wrapper(T:! Sized) {
     val: T
 }
 
-impl[T:! Copy] Copy for Wrapper(T) {}
+impl[T:! Sized +Copy] Copy for Wrapper(T) {}
 
 fn main() -> i32 {
     let a = make Wrapper(i32) { val : 5 };

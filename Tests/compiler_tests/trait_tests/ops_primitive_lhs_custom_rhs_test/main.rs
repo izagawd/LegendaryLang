@@ -2,7 +2,7 @@ use Std.Ops.Add;
 struct Foo {}
 
 impl Add(Foo) for i32 {
-    let Output :! type = i32;
+    let Output :! Sized = i32;
     fn Add(dd: i32, other: Foo) -> i32 {
         dd
     }

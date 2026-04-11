@@ -1,4 +1,4 @@
-trait Combiner(A:! type, B:! type): Sized {
+trait Combiner(A:! Sized, B:! Sized): Sized {
     fn combine(a: A, b: B) -> Self;
 }
 

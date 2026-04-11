@@ -1,5 +1,5 @@
-trait Bar(T:! type) {}
-trait Foo(T:! type) : Bar(T) {}
+trait Bar(T:! Sized) {}
+trait Foo(T:! Sized) : Bar(T) {}
 
 struct MyType {
     val: i32

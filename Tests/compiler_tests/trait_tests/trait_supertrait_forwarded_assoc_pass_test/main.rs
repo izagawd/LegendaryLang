@@ -1,11 +1,11 @@
-trait Converter(T:! type) {
-    let Output :! type;
+trait Converter(T:! Sized) {
+    let Output :! Sized;
 }
 
-trait IntConverter(T:! type): Converter(T, Output = i32) {}
+trait IntConverter(T:! Sized): Converter(T, Output = i32) {}
 
 impl Converter(bool) for i32 {
-    let Output :! type = i32;
+    let Output :! Sized = i32;
 }
 
 impl IntConverter(bool) for i32 {}

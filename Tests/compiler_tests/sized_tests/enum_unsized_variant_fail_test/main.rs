@@ -1,6 +1,6 @@
-enum Wrapper(T:! MetaSized) {
+enum Wrapper(T:! type) {
     Some(T),
     None
 }
-fn consume[T:! MetaSized](w: Wrapper(T)) -> i32 { 0 }
+fn consume[T:! type](w: Wrapper(T)) -> i32 { 0 }
 fn main() -> i32 { 0 }

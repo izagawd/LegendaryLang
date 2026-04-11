@@ -49,12 +49,12 @@ public class TraitMethodSignature
 
         var nameToken = Identifier.Parse(parser);
 
-        // Parse implicit generic parameters: ['a, T:! type]
+        // Parse implicit generic parameters: ['a, T:! Sized]
         var implicitGenerics = FunctionSignatureParser.ParseImplicitGenericParams(parser);
         var genericParameters = (implicitGenerics?.GenericParameters ?? []).ToList();
         var lifetimeParameters = implicitGenerics?.LifetimeParameters ?? [];
 
-        // Parse parameters: (T:! type, x: i32) — () is required for methods
+        // Parse parameters: (T:! Sized, x: i32) — () is required for methods
         var paramsResult = FunctionSignatureParser.ParseParams(parser);
         if (paramsResult is null)
             throw new ExpectedParserException(parser, ParseType.LeftParenthesis, parser.Peek());
@@ -203,7 +203,7 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
                 if (!hasMetaSized)
                     traitBounds.Add(((LangPath)SemanticAnalyzer.SizedTraitPath, mgp.Name, null));
             }
-            // Associated type bounds (e.g., let Output :! type → Output: implicit Sized)
+            // Associated type bounds (e.g., let Output :! Sized → Output: implicit Sized)
             foreach (var at in AssociatedTypes)
             {
                 var qualifiedName = $"Self.{at.Name}";
@@ -295,9 +295,9 @@ public class TraitDefinition : IItem, IDefinition, IAnalyzable, IPathResolvable
             if (parser.Peek() is LetToken)
             {
                 // Parse associated type:
-                //   let Output :! type;          — unconstrained
-                //   let Output :! Copy;          — single bound
-                //   let Output :! Copy + Clone;  — multiple bounds
+                //   let Output :! Sized;          — unconstrained
+                //   let Output :! Sized +Copy;          — single bound
+                //   let Output :! Sized +Copy + Clone;  — multiple bounds
                 parser.Pop(); // consume 'let'
                 var atName = Identifier.Parse(parser);
                 var colonBang = parser.Pop();

@@ -30,6 +30,15 @@ public class UseDefinition : IItem, IAnalyzable
     {
         var path = ResolvedPathToUse ?? PathToUse;
 
+        // Report name conflict: use statement imports a name that already exists as a different definition
+        if (ConflictingPath != null && Token != null)
+        {
+            var shortName = ResolvedPathToUse?.PathSegments.Last()?.ToString() ?? PathToUse.PathSegments.Last().ToString();
+            analyzer.AddException(new SemanticException(
+                $"Name conflict: '{shortName}' is already defined as '{ConflictingPath}', " +
+                $"cannot import '{path}' with the same name\n{Token.GetLocationStringRepresentation()}"));
+        }
+
         // Register trait imports — if the target is a trait, make it available for method dispatch
         var def = analyzer.GetDefinition(path);
         if (def is TraitDefinition)
@@ -84,10 +93,17 @@ public class UseDefinition : IItem, IAnalyzable
         return new UseDefinition(normalPath, useToken);
     }
 
+    /// <summary>
+    /// If non-null, this use statement conflicts with an existing definition at the same short name.
+    /// </summary>
+    public NormalLangPath? ConflictingPath { get; private set; }
+
     public void RegisterUsings(PathResolver resolver)
     {
         ResolvedPathToUse = (NormalLangPath)PathToUse.Resolve(resolver);
-        resolver.AddToDeepestScope(ResolvedPathToUse.PathSegments.Last(), ResolvedPathToUse);
+        var conflict = resolver.AddToDeepestScope(ResolvedPathToUse.PathSegments.Last(), ResolvedPathToUse);
+        if (conflict != null)
+            ConflictingPath = conflict;
     }
 
 }

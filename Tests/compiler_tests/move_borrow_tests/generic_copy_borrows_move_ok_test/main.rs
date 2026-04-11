@@ -1,4 +1,4 @@
-fn use_and_move[T:! Copy](val: T) -> T {
+fn use_and_move[T:! Sized +Copy](val: T) -> T {
     let r: &T = &val;
     let _x = *r;
     val

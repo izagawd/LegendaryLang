@@ -1,4 +1,4 @@
-struct Pair(A:! type, B:! type) {
+struct Pair(A:! Sized, B:! Sized) {
     first: A,
     second: B
 }

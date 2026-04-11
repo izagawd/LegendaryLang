@@ -23,11 +23,11 @@ impl HasValue for Point {
     }
 }
 
-fn add_things(T:! Addable, a: T, b: T) -> T {
+fn add_things(T:! Sized +Addable, a: T, b: T) -> T {
     Addable.Add(a, b)
 }
 
-fn get_val(T:! HasValue, thing: T) -> i32 {
+fn get_val(T:! Sized +HasValue, thing: T) -> i32 {
     HasValue.get_value(thing)
 }
 

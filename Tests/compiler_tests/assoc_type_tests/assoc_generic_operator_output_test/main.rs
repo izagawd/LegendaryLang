@@ -1,9 +1,9 @@
 use Std.Ops.Add;
-fn something[T:! Add(T)](one: T, two: T) -> (T as Add(T)).Output {
+fn something[T:! Sized +Add(T)](one: T, two: T) -> (T as Add(T)).Output {
     one + two
 }
 
-fn another[T:! Add(T)](one: T, two: T) -> T.Output {
+fn another[T:! Sized +Add(T)](one: T, two: T) -> T.Output {
     one + two
 }
 

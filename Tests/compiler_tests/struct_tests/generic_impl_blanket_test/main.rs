@@ -1,4 +1,4 @@
-struct Wrapper(T:! type) {
+struct Wrapper(T:! Sized) {
     val: T
 }
 
@@ -6,7 +6,7 @@ trait Summable: Sized {
     fn sum(a: Self, b: Self) -> i32;
 }
 
-impl[T:! Copy] Summable for Wrapper(T) {
+impl[T:! Sized +Copy] Summable for Wrapper(T) {
     fn sum(a: Wrapper(T), b: Wrapper(T)) -> i32 {
         5
     }

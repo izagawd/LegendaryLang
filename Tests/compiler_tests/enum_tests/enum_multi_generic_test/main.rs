@@ -1,4 +1,4 @@
-enum Either(A:! type, B:! type) {
+enum Either(A:! Sized, B:! Sized) {
     Left(A),
     Right(B)
 }

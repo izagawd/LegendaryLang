@@ -1,4 +1,4 @@
-enum MaybeRef['a](T:! type) {
+enum MaybeRef['a](T:! Sized) {
     Some(&'a T),
     None
 }

@@ -1,7 +1,7 @@
 struct Foo { kk: i32 }
-fn TakeOwnership[T:! type](input: T) {}
+fn TakeOwnership[T:! Sized](input: T) {}
 
-fn take_ref[T:! type](r: &T) -> i32 { 0 }
+fn take_ref[T:! Sized](r: &T) -> i32 { 0 }
 
 fn main() -> i32 {
     let a = make Foo { kk: 5 };

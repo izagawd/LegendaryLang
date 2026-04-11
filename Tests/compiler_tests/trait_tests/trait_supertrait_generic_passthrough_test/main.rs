@@ -1,13 +1,13 @@
-trait Bar(T:! type) {
+trait Bar(T:! Sized) {
     fn bar_val() -> i32;
 }
-trait Foo(T:! type): Bar(T) {
+trait Foo(T:! Sized): Bar(T) {
     fn foo_val() -> i32;
 }
-fn needs_bar(U:! type, T:! Bar(U)) -> i32 {
+fn needs_bar(U:! Sized, T:! Sized +Bar(U)) -> i32 {
     T.bar_val()
 }
-fn needs_foo(U:! type, T:! Foo(U)) -> i32 {
+fn needs_foo(U:! Sized, T:! Sized +Foo(U)) -> i32 {
     needs_bar(U, T) + T.foo_val()
 }
 impl Bar(i32) for i32 {

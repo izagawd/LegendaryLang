@@ -13,7 +13,7 @@ impl PartialOrd(Weight) for Weight {
     fn Gt(lhs: Weight, rhs: Weight) -> bool { lhs.g > rhs.g }
 }
 
-fn max_of[T:! PartialOrd(T) + Copy](a: T, b: T) -> T {
+fn max_of[T:! Sized +PartialOrd(T) + Copy](a: T, b: T) -> T {
     if a > b { a } else { b }
 }
 

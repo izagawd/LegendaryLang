@@ -43,14 +43,20 @@ public class AssignVariableExpression : IExpression
             analyzer.AddException(new SemanticException(
                 $"Cannot assign variable of type '{Assigner.TypePath}' to an expression of type '{EqualsTo.TypePath}'\n{Token.GetLocationStringRepresentation()}"));
 
-        // Check MutReassign: assigning through &mut requires the pointee type to implement MutReassign.
+        // Reject assignment through shared (&) references — only &mut allows writes
         if (Assigner is DerefExpression derefAssigner)
         {
             var innerType = derefAssigner.Inner.TypePath;
             if (innerType is NormalLangPath nlpInner && nlpInner.Contains(RefTypeDefinition.GetRefModule()))
             {
                 var refKind = RefTypeDefinition.ExtractRefKindFromPath(innerType);
-                if (refKind == RefKind.Mut)
+                if (refKind == RefKind.Shared)
+                {
+                    analyzer.AddException(new SemanticException(
+                        $"Cannot assign through shared reference '&': use '&mut' for mutable access\n" +
+                        Token.GetLocationStringRepresentation()));
+                }
+                else if (refKind == RefKind.Mut)
                 {
                     var pointeeType = derefAssigner.TypePath;
                     if (pointeeType != null && !analyzer.TypeImplementsTrait(pointeeType, SemanticAnalyzer.MutReassignTraitPath))
@@ -60,6 +66,17 @@ public class AssignVariableExpression : IExpression
                             Token.GetLocationStringRepresentation()));
                     }
                 }
+            }
+        }
+
+        // Reject field assignment through shared references (e.g., input.kk = 4 where input: &Foo)
+        if (Assigner is ChainExpression chainAssigner && chainAssigner.ResolvedKind is FieldAccessKind fak)
+        {
+            if (fak.MaxCapability == RefKind.Shared)
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Cannot assign to field through shared reference '&': use '&mut' for mutable access\n" +
+                    Token.GetLocationStringRepresentation()));
             }
         }
 

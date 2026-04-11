@@ -1,4 +1,4 @@
-trait Foo(T:! type) {}
+trait Foo(T:! Sized) {}
 trait Bar: Foo(i32) {}
 
 impl Foo(bool) for i32 {}

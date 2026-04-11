@@ -1,5 +1,5 @@
 trait MetaSized {
-    let Metadata :! Copy;
+    let Metadata :! Sized +Copy;
 }
 
 trait Sized: MetaSized {}
@@ -10,11 +10,11 @@ impl Copy for bool {}
 impl Copy for u8 {}
 impl Copy for usize {}
 impl Copy for () {}
-impl[T:! MetaSized] Copy for &T {}
-impl[T:! MetaSized] Copy for &mut T {}
+impl[T:! type] Copy for &T {}
+impl[T:! type] Copy for &mut T {}
 
-impl[T:! MetaSized] Copy for *shared T {}
-impl[T:! MetaSized] Copy for *mut T {}
+impl[T:! type] Copy for *shared T {}
+impl[T:! type] Copy for *mut T {}
 
 trait MutReassign {}
 impl MutReassign for i32 {}
@@ -22,10 +22,10 @@ impl MutReassign for bool {}
 impl MutReassign for u8 {}
 impl MutReassign for usize {}
 impl MutReassign for () {}
-impl[T:! MetaSized] MutReassign for &T {}
-impl[T:! MetaSized] MutReassign for &mut T {}
-impl[T:! MetaSized] MutReassign for *shared T {}
-impl[T:! MetaSized] MutReassign for *mut T {}
+impl[T:! type] MutReassign for &T {}
+impl[T:! type] MutReassign for &mut T {}
+impl[T:! type] MutReassign for *shared T {}
+impl[T:! type] MutReassign for *mut T {}
 
 trait Primitive {}
 impl Primitive for i32 {}

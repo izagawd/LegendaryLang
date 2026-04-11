@@ -4,9 +4,16 @@ namespace LegendaryLang.Semantics;
 
 public class PathResolver
 {
-    public void AddToDeepestScope(string map, NormalLangPath to)
+    public NormalLangPath? AddToDeepestScope(string map, NormalLangPath to)
     {
-        ScopeItems.Peek().TryAdd(map, to);
+        var scope = ScopeItems.Peek();
+        if (scope.TryGetValue(map, out var existing))
+        {
+            if (existing.Equals(to)) return null; // same path, no conflict
+            return existing; // different path, conflict
+        }
+        scope[map] = to;
+        return null;
     }
     private readonly Stack<Dictionary<string, NormalLangPath>> ScopeItems = new();
     public NormalLangPath? GetFullPathOfShortcut(string shortcut)

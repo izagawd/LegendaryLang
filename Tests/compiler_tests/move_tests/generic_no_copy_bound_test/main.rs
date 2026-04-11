@@ -2,7 +2,7 @@ struct Wrapper {
     val: i32
 }
 
-fn use_twice(T:! type, a: T, b: T) -> i32 {
+fn use_twice(T:! Sized, a: T, b: T) -> i32 {
     5
 }
 

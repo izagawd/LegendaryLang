@@ -1,8 +1,8 @@
-struct Wrapper(T:! type) {
+struct Wrapper(T:! Sized) {
     val: T
 }
-impl[T:! Copy] Copy for Wrapper(T) {}
-fn extract[T:! Copy](w: Wrapper(T)) -> T {
+impl[T:! Sized +Copy] Copy for Wrapper(T) {}
+fn extract[T:! Sized +Copy](w: Wrapper(T)) -> T {
     w.val
 }
 fn main() -> i32 {

@@ -7,7 +7,7 @@ impl Addable for i32 {
 impl Addable for bool {
     fn Val() -> i32 { 2 }
 }
-fn interleaved(A:! Addable, x: i32, B:! Addable, y: i32) -> i32 {
+fn interleaved(A:! Sized +Addable, x: i32, B:! Sized +Addable, y: i32) -> i32 {
     A.Val() + x + B.Val() + y
 }
 fn main() -> i32 {

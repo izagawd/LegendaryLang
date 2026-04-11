@@ -1,12 +1,12 @@
 use Std.Ops.Add;
-struct Wrapper(T:! type) {
+struct Wrapper(T:! Sized) {
     val: T
 }
 
-impl[T:! Copy] Copy for Wrapper(T) {}
+impl[T:! Sized +Copy] Copy for Wrapper(T) {}
 
-impl[T:! Add(T, Output = T) + Copy] Add(Wrapper(T)) for Wrapper(T) {
-    let Output :! type = Wrapper(T);
+impl[T:! Sized +Add(T, Output = T) + Copy] Add(Wrapper(T)) for Wrapper(T) {
+    let Output :! Sized = Wrapper(T);
     fn Add(lhs: Wrapper(T), rhs: Wrapper(T)) -> Wrapper(T) {
         make Wrapper { val : lhs.val + rhs.val }
     }

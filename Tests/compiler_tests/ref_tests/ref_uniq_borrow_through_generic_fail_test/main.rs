@@ -2,7 +2,7 @@ struct UniqHolder['a]{
     r: &'a mut i32
 }
 
-fn PassAround[T:! type](input: T) -> T {
+fn PassAround[T:! Sized](input: T) -> T {
     input
 }
 

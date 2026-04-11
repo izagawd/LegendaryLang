@@ -1,5 +1,5 @@
 trait Maker: Sized {
-    let Product :! type;
+    let Product :! Sized;
     fn make(input: Self) -> i32;
 }
 

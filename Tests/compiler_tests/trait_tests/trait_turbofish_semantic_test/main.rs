@@ -1,7 +1,7 @@
 trait Foo {
-    fn kk(T:! type) -> i32;
+    fn kk(T:! Sized) -> i32;
 }
-fn bruh(T:! Foo, U:! type) -> i32 {
+fn bruh(T:! Sized +Foo, U:! Sized) -> i32 {
     (T as Foo).kk(U);
     T.kk(U)
 }

@@ -7,13 +7,13 @@ trait Bar {
 trait Both: Foo + Bar {
     fn both_val() -> i32;
 }
-fn needs_foo(T:! Foo) -> i32 {
+fn needs_foo(T:! Sized +Foo) -> i32 {
     T.foo_val()
 }
-fn needs_bar(T:! Bar) -> i32 {
+fn needs_bar(T:! Sized +Bar) -> i32 {
     T.bar_val()
 }
-fn needs_both(T:! Both) -> i32 {
+fn needs_both(T:! Sized +Both) -> i32 {
     needs_foo(T) + needs_bar(T) + T.both_val()
 }
 impl Foo for i32 {

@@ -256,12 +256,17 @@ public class DerefExpression : IExpression
     {
         var innerVal = Inner.CodeGen(codeGenContext);
 
-        // When the inner expression is a temporary (e.g., *Box.New(45)), the smart pointer
+        // When the inner expression is a temporary (e.g., *Gc.New(45)), the smart pointer
         // value is not bound to any variable, so it would never be dropped. Spill it to an
         // anonymous local so the drop system sees it and calls free at scope exit.
         // This applies only to trait-based deref (Box, smart pointers) — raw references and
         // raw pointers are not heap-allocated and do not need drop registration.
-        return EmitDeref(codeGenContext, innerVal, SourceDerefKind);
+        
+        // For standalone *expr, use deref (Shared) — the baseline read-only deref.
+        // SourceDerefKind tracks the maximum capability (for CanProduceRefKind checks),
+        // but the actual call should use deref unless a higher context requires deref_mut.
+        var derefKind = SourceDerefKind.HasValue && IsDerefTrait ? RefKind.Shared : SourceDerefKind;
+        return EmitDeref(codeGenContext, innerVal, derefKind);
     }
 
     public bool HasGuaranteedExplicitReturn => Inner.HasGuaranteedExplicitReturn;

@@ -1,4 +1,4 @@
-fn identity[T:! type](x: T) -> T {
+fn identity[T:! Sized](x: T) -> T {
     x
 }
 

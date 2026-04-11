@@ -4,10 +4,10 @@ trait Base {
 trait Sub: Base {
     fn sub_val() -> i32;
 }
-fn needs_sub(T:! Sub) -> i32 {
+fn needs_sub(T:! Sized +Sub) -> i32 {
     T.sub_val()
 }
-fn only_base(T:! Base) -> i32 {
+fn only_base(T:! Sized +Base) -> i32 {
     needs_sub(T)
 }
 fn main() -> i32 {

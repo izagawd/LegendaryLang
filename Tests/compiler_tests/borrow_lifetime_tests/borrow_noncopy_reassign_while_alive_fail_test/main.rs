@@ -2,7 +2,7 @@ struct Holder['a] {
     val: &'a mut i32
 }
 
-fn DropNow[T:! type](input: T) {}
+fn DropNow[T:! Sized](input: T) {}
 
 fn main() -> i32 {
     let x = 10;

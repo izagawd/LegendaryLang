@@ -1,6 +1,6 @@
 use Std.Ops.Add;
 use Std.Ops.Sub;
-fn use_twice[T:! Add(T) + Sub(T)](one: T, two: T) -> T {
+fn use_twice[T:! Sized +Add(T) + Sub(T)](one: T, two: T) -> T {
     one + two - two
 }
 

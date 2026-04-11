@@ -1,8 +1,8 @@
-struct Wrapper(T:! type) {
+struct Wrapper(T:! Sized) {
     kk: T
 }
 
-fn do_something[T:! Copy](something: Wrapper(T)) -> T {
+fn do_something[T:! Sized +Copy](something: Wrapper(T)) -> T {
     something.kk
 }
 

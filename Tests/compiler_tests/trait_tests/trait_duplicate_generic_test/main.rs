@@ -1,4 +1,4 @@
-fn something(T:! type, T:! type) -> i32 {
+fn something(T:! Sized, T:! Sized) -> i32 {
     5
 }
 

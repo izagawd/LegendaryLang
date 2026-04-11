@@ -1,4 +1,4 @@
-enum Maybe(T:! type) {
+enum Maybe(T:! Sized) {
     Just(T),
     Nothing
 }

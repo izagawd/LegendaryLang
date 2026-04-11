@@ -1,5 +1,5 @@
 ﻿
-fn kk(T:! type, bruh: T) -> T{
+fn kk(T:! Sized, bruh: T) -> T{
     if (true){
         bruh
     } else{
@@ -8,7 +8,7 @@ fn kk(T:! type, bruh: T) -> T{
    
 }
 
-fn dd(T:! type, idk: T) -> T{
+fn dd(T:! Sized, idk: T) -> T{
     return kk(T, idk);
     }
 fn main() -> i32{

@@ -6,7 +6,7 @@ trait Foo {
     fn do_thing() -> i32;
 }
 
-impl[T:! type] Foo for Bar {
+impl[T:! Sized] Foo for Bar {
     fn do_thing() -> i32 {
         5
     }

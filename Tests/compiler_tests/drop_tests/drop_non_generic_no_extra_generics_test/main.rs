@@ -3,7 +3,7 @@ struct Simple {
     x: i32
 }
 
-impl[T:! type] Drop for Simple {
+impl[T:! Sized] Drop for Simple {
     fn Drop(self: &mut Self) {}
 }
 

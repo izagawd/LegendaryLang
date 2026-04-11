@@ -1,4 +1,4 @@
-struct Foo(T:! type) {
+struct Foo(T:! Sized) {
     val: i32
 }
 

@@ -68,7 +68,7 @@ public class Function : IConcreteDefinition,  IPathResolvable
                 context.GetRefItemFor(GenericArguments[i]));
         }
 
-        // Replay impl generic bindings (e.g., T → i32 for impl[T:! type] Trait for Wrapper(T))
+        // Replay impl generic bindings (e.g., T → i32 for impl[T:! Sized] Trait for Wrapper(T))
         if (ImplGenericBindings != null)
         {
             foreach (var (paramName, boundType) in ImplGenericBindings)

@@ -1,9 +1,9 @@
 trait Maker: Sized {
-    let Output :! type;
+    let Output :! Sized;
 }
 
 impl Maker for i32 {
-    let Output :! type = u8;
+    let Output :! Sized = u8;
 }
 
 fn main() -> i32 { 0 }

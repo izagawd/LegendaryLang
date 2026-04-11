@@ -1,18 +1,18 @@
-struct Wrapper(T:! type) {
+struct Wrapper(T:! Sized) {
     ptr: *mut T
 }
 
-impl[T:! type] Receiver for Wrapper(T) {
+impl[T:! Sized] Receiver for Wrapper(T) {
     let Target :! type = T;
 }
 
-impl[T:! type] Deref for Wrapper(T) {
+impl[T:! Sized] Deref for Wrapper(T) {
     fn deref(self: &Self) -> &T {
         &*self.ptr
     }
 }
 
-impl[T:! type] DerefMut for Wrapper(T) {
+impl[T:! Sized] DerefMut for Wrapper(T) {
     fn deref_mut(self: &mut Self) -> &mut T {
         &mut *self.ptr
     }

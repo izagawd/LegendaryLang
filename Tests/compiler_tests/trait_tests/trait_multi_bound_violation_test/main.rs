@@ -20,7 +20,7 @@ impl Multiplier for i32 {
     }
 }
 
-fn compute(T:! Adder + Multiplier + Copy, a: T, b: T) -> T {
+fn compute(T:! Sized +Adder + Multiplier + Copy, a: T, b: T) -> T {
     (T as Adder).Add((T as Multiplier).Mul(a, b), b)
 }
 

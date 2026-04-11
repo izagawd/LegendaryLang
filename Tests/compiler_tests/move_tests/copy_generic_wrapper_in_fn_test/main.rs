@@ -1,10 +1,10 @@
-struct Wrapper(T:! type) {
+struct Wrapper(T:! Sized) {
     val: T
 }
 
-impl[T:! Copy] Copy for Wrapper(T) {}
+impl[T:! Sized +Copy] Copy for Wrapper(T) {}
 
-fn idk(T:! Copy, input: T) -> i32 {
+fn idk(T:! Sized +Copy, input: T) -> i32 {
     let made = make Wrapper(T) { val : input };
     let move_here = made;
     let should_copy = made;

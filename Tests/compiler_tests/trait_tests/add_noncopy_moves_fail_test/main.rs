@@ -3,7 +3,7 @@ use Std.Ops.Add;
 struct Num { val: i32 }
 
 impl Add(Num) for Num {
-    let Output :! type = Num;
+    let Output :! Sized = Num;
     fn Add(lhs: Num, rhs: Num) -> Num {
         make Num { val: lhs.val + rhs.val }
     }

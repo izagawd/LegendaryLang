@@ -1,5 +1,5 @@
 use Std.Ops.Add;
-struct Wrapper(T:! type) {
+struct Wrapper(T:! Sized) {
     val: T
 }
 
@@ -7,7 +7,7 @@ trait Summable: Sized {
     fn sum(a: Self, b: Self) -> Self;
 }
 
-impl[T:! Add(T, Output = T) + Copy] Summable for Wrapper(T) {
+impl[T:! Sized +Add(T, Output = T) + Copy] Summable for Wrapper(T) {
     fn sum(a: Wrapper(T), b: Wrapper(T)) -> Wrapper(T) {
         make Wrapper { val: a.val + b.val }
     }

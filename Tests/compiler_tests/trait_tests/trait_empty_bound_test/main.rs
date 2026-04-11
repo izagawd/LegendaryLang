@@ -1,4 +1,4 @@
-fn foo(T:! type) -> i32 {
+fn foo(T:! Sized) -> i32 {
     5
 }
 

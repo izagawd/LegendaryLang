@@ -1,7 +1,7 @@
 trait Foo {}
 trait Bar {}
-fn bar(T:! Foo + Bar) -> i32 { 5 }
-fn idk(T:! Foo + Bar) -> i32 {
+fn bar(T:! Sized +Foo + Bar) -> i32 { 5 }
+fn idk(T:! Sized +Foo + Bar) -> i32 {
     bar(T)
 }
 impl Foo for i32 {}

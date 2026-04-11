@@ -1,4 +1,4 @@
-fn double_use(T:! type, a: T) -> i32 {
+fn double_use(T:! Sized, a: T) -> i32 {
     let b = a;
     let c = a;
     5

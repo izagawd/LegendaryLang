@@ -571,3 +571,66 @@ public class RefBorrowThroughGenericTests
     [Test] public void RefReturnSingleRefParamOkTest() =>
         AssertSuccess("ref_tests/ref_return_single_ref_param_ok_test");
 }
+
+public class SharedRefImmutabilityTests
+{
+    [Test] public void SharedRefDerefAssignFailTest() =>
+        CompilerTestHelper.AssertFail<GenericSemanticError>("ref_tests/shared_ref_deref_assign_fail_test");
+
+    [Test] public void SharedRefFieldAssignFailTest() =>
+        CompilerTestHelper.AssertFail<GenericSemanticError>("ref_tests/shared_ref_field_assign_fail_test");
+
+    [Test] public void MutRefDerefAssignPassTest() =>
+        CompilerTestHelper.AssertSuccess("ref_tests/mut_ref_deref_assign_pass_test", 42);
+
+    [Test] public void MutRefFieldAssignPassTest() =>
+        CompilerTestHelper.AssertSuccess("ref_tests/mut_ref_field_assign_pass_test", 42);
+
+    [Test] public void SharedRefNestedFieldAssignFailTest() =>
+        CompilerTestHelper.AssertFail<GenericSemanticError>("ref_tests/shared_ref_nested_field_assign_fail_test");
+}
+
+public class DoubleRefMutabilityTests
+{
+    [Test] public void DoubleRefSharedMutCanMutateTest() =>
+        CompilerTestHelper.AssertSuccess("ref_tests/double_ref_shared_mut_can_mutate_test", 42);
+
+    [Test] public void DoubleRefMutSharedCannotMutateFailTest() =>
+        CompilerTestHelper.AssertFail<GenericSemanticError>("ref_tests/double_ref_mut_shared_cannot_mutate_fail_test");
+
+    [Test] public void DoubleRefSharedMutFieldAssignTest() =>
+        CompilerTestHelper.AssertSuccess("ref_tests/double_ref_shared_mut_field_assign_test", 42);
+
+    [Test] public void DoubleRefMutSharedFieldAssignFailTest() =>
+        CompilerTestHelper.AssertFail<GenericSemanticError>("ref_tests/double_ref_mut_shared_field_assign_fail_test");
+
+    [Test] public void DoubleRefSharedMutMethodTest() =>
+        CompilerTestHelper.AssertSuccess("ref_tests/double_ref_shared_mut_method_test", 42);
+}
+
+public class RefMethodDispatchTests
+{
+    [Test] public void SharedRefSharedMethodPassTest() =>
+        CompilerTestHelper.AssertSuccess("ref_tests/shared_ref_shared_method_pass_test", 42);
+
+    [Test] public void SharedRefMutMethodFailTest() =>
+        CompilerTestHelper.AssertFail<GenericSemanticError>("ref_tests/shared_ref_mut_method_fail_test");
+
+    [Test] public void MutRefSharedMethodPassTest() =>
+        CompilerTestHelper.AssertSuccess("ref_tests/mut_ref_shared_method_pass_test", 42);
+
+    [Test] public void MutRefMutMethodPassTest() =>
+        CompilerTestHelper.AssertSuccess("ref_tests/mut_ref_mut_method_pass_test", 42);
+
+    [Test] public void GcSharedMethodPassTest() =>
+        CompilerTestHelper.AssertSuccess("ref_tests/gc_shared_method_pass_test", 42);
+
+    [Test] public void GcMutMethodPassTest() =>
+        CompilerTestHelper.AssertSuccess("ref_tests/gc_mut_method_pass_test", 42);
+
+    [Test] public void RefGcSharedMethodPassTest() =>
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_gc_shared_method_pass_test", 42);
+
+    [Test] public void RefGcMutMethodFailTest() =>
+        CompilerTestHelper.AssertFail<GenericSemanticError>("ref_tests/ref_gc_mut_method_fail_test");
+}
