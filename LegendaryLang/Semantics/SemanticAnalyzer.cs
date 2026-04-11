@@ -1083,6 +1083,21 @@ public class SemanticAnalyzer
             }
         }
 
+        // Handle array types [T; N]: Sized/MetaSized if T is, Copy if T is
+        if (typePath is ArrayLangPath arrayPath)
+        {
+            var strippedTrait = LangPath.StripGenerics(traitPath);
+            if (strippedTrait.Equals(SizedTraitPath)
+                || strippedTrait.Equals(MetaSizedTraitPath))
+            {
+                return TypeImplementsTrait(arrayPath.ElementType, traitPath);
+            }
+            if (strippedTrait.Equals(CopyTraitPath))
+            {
+                return TypeImplementsTrait(arrayPath.ElementType, traitPath);
+            }
+        }
+
         // Handle struct/enum types: Sized if all fields/variant payloads are Sized.
         // This handles generics, recursion, associated types — all cases.
         if (LangPath.StripGenerics(traitPath).Equals(SizedTraitPath)

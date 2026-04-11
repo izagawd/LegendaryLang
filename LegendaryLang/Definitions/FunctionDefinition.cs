@@ -374,7 +374,9 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
     /// </summary>
     public bool IsIntrinsic()
     {
-        return IntrinsicCodeGen.IsIntrinsic(Module, Name);
+        return IntrinsicCodeGen.IsIntrinsic(Module, Name)
+               || (IntrinsicCodeGen.IsArrayIntrinsic(Name)
+                   && Module.ToString().Contains("impl_["));
     }
 
 

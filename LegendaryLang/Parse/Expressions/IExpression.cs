@@ -193,6 +193,9 @@ public interface IExpression : IStatement
             case LeftParenthesisToken:
                 expression = ParseBracketOrTuple(parser);
                 break;
+            case LeftBracketToken:
+                expression = ArrayLiteralExpression.Parse(parser);
+                break;
             case IdentifierToken identToken when identToken.Identity == "make":
                 expression = ParseMakeExpression(parser);
                 break;

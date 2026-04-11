@@ -82,6 +82,12 @@ public static class TypeInference
             return true;
         }
 
+        if (pattern is ArrayLangPath alpPat && concrete is ArrayLangPath alpCon)
+        {
+            return TryUnify(alpPat.ElementType, alpCon.ElementType, freeVars, bindings)
+                   && TryUnify(alpPat.Size, alpCon.Size, freeVars, bindings);
+        }
+
         return pattern == concrete;
     }
 

@@ -827,6 +827,10 @@ public class MethodCallKind : IChainKind
     public LangPath? ReceiverTypePath { get; init; }
     public string? RootVarName { get; init; }
     public LangPath? TypePath { get; set; }
+    /// <summary>True when this is a compiler-generated array method (get_ref/get_mut).</summary>
+    public bool IsArrayIntrinsic { get; init; }
+    /// <summary>The concrete ArrayLangPath for intrinsic methods.</summary>
+    public ArrayLangPath? ArrayPath { get; init; }
     public bool IsTemporary => true;
     public IEnumerable<ISyntaxNode> KindChildren
     {
@@ -860,6 +864,43 @@ public class MethodCallKind : IChainKind
         }
 
         // 1. Try direct type (no deref)
+        // Check for array intrinsic methods first
+        if (receiverType is ArrayLangPath arrPath && (methodName == "get_ref" || methodName == "get_mut"))
+        {
+            // Validate: exactly 1 argument of type usize
+            if (arguments.Length != 1)
+            {
+                analyzer.AddException(new SemanticException(
+                    $"Array method '{methodName}' expects 1 argument (index: usize), got {arguments.Length}\n{tokenLoc}"));
+                return null;
+            }
+
+            // Build return type: Option(&T) or Option(&mut T)
+            var elemType = arrPath.ElementType;
+            var refKind = methodName == "get_ref" ? RefKind.Shared : RefKind.Mut;
+            var refPath = RefTypeDefinition.GetRefModule()
+                .Append(RefTypeDefinition.GetRefName(refKind))
+                .AppendGenerics([elemType]);
+            var optionPath = new NormalLangPath(null, ["Std", "Core", "Option"])
+                .AppendGenerics([refPath]);
+
+            var selfRefKind = methodName == "get_ref" ? RefKind.Shared : RefKind.Mut;
+            
+            return new MethodCallKind
+            {
+                Receiver = receiver,
+                MethodName = methodName,
+                Arguments = arguments,
+                ResolvedFunctionPath = new NormalLangPath(null, ["__array_intrinsic", methodName]),
+                ReceiverTypePath = receiverType as NormalLangPath,
+                RootVarName = rootVarName,
+                AutoRefKind = selfRefKind,
+                TypePath = optionPath,
+                IsArrayIntrinsic = true,
+                ArrayPath = arrPath,
+            };
+        }
+
         var result = TryResolveMethod(receiver, receiverType, receiverType, methodName, arguments,
             rootVarName, maxCapability, expectedReturnType, analyzer, tokenLoc);
         if (result != null) return result;
@@ -1126,6 +1167,10 @@ public class MethodCallKind : IChainKind
 
     public ValueRefItem CodeGen(CodeGenContext ctx)
     {
+        // Array intrinsic methods: emit bounds check + GEP + Option inline
+        if (IsArrayIntrinsic && ArrayPath != null)
+            return EmitArrayIntrinsic(ctx);
+
         // If the return type has a lifetime dependency on self (e.g., returns Yo['a, Self]),
         // the receiver must outlive the call. Spill it to an anonymous local in the CURRENT
         // scope so it lives until that scope exits, not just until the end of this call.
@@ -1196,6 +1241,110 @@ public class MethodCallKind : IChainKind
 
         if (destruct) TemporaryScope.End(ctx);
         return result;
+    }
+
+    /// <summary>
+    /// Emits array get_ref/get_mut: bounds check + GEP + wrap in Option.
+    /// </summary>
+    private ValueRefItem EmitArrayIntrinsic(CodeGenContext ctx)
+    {
+        var arrPath = ArrayPath!;
+        var size = arrPath.TryGetConcreteSize()
+                   ?? throw new InvalidOperationException("Array intrinsic requires concrete size");
+        var isMut = MethodName == "get_mut";
+
+        // Get receiver (array pointer — auto-ref'd as &[T;N] or &mut [T;N])
+        var receiverVal = Receiver.CodeGen(ctx);
+        
+        // The receiver is auto-ref'd, so it's a reference to the array.
+        // Extract the data pointer from the reference.
+        var receiverType = receiverVal.Type;
+        LLVMValueRef arrayPtr;
+        if (receiverType is RefType refType)
+            arrayPtr = refType.ExtractDataPointer(ctx, receiverVal);
+        else
+            arrayPtr = receiverVal.ValueRef;
+        
+        // Get the index argument
+        var indexVal = Arguments[0].CodeGen(ctx);
+        var indexRaw = indexVal.LoadValue(ctx);
+
+        // Get the array's LLVM type
+        var arrayTypeRef = (ctx.GetRefItemFor(arrPath) as TypeRefItem)!;
+        var llvmArrayType = arrayTypeRef.Type.TypeRef;
+
+        // Resolve Option type
+        var optionTypePath = TypePath!;
+        var optionTypeRefItem = (ctx.GetRefItemFor(optionTypePath) as TypeRefItem)!;
+        var optionType = (EnumType)optionTypeRefItem.Type;
+
+        // Bounds check: index < size
+        var sizeConst = LLVMValueRef.CreateConstInt(
+            UsizeTypeDefinition.UsizeLLVMType, size, false);
+        var inBounds = ctx.Builder.BuildICmp(
+            LLVMIntPredicate.LLVMIntULT, indexRaw, sizeConst, "arr_bounds");
+
+        // Create basic blocks
+        var parentFunc = ctx.Builder.InsertBlock.Parent;
+        var someBB = parentFunc.AppendBasicBlock("arr.some");
+        var noneBB = parentFunc.AppendBasicBlock("arr.none");
+        var mergeBB = parentFunc.AppendBasicBlock("arr.merge");
+
+        // Single result alloca — written from both branches
+        var resultAlloca = ctx.Builder.BuildAlloca(optionType.TypeRef, "opt_result");
+
+        ctx.Builder.BuildCondBr(inBounds, someBB, noneBB);
+
+        // Some branch: GEP to element, create reference, wrap in Option.Some
+        ctx.Builder.PositionAtEnd(someBB);
+        {
+            // GEP into array
+            var gepIndices = new LLVMValueRef[]
+                {
+                    LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, 0, false),
+                    indexRaw
+                };
+            var elemPtr = ctx.Builder.BuildInBoundsGEP2(
+                llvmArrayType, arrayPtr, gepIndices, "elem_ptr");
+
+            // Build &T or &mut T reference
+            var refKind = isMut ? RefKind.Mut : RefKind.Shared;
+            var elemRefTypePath = RefTypeDefinition.GetRefModule()
+                .Append(RefTypeDefinition.GetRefName(refKind))
+                .AppendGenerics([arrPath.ElementType]);
+            var elemRefTypeItem = (ctx.GetRefItemFor(elemRefTypePath) as TypeRefItem)!;
+            var elemRefType = (RefType)elemRefTypeItem.Type;
+
+            // Wrap ptr as ref: {ptr, metadata}
+            var refStruct = LLVMValueRef.CreateConstNull(elemRefType.TypeRef);
+            refStruct = ctx.Builder.BuildInsertValue(refStruct, elemPtr, 0, "ref_wrap");
+
+            // Store into Option.Some: tag=0, payload=ref
+            var someTagPtr = ctx.Builder.BuildStructGEP2(optionType.TypeRef, resultAlloca, 0);
+            ctx.Builder.BuildStore(
+                LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, 0, false), someTagPtr);
+            if (optionType.HasPayloads)
+            {
+                var payloadPtr = ctx.Builder.BuildStructGEP2(optionType.TypeRef, resultAlloca, 1);
+                elemRefType.AssignTo(ctx,
+                    new ValueRefItem { Type = elemRefType, ValueRef = refStruct },
+                    new ValueRefItem { Type = elemRefType, ValueRef = payloadPtr });
+            }
+        }
+        ctx.Builder.BuildBr(mergeBB);
+
+        // None branch: tag=1
+        ctx.Builder.PositionAtEnd(noneBB);
+        {
+            var noneTagPtr = ctx.Builder.BuildStructGEP2(optionType.TypeRef, resultAlloca, 0);
+            ctx.Builder.BuildStore(
+                LLVMValueRef.CreateConstInt(LLVMTypeRef.Int32, 1, false), noneTagPtr);
+        }
+        ctx.Builder.BuildBr(mergeBB);
+
+        // Merge: return the alloca pointer — downstream (match) will load fields via GEP
+        ctx.Builder.PositionAtEnd(mergeBB);
+        return new ValueRefItem { Type = optionType, ValueRef = resultAlloca };
     }
 
     public List<(string sourceName, RefKind refKind)> GetBorrowSources(SemanticAnalyzer analyzer)

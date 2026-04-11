@@ -1054,6 +1054,13 @@ public class CodeGenContext
         {
             first = new TupleTypeDefinition(tupleLangPath.TypePaths);
             DefinitionsStack.Last().Add(first);
+        }
+        if (first == null && ident is ArrayLangPath arrayLangPath)
+        {
+            var size = arrayLangPath.TryGetConcreteSize()
+                       ?? throw new InvalidOperationException($"Cannot create array type with non-concrete size: {arrayLangPath}");
+            first = new ArrayTypeDefinition(arrayLangPath.ElementType, size);
+            DefinitionsStack.Last().Add(first);
         } 
         // generate and store the type if not already, and it is defined
         if (first != null)

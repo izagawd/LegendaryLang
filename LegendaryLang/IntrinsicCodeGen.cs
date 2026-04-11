@@ -38,6 +38,13 @@ public static class IntrinsicCodeGen
     }
 
     /// <summary>
+    /// Checks if a function is an array intrinsic (get_ref/get_mut).
+    /// These live in auto-generated impl modules like "impl_[T; U]".
+    /// </summary>
+    public static bool IsArrayIntrinsic(string name)
+        => name is "get_ref" or "get_mut";
+
+    /// <summary>
     /// Wraps a raw LLVM pointer into a {ptr, metadata} struct for returning from an intrinsic.
     /// All pointer-like types are uniformly represented as {ptr, metadata} structs, so malloc/calloc
     /// results (raw i8* values) must be inserted into field 0 of the return struct.

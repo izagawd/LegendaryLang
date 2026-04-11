@@ -98,7 +98,7 @@ public class QualifiedAssocTypePath : LangPath
         var forTypeRef = codeGen.GetRefItemFor(resolvedFor) as TypeRefItem;
         if (forTypeRef != null)
         {
-            // Search impls for this  trait with the associated type
+            // Search impls for this type + trait with the associated type
             foreach (var impl in codeGen.ImplDefinitions)
             {
                 var implTraitBase = impl.TraitPath;
@@ -291,6 +291,37 @@ public abstract class LangPath
             }
         }
 
+        // Array type: [T; N] in type position
+        if (next is LeftBracketToken && typePosition)
+        {
+            Bracket.ParseLeft(parser);
+            var elementType = Parse(parser, true);
+            
+            if (parser.Peek() is not SemiColonToken)
+                throw new ExpectedParserException(parser, ParseType.SemiColon, parser.Peek());
+            parser.Pop(); // consume ;
+            
+            // Parse size — either a number literal or an identifier (generic param)
+            LangPath sizePath;
+            if (parser.Peek() is NumberToken numTok)
+            {
+                parser.Pop();
+                sizePath = new NormalLangPath(null, [numTok.Number]);
+            }
+            else if (parser.Peek() is IdentifierToken sizeIdent)
+            {
+                parser.Pop();
+                sizePath = new NormalLangPath(sizeIdent, [sizeIdent.Identity]);
+            }
+            else
+            {
+                throw new ExpectedParserException(parser, ParseType.Number, parser.Peek());
+            }
+            
+            Bracket.ParseRight(parser);
+            return new ArrayLangPath(elementType, sizePath);
+        }
+
         // Qualified associated type path: (Type as Trait).AssocType
         // Also handles nested: ((i32 as Add(i32)).Output as Add(i32)).Output
         if (next is LeftParenthesisToken)
@@ -457,6 +488,11 @@ public abstract class LangPath
         if (typePath is TupleLangPath tlp)
             foreach (var tp in tlp.TypePaths)
                 if (GenericParamUsedInType(paramName, tp)) return true;
+        if (typePath is ArrayLangPath alp)
+        {
+            if (GenericParamUsedInType(paramName, alp.ElementType)) return true;
+            if (GenericParamUsedInType(paramName, alp.Size)) return true;
+        }
         if (typePath is QualifiedAssocTypePath qap)
         {
             if (GenericParamUsedInType(paramName, qap.ForType)) return true;
