@@ -17,6 +17,7 @@ public static class IntrinsicCodeGen
     private static readonly NormalLangPath MemModule = new(null, ["Std", "Mem"]);
     private static readonly NormalLangPath PtrModule = new(null, ["Std", "Ptr"]);
     private static readonly NormalLangPath PrimitiveModule = new(null, ["Std", "Primitive"]);
+    private static readonly NormalLangPath FmtModule = new(null, ["Std", "Fmt"]);
 
     private static readonly Dictionary<string, NormalLangPath> IntrinsicModules = new()
     {
@@ -29,6 +30,8 @@ public static class IntrinsicCodeGen
         ["PtrAsU8"] = PtrModule,
         ["DestructPtr"] = PtrModule,
         ["TryCastPrimitive"] = PrimitiveModule,
+        ["PrintStr"] = FmtModule,
+        ["PrintLnStr"] = FmtModule,
     };
 
     public static bool IsIntrinsic(NormalLangPath module, string name)
@@ -73,6 +76,8 @@ public static class IntrinsicCodeGen
             "PtrAsU8" => EmitPtrAsU8(function, context),
             "DestructPtr" => EmitDestructPtr(function, context),
             "TryCastPrimitive" => EmitTryCastPrimitive(function, context),
+            "PrintStr" => EmitPrintStr(function, context),
+            "PrintLnStr" => EmitPrintLnStr(function, context),
             _ => false
         };
     }
@@ -225,11 +230,52 @@ public static class IntrinsicCodeGen
         return true;
     }
 
+    // ── I/O intrinsics ──
+
+    /// <summary>
+    /// PrintStr(input: &amp;str) — prints the string's bytes to stdout via printf("%.*s", len, ptr).
+    /// </summary>
+    private static unsafe bool EmitPrintStr(Function function, CodeGenContext context)
+        => EmitPrintImpl(function, context, GetOrCreateFmtStr(context, ".str.print_fmt", "%.*s"u8));
+
+    /// <summary>
+    /// PrintLnStr(input: &amp;str) — prints the string's bytes followed by a newline.
+    /// </summary>
+    private static unsafe bool EmitPrintLnStr(Function function, CodeGenContext context)
+        => EmitPrintImpl(function, context, GetOrCreateFmtStr(context, ".str.println_fmt", "%.*s\n"u8));
+
+    private static unsafe bool EmitPrintImpl(Function function, CodeGenContext context, LLVMValueRef fmtGlobal)
+    {
+        if (function.Arguments.Length != 1) return false;
+
+        var arg = function.Arguments[0];
+        var argType = arg.Type as PointerLikeType;
+        if (argType == null) return false;
+
+        // Extract ptr and len from the &str fat pointer
+        var argItem = new ValueRefItem { Type = argType, ValueRef = arg.Alloca };
+        var dataPtr = argType.ExtractDataPointer(context, argItem);
+        var length = argType.ExtractMetadata(context, argItem);
+
+        // Truncate length to i32 for printf's %.*s precision specifier
+        var lenI32 = context.Builder.BuildIntCast(length, LLVMTypeRef.Int32, "len_i32");
+
+        // Call printf(fmt, len, ptr)
+        var printfFunc = GetOrDeclarePrintf(context);
+        context.Builder.BuildCall2(PrintfFuncType, printfFunc,
+            new LLVMValueRef[] { fmtGlobal, lenI32, dataPtr }, "");
+
+        // Return void
+        var voidVal = context.GetVoid();
+        context.Builder.BuildRet(voidVal.LoadValue(context));
+        return true;
+    }
+
     // ── C runtime function declarations ──
 
     private static readonly LLVMTypeRef PtrType = LLVMTypeRef.CreatePointer(LLVMTypeRef.Int8, 0);
 
-    private static readonly LLVMTypeRef MallocFuncType =
+    public static readonly LLVMTypeRef MallocFuncType =
         LLVMTypeRef.CreateFunction(PtrType, [UsizeTypeDefinition.UsizeLLVMType]);
 
     private static readonly LLVMTypeRef FreeFuncType =
@@ -257,6 +303,51 @@ public static class IntrinsicCodeGen
         LLVMValueRef existing = LLVM.GetNamedFunction(context.Module, "calloc".ToCString());
         if (existing.Handle != IntPtr.Zero) return existing;
         return context.Module.AddFunction("calloc", CallocFuncType);
+    }
+
+    /// <summary>void* memcpy(void* dest, const void* src, size_t n)</summary>
+    public static readonly LLVMTypeRef MemcpyFuncType =
+        LLVMTypeRef.CreateFunction(PtrType, [PtrType, PtrType, UsizeTypeDefinition.UsizeLLVMType]);
+
+    public static unsafe LLVMValueRef GetOrDeclareMemcpy(CodeGenContext context)
+    {
+        LLVMValueRef existing = LLVM.GetNamedFunction(context.Module, "memcpy".ToCString());
+        if (existing.Handle != IntPtr.Zero) return existing;
+        return context.Module.AddFunction("memcpy", MemcpyFuncType);
+    }
+
+    /// <summary>int printf(const char* fmt, ...) — variadic</summary>
+    private static readonly LLVMTypeRef PrintfFuncType =
+        LLVMTypeRef.CreateFunction(LLVMTypeRef.Int32, [PtrType], true);
+
+    private static unsafe LLVMValueRef GetOrDeclarePrintf(CodeGenContext context)
+    {
+        LLVMValueRef existing = LLVM.GetNamedFunction(context.Module, "printf".ToCString());
+        if (existing.Handle != IntPtr.Zero) return existing;
+        return context.Module.AddFunction("printf", PrintfFuncType);
+    }
+
+    /// <summary>
+    /// Gets or creates a named global constant string for printf format strings.
+    /// </summary>
+    private static unsafe LLVMValueRef GetOrCreateFmtStr(CodeGenContext context, string globalName, ReadOnlySpan<byte> fmtBytes)
+    {
+        LLVMValueRef existing = LLVM.GetNamedGlobal(context.Module, globalName.ToCString());
+        if (existing.Handle != IntPtr.Zero) return existing;
+
+        // Append null terminator
+        var bytes = new byte[fmtBytes.Length + 1];
+        fmtBytes.CopyTo(bytes);
+        bytes[^1] = 0;
+
+        var constArray = LLVMValueRef.CreateConstArray(LLVMTypeRef.Int8,
+            bytes.Select(b => LLVMValueRef.CreateConstInt(LLVMTypeRef.Int8, b, false)).ToArray());
+        var global = context.Module.AddGlobal(
+            LLVMTypeRef.CreateArray(LLVMTypeRef.Int8, (uint)bytes.Length), globalName);
+        global.Initializer = constArray;
+        global.IsGlobalConstant = true;
+        global.Linkage = LLVMLinkage.LLVMPrivateLinkage;
+        return global;
     }
 
     // ── Primitive conversion intrinsic ──

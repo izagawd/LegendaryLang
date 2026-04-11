@@ -9,8 +9,8 @@ namespace LegendaryLang.Parse.Expressions;
 
 /// <summary>
 /// A string literal expression like "hello".
-/// Produces a &amp;'static const str — a fat pointer to a global constant byte array.
-/// The fat pointer contains {data_ptr, length}.
+/// Produces a Gc(str) — a GC-managed pointer to a heap-allocated UTF-8 byte array.
+/// The Gc struct wraps a *mut str fat pointer: {data_ptr, length}.
 /// </summary>
 public class StringLiteralExpression : IExpression
 {
@@ -27,12 +27,12 @@ public class StringLiteralExpression : IExpression
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        // Type is &str — a fat reference to the unsized str type
+        // Type is Gc(str) — a GC-managed pointer to the unsized str type
         var strPath = LangPath.PrimitivePath.Append("str");
-        var refPath = RefTypeDefinition.GetRefModule()
-            .Append(RefTypeDefinition.GetRefName(RefKind.Shared))
+        var gcPath = new NormalLangPath(null,
+                new NormalLangPath.PathSegment[] { "Std", "Alloc", "Gc" })
             .AppendGenerics([strPath]);
-        TypePath = refPath;
+        TypePath = gcPath;
     }
 
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
@@ -51,17 +51,47 @@ public class StringLiteralExpression : IExpression
         globalVar.IsGlobalConstant = true;
         globalVar.Linkage = LLVMLinkage.LLVMPrivateLinkage;
 
-        // Get the &str fat pointer type
-        var refTypeItem = codeGenContext.GetRefItemFor(TypePath!) as TypeRefItem;
-        if (refTypeItem?.Type is not PointerLikeType fatPtrType || !fatPtrType.HasNonTrivialMetadata)
-            throw new InvalidOperationException("&str should be a fat pointer type");
+        // Allocate heap memory and copy string data there
+        var sizeVal = LLVMValueRef.CreateConstInt(
+            UsizeTypeDefinition.UsizeLLVMType, (ulong)bytes.Length, false);
 
-        // Build fat pointer: {data_ptr, length}
-        var dataPtr = globalVar;
+        var mallocFunc = IntrinsicCodeGen.GetOrDeclareMalloc(codeGenContext);
+        var heapPtr = codeGenContext.Builder.BuildCall2(
+            IntrinsicCodeGen.MallocFuncType, mallocFunc,
+            new LLVMValueRef[] { sizeVal }, "str_heap");
+
+        var memcpyFunc = IntrinsicCodeGen.GetOrDeclareMemcpy(codeGenContext);
+        codeGenContext.Builder.BuildCall2(
+            IntrinsicCodeGen.MemcpyFuncType, memcpyFunc,
+            new LLVMValueRef[] { heapPtr, globalVar, sizeVal }, "");
+
+        // Get the Gc(str) struct type — it has one field: ptr (*mut str, a fat pointer)
+        var gcTypeItem = codeGenContext.GetRefItemFor(TypePath!) as TypeRefItem;
+        var gcStructType = gcTypeItem?.Type as StructType
+            ?? throw new InvalidOperationException("Gc(str) should resolve to a StructType");
+
+        var ptrFieldType = gcStructType.ResolvedFieldTypes!.Value[0] as PointerLikeType
+            ?? throw new InvalidOperationException("Gc(str).ptr should be a PointerLikeType");
+
+        // Build the *mut str fat pointer: {heap_ptr, length}
         var length = LLVMValueRef.CreateConstInt(
             StrTypeDefinition.MetadataLLVMType, (ulong)bytes.Length, false);
+        var fatPtr = ptrFieldType.BuildFatPointer(codeGenContext, heapPtr, length);
 
-        return fatPtrType.BuildFatPointer(codeGenContext, dataPtr, length);
+        // Build the Gc(str) struct: store the fat pointer as field 0
+        var gcAlloca = codeGenContext.Builder.BuildAlloca(gcStructType.TypeRef);
+        var fieldPtr = codeGenContext.Builder.BuildStructGEP2(gcStructType.TypeRef, gcAlloca, 0);
+        ptrFieldType.AssignTo(codeGenContext, fatPtr, new ValueRefItem
+        {
+            Type = ptrFieldType,
+            ValueRef = fieldPtr
+        });
+
+        return new ValueRefItem
+        {
+            Type = gcStructType,
+            ValueRef = gcAlloca
+        };
     }
 
     public LangPath? TypePath { get; private set; }
