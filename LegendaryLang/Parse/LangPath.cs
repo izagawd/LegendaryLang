@@ -98,7 +98,7 @@ public class QualifiedAssocTypePath : LangPath
         var forTypeRef = codeGen.GetRefItemFor(resolvedFor) as TypeRefItem;
         if (forTypeRef != null)
         {
-            // Search impls for this type + trait with the associated type
+            // Search impls for this  trait with the associated type
             foreach (var impl in codeGen.ImplDefinitions)
             {
                 var implTraitBase = impl.TraitPath;

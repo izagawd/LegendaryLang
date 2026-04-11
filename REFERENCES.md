@@ -40,29 +40,33 @@ Raw pointer equivalent: `*mut T`
 
 All reference kinds are compatible with each other. The borrow checker ensures references don't outlive their data and prevents use-after-move.
 
-## Capability Hierarchy (Deref Chain Narrowing)
+## Capability Through Reference Chains
 
-When accessing fields through references, the outer reference narrows what the inner reference can produce:
+When accessing fields or calling methods through nested references, the **innermost reference** (closest to the target type) determines the effective capability:
 
 ```
-&mut  >  &
+&&mut T   → can mutate T     (inner &mut wins)
+&mut &T   → cannot mutate T  (inner & wins)
 ```
 
-- Through `&Wrapper`, you can only produce `&` access to fields
-- Through `&mut Wrapper`, you can produce up to `&mut` access
-
-Example: if `Wrapper` has field `inner: &mut Holder`, accessing through `&Wrapper` narrows the effective capability to `&` — you cannot call a method requiring `&mut Self` on the inner field.
+Example: if `Wrapper` has field `inner: &mut Holder`, the inner `&mut` determines what you can do with `Holder` — regardless of how `Wrapper` itself is held.
 
 ```
 struct Wrapper['a] { inner: &'a mut Holder }
 
 fn through_shared(w: &Wrapper) -> i32 {
-    w.inner.get()       // OK — & method through & wrapper
-    // w.inner.modify() // ERROR — &mut method through & wrapper
+    w.inner.modify()    // OK — inner &mut wins, can call &mut Self method
 }
+```
 
-fn through_mut(w: &mut Wrapper) -> i32 {
-    w.inner.modify()    // OK — &mut method through &mut wrapper
+For `&mut &T`, the inner `&` wins — mutation is blocked:
+
+```
+struct ReadOnly['a] { inner: &'a Holder }
+
+fn through_mut(w: &mut ReadOnly) -> i32 {
+    // w.inner.modify() // ERROR — inner & wins, cannot call &mut Self method
+    w.inner.get()       // OK — & method through & inner
 }
 ```
 

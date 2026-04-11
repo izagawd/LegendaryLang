@@ -154,6 +154,14 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                     ? FieldAccessExpression.SubstituteGenerics(bound.TraitPath, GenericParameters, genericArgs.Value)
                     : bound.TraitPath;
 
+                // Sized/MetaSized bounds were validated during semantic analysis.
+                // Struct/enum Sized checking is done dynamically (not via stored impls),
+                // so codegen can't verify them — skip.
+                var resolvedBoundStripped = LangPath.StripGenerics(resolvedBound);
+                if (resolvedBoundStripped.Equals(SemanticAnalyzer.SizedTraitPath)
+                    || resolvedBoundStripped.Equals(SemanticAnalyzer.MetaSizedTraitPath))
+                    continue;
+
                 // Check if boundType is a generic param with this trait bound in scope
                 if (boundType is NormalLangPath nlpBound && nlpBound.PathSegments.Length == 1)
                 {

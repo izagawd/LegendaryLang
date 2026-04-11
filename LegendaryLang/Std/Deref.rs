@@ -10,24 +10,24 @@ trait DerefMut: Deref {
     fn deref_mut(self: &mut Self) -> &mut Self.Target;
 }
 
-impl[T:! Sized] Receiver for &T {
+impl[T:! type] Receiver for &T {
     let Target :! type = T;
 }
-impl[T:! Sized] Deref for &T {
+impl[T:! type] Deref for &T {
     fn deref(self: &Self) -> &Self.Target {
         self
     }
 }
 
-impl[T:! Sized] Receiver for &mut T {
+impl[T:! type] Receiver for &mut T {
     let Target :! type = T;
 }
-impl[T:! Sized] Deref for &mut T {
+impl[T:! type] Deref for &mut T {
     fn deref(self: &Self) -> &Self.Target {
         self
     }
 }
-impl[T:! Sized] DerefMut for &mut T {
+impl[T:! type] DerefMut for &mut T {
     fn deref_mut(self: &mut Self) -> &mut Self.Target {
         self
     }

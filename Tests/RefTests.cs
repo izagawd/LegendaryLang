@@ -631,6 +631,6 @@ public class RefMethodDispatchTests
     [Test] public void RefGcSharedMethodPassTest() =>
         CompilerTestHelper.AssertSuccess("ref_tests/ref_gc_shared_method_pass_test", 42);
 
-    [Test] public void RefGcMutMethodFailTest() =>
-        CompilerTestHelper.AssertFail<GenericSemanticError>("ref_tests/ref_gc_mut_method_fail_test");
+    [Test] public void RefGcMutMethodPassTest() =>
+        CompilerTestHelper.AssertSuccess("ref_tests/ref_gc_mut_method_pass_test", 42);
 }

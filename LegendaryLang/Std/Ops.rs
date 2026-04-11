@@ -206,19 +206,19 @@ impl Div(usize) for usize {
     }
 }
 
-impl[T:! Sized +PartialEq(T)] PartialEq(&T) for &T {
+impl[T:! PartialEq(T)] PartialEq(&T) for &T {
     fn Eq(lhs: &&T, rhs: &&T) -> bool {
         (T as PartialEq(T)).Eq(*lhs, *rhs)
     }
 }
 
-impl[T:! Sized +PartialEq(T)] PartialEq(&mut T) for &mut T {
+impl[T:! PartialEq(T)] PartialEq(&mut T) for &mut T {
     fn Eq(lhs: &&mut T, rhs: &&mut T) -> bool {
         (T as PartialEq(T)).Eq(*lhs, *rhs)
     }
 }
 
-impl[T:! Sized +PartialOrd(T)] PartialOrd(&T) for &T {
+impl[T:! PartialOrd(T)] PartialOrd(&T) for &T {
     fn Lt(lhs: &&T, rhs: &&T) -> bool {
         (T as PartialOrd(T)).Lt(*lhs, *rhs)
     }
@@ -227,7 +227,7 @@ impl[T:! Sized +PartialOrd(T)] PartialOrd(&T) for &T {
     }
 }
 
-impl[T:! Sized +PartialOrd(T)] PartialOrd(&mut T) for &mut T {
+impl[T:! PartialOrd(T)] PartialOrd(&mut T) for &mut T {
     fn Lt(lhs: &&mut T, rhs: &&mut T) -> bool {
         (T as PartialOrd(T)).Lt(*lhs, *rhs)
     }

@@ -34,11 +34,12 @@ public class FieldAccessExpression : IExpression
     /// Resolves a field's type on a given type, walking through the Receiver/Deref chain.
     /// Returns (fieldType, derefDepth) or (null, 0) if not found.
     /// </summary>
-    public static (LangPath? fieldType, int derefDepth) ResolveFieldType(
+    public static (LangPath? fieldType, int derefDepth, RefKind? innermostRefKind) ResolveFieldType(
         string fieldName, LangPath startType, SemanticAnalyzer analyzer)
     {
         var currentType = startType;
         int derefDepth = 0;
+        RefKind? innermostRefKind = null;
         const int maxDeref = 10;
         while (currentType != null && derefDepth < maxDeref)
         {
@@ -57,8 +58,13 @@ public class FieldAccessExpression : IExpression
                 }
                 if (fieldType != null)
                     fieldType = analyzer.ResolveQualifiedTypePath(fieldType);
-                return (fieldType, derefDepth);
+                return (fieldType, derefDepth, innermostRefKind);
             }
+
+            // Track ref kind at each deref level — innermost wins
+            var rk = RefTypeDefinition.TryExtractRefKindFromPath(currentType);
+            if (rk != null)
+                innermostRefKind = rk;
 
             var target = analyzer.ResolveAssociatedType(currentType,
                 SemanticAnalyzer.ReceiverTraitPath, "Target");
@@ -66,7 +72,7 @@ public class FieldAccessExpression : IExpression
             currentType = target;
             derefDepth++;
         }
-        return (null, 0);
+        return (null, 0, null);
     }
 
     public void Analyze(SemanticAnalyzer analyzer)
@@ -87,7 +93,7 @@ public class FieldAccessExpression : IExpression
             }
         }
 
-        var (fieldType, derefDepth) = ResolveFieldType(Field.Identity, callerTypePath, analyzer);
+        var (fieldType, derefDepth, _) = ResolveFieldType(Field.Identity, callerTypePath, analyzer);
         if (fieldType != null)
         {
             AutoDerefDepth = derefDepth;

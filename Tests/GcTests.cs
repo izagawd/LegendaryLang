@@ -245,10 +245,10 @@ public class DropFieldTests
         // ── Chain capability (weakest link) ──
 
         [Test]
-        public void DerefSharedOuterBlocksUniqFailTest()
+        public void DerefSharedOuterInnerMutPassTest()
         {
             // &&mut i32 → outer & is shared, caps chain to shared → can't call &mut method
-            AssertFail<GenericSemanticError>("deref_hierarchy_tests/deref_shared_outer_blocks_uniq_fail_test");
+            AssertSuccess("deref_hierarchy_tests/deref_shared_outer_inner_mut_pass_test", 10);
         }
 
         [Test]
@@ -260,10 +260,10 @@ public class DropFieldTests
 
 
         [Test]
-        public void DerefSharedMutChainFailTest()
+        public void DerefSharedMutChainPassTest()
         {
             // &&mut i32 → min(Shared, Mut) = Shared → can't call &mut Self method
-            AssertFail<GenericSemanticError>("deref_hierarchy_tests/deref_shared_mut_chain_fail_test");
+            AssertSuccess("deref_hierarchy_tests/deref_shared_mut_chain_pass_test", 42);
         }
 
 
@@ -277,10 +277,10 @@ public class DropFieldTests
         }
 
         [Test]
-        public void DerefFieldThroughSharedRefFailTest()
+        public void DerefFieldThroughSharedRefInnerMutPassTest()
         {
             // &Wrapper with &mut field → can't call &mut method (shared outer caps it)
-            AssertFail<GenericSemanticError>("deref_hierarchy_tests/deref_field_through_shared_ref_fail_test");
+            AssertSuccess("deref_hierarchy_tests/deref_field_through_shared_ref_inner_mut_pass_test", 42);
         }
 
         [Test]
@@ -291,10 +291,10 @@ public class DropFieldTests
         }
 
         [Test]
-        public void DerefNestedFieldSharedFailTest()
+        public void DerefNestedFieldInnerMutPassTest()
         {
             // &Outer → &mut Middle → &mut Holder, call &mut method → shared outer caps chain
-            AssertFail<GenericSemanticError>("deref_hierarchy_tests/deref_nested_field_shared_fail_test");
+            AssertSuccess("deref_hierarchy_tests/deref_nested_field_inner_mut_pass_test", 42);
         }
 
         [Test]
@@ -307,10 +307,10 @@ public class DropFieldTests
         // ── Deep field access with various ref-kind combinations ──
 
         [Test]
-        public void DerefFieldDeepSharedFailTest()
+        public void DerefFieldDeepInnerMutPassTest()
         {
             // &Outer → &mut Inner → &mut Holder → call &mut — shared outer caps everything
-            AssertFail<GenericSemanticError>("deref_hierarchy_tests/deref_field_deep_shared_fail_test");
+            AssertSuccess("deref_hierarchy_tests/deref_field_deep_inner_mut_pass_test", 42);
         }
 
         [Test]
@@ -329,10 +329,10 @@ public class DropFieldTests
 
 
         [Test]
-        public void DerefFieldDoubleNestedSharedFailTest()
+        public void DerefFieldDoubleNestedInnerMutPassTest()
         {
             // &Top → &mut Mid → &mut Holder → call &mut — shared at top caps chain
-            AssertFail<GenericSemanticError>("deref_hierarchy_tests/deref_field_double_nested_shared_fail_test");
+            AssertSuccess("deref_hierarchy_tests/deref_field_double_nested_inner_mut_pass_test", 42);
         }
 
         [Test]
@@ -576,12 +576,12 @@ public class DropFieldTests
             => AssertSuccess("field_ref_tests/field_shared_wrap_uniq_shared_ok_test", 42);
 
         [Test]
-        public void FieldSharedWrapUniqUniqFailTest()
-            => AssertFail<GenericSemanticError>("field_ref_tests/field_shared_wrap_uniq_uniq_fail_test");
+        public void FieldSharedWrapMutPassTest()
+            => AssertSuccess("field_ref_tests/field_shared_wrap_mut_pass_test", 42);
 
         [Test]
-        public void FieldSharedWrapMutMutFailTest()
-            => AssertFail<GenericSemanticError>("field_ref_tests/field_shared_wrap_mut_mut_fail_test");
+        public void FieldSharedWrapMutMutPassTest()
+            => AssertSuccess("field_ref_tests/field_shared_wrap_mut_mut_pass_test", 42);
 
         [Test]
         public void FieldSharedWrapMutSharedOkTest()
@@ -601,8 +601,8 @@ public class DropFieldTests
         // ── Deep nesting (3 levels) ──
 
         [Test]
-        public void FieldDeepSharedUniqUniqFailTest()
-            => AssertFail<GenericSemanticError>("field_ref_tests/field_deep_shared_uniq_uniq_fail_test");
+        public void FieldDeepSharedMutPassTest()
+            => AssertSuccess("field_ref_tests/field_deep_shared_mut_pass_test", 42);
 
         [Test]
         public void FieldDeepUniqUniqUniqOkTest()

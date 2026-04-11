@@ -1684,7 +1684,11 @@ public class ChainExpression : IExpression
             maxCap = maxCap == null ? fak.MaxCapability : MethodCallKind.MinRefKindCapability(maxCap.Value, fak.MaxCapability.Value);
 
         // Use shared field resolution (walks Receiver/Deref chain, substitutes generics)
-        var (fieldType, autoDerefDepth) = FieldAccessExpression.ResolveFieldType(access.Name, workingType, analyzer);
+        var (fieldType, autoDerefDepth, innermostRefKind) = FieldAccessExpression.ResolveFieldType(access.Name, workingType, analyzer);
+
+        // If ResolveFieldType went through additional references, the innermost one determines capability
+        if (innermostRefKind != null)
+            maxCap = maxCap == null ? innermostRefKind : MethodCallKind.MinRefKindCapability(maxCap.Value, innermostRefKind.Value);
 
         if (fieldType == null)
         {
