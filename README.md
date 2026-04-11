@@ -213,7 +213,7 @@ fn factorial(n: i32) -> i32 {
 Functions can accept types as compile-time parameters using `:!` in `()`:
 
 ```
-fn identity(T:! type, x: T) -> T {
+fn identity(T:! Sized, x: T) -> T {
     x
 }
 
@@ -265,7 +265,7 @@ fn main() -> i32 {
 Generic parameters are declared with `()` using `:!` for compile-time types:
 
 ```
-struct Wrapper(T:! type) {
+struct Wrapper(T:! Sized) {
     val: T
 }
 
@@ -278,7 +278,7 @@ fn main() -> i32 {
 Multiple type parameters:
 
 ```
-struct Pair(A:! type, B:! type) {
+struct Pair(A:! Sized, B:! Sized) {
     first: A,
     second: B
 }
@@ -306,8 +306,8 @@ struct RefWrapper['a](T:! type) {
 **Important:** `[]` in struct (and enum) definitions is reserved for lifetime parameters only. Generic type parameters must use `()`:
 
 ```
-struct Foo(T:! type) { val: T }          // Correct
-struct Foo[T:! type] { val: T }          // Error: [] is for lifetimes only
+struct Foo(T:! Sized) { val: T }          // Correct
+struct Foo[T:! Sized] { val: T }          // Error: [] is for lifetimes only
 struct Foo['a](T:! type) { r: &'a T }   // Correct: lifetimes in [], generics in ()
 ```
 
@@ -369,7 +369,7 @@ fn main() -> i32 {
 Custom generic enums with multiple type parameters:
 
 ```
-enum Either(A:! type, B:! type) {
+enum Either(A:! Sized, B:! Sized) {
     Left(A),
     Right(B)
 }
@@ -395,7 +395,7 @@ LegendaryLang uses Carbon-style generics with two parameter categories:
 Parameters in `[]` are invisible to the caller — they are inferred from the types of the runtime arguments:
 
 ```
-fn identity[T:! type](x: T) -> T {
+fn identity[T:! Sized](x: T) -> T {
     x
 }
 
@@ -425,7 +425,7 @@ fn main() -> i32 {
 Implicit `[]` comes first, then explicit `()`. Lifetimes are the first to be in `[]`.:
 
 ```
-fn transform['a, T:! type](x: T) -> T {
+fn transform['a, T:! Sized](x: T) -> T {
     x
 }
 ```
@@ -468,13 +468,13 @@ The `Sized` trait has `MetaSized` as a supertrait. Both are compiler-implemented
 **Structs, enums, and tuples** are `Sized` if and only if all their fields / variant payloads / components are `Sized`. If any field is unsized, the entire type becomes unsized. This propagates recursively:
 
 ```
-struct Inner[T:! type] { val: T }
-struct Outer[T:! type] { inner: Inner(T) }
+struct Inner(T:! type) { val: T }
+struct Outer(T:! type) { inner: Inner(T) }
 
 // Outer(i32) is Sized — Inner(i32) is Sized — i32 is Sized
 // Outer(str) is unsized — Inner(str) is unsized — str is unsized
 
-struct RefWrapper[T:! type] { ptr: &T }
+struct RefWrapper(T:! type) { ptr: &T }
 // RefWrapper(str) IS Sized — &str is a fat pointer, always sized
 ```
 
@@ -549,7 +549,7 @@ fn main() -> i32 {
 Traits can have compile-time parameters:
 
 ```
-trait Converter(Target:! type) {
+trait Converter(Target:! Sized) {
     fn convert(input: Self) -> Target;
 }
 
@@ -563,7 +563,7 @@ impl Converter(bool) for i32 {
 ### Using Traits as Bounds
 
 ```
-fn get_value(T:! HasValue, thing: T) -> i32 {
+fn get_value(T:! Sized + HasValue, thing: T) -> i32 {
     HasValue.get_value(thing)
 }
 ```
@@ -633,12 +633,12 @@ Traits can declare associated types:
 
 ```
 trait Producer {
-    let Output :! type;
+    let Output :! Sized;
     fn produce() -> Self.Output;
 }
 
 impl Producer for i32 {
-    let Output :! type = i32;
+    let Output :! Sized = i32;
     fn produce() -> (Self as Producer).Output {
         42
     }
@@ -674,7 +674,7 @@ fn add_same[T:! Add(T, Output = T) + Copy](a: T, b: T) -> T {
 A trait can require another trait as a prerequisite:
 
 ```
-trait Base {
+trait Base : Sized {
     fn base_val() -> i32;
 }
 
@@ -711,7 +711,7 @@ struct Vec2 { x: i32, y: i32 }
 impl Copy for Vec2 {}
 
 impl Add(Vec2) for Vec2 {
-    let Output :! type = Vec2;
+    let Output :! Sized = Vec2;
     fn Add(lhs: Vec2, rhs: Vec2) -> Vec2 {
         make Vec2 { x: lhs.x + rhs.x, y: lhs.y + rhs.y }
     }
@@ -732,7 +732,7 @@ Available operator traits: `Add`, `Sub`, `Mul`, `Div`.
 Generic type arguments in `[]` (deduced) are inferred from call arguments:
 
 ```
-fn identity[T:! type](x: T) -> T { x }
+fn identity[T:! Sized](x: T) -> T { x }
 
 fn main() -> i32 {
     identity(42)                // T = i32, inferred
@@ -1062,16 +1062,16 @@ Note: `main.rs` files adopt their parent directory as the module name. A file at
 
 ### `Std.Ops`
 
-| Item  | Description |
-|-------|-------------|
-| `Drop` | Destructor trait — `fn Drop(self: &mut Self)` runs on scope exit. |
-| `Add` | `+` operator — `trait Add(Rhs:! type) { let Output :! type; fn Add(lhs: Self, rhs: Rhs) -> Self.Output; }` |
-| `Sub` | `-` operator — same shape as Add. |
-| `Mul` | `*` operator — same shape as Add. |
-| `Div` | `/` operator — same shape as Add. |
-| `PartialEq` | `==` and `!=` operators — `fn Eq(lhs: &Self, rhs: &Rhs) -> bool`. |
-| `PartialOrd` | `<`, `>`, `<=`, `>=` operators — extends PartialEq. |
-| `TryInto` | Fallible type conversion — `fn try_into(self: Self) -> Option(T)`. |
+| Item  | Description                                                                                                  |
+|-------|--------------------------------------------------------------------------------------------------------------|
+| `Drop` | Destructor trait — `fn Drop(self: &mut Self)` runs on scope exit.                                            |
+| `Add` | `+` operator — `trait Add(Rhs:! Sized) { let Output :! Sized; fn Add(lhs: Self, rhs: Rhs) -> Self.Output; }` |
+| `Sub` | `-` operator — same shape as Add.                                                                            |
+| `Mul` | `*` operator — same shape as Add.                                                                            |
+| `Div` | `/` operator — same shape as Add.                                                                            |
+| `PartialEq` | `==` and `!=` operators — `fn Eq(lhs: &Self, rhs: &Rhs) -> bool`.                                            |
+| `PartialOrd` | `<`, `>`, `<=`, `>=` operators — extends PartialEq.                                                          |
+| `TryInto` | Fallible type conversion — `fn try_into(self: Self) -> Option(T)`.                                           |
 
 All four arithmetic traits are implemented for `i32` with `Output = i32`.
 
@@ -1142,10 +1142,10 @@ match x {
 }
 
 // Generics — deduced (implicit)
-fn id[T:! type](x: T) -> T { x }
+fn id[T:! Sized](x: T) -> T { x }
 
 // Generics — explicit
-fn convert(T:! type, U:! type, x: T) -> U { ... }
+fn convert(T:! Sized, U:! Sized, x: T) -> U { ... }
 
 // Trait
 trait Foo { fn bar() -> i32; }
