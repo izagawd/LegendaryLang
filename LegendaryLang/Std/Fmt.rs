@@ -1,6 +1,7 @@
 use Std.Alloc.Gc;
 use Std.Alloc.GcMut;
 use Std.Deref.Deref;
+use Std.Ptr.GetMetadata;
 
 trait ToString {
     fn ToString(self: &Self) -> &str;
@@ -17,6 +18,12 @@ fn Print[T:! ToString](input: &T) {
 fn PrintLn[T:! ToString](input: &T) {
     let s: &str = input.ToString();
     PrintLnStr(s)
+}
+
+impl str {
+    fn len(self: &Self) -> usize {
+        GetMetadata(&raw *self)
+    }
 }
 
 impl ToString for str {

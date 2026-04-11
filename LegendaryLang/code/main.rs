@@ -1,6 +1,13 @@
 ﻿use Std.Ops.Into;
 fn main() -> i32{
-    let made =  GcMut.New(45);
-    let dd: Gc(i32) = made.Into();
+    if "helldo".len() == 5 {
+        let yh = "yee";
+        Std.Fmt.PrintLn(&yh);
+        }
+    else {
+        
+           let yh = "nuu";
+                Std.Fmt.PrintLn(&yh);
+        }
     4
 }
