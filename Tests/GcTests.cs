@@ -622,6 +622,41 @@ public class DropFieldTests
         }
 
         [Test]
+        public void ManuallyDropNestedTest()
+        {
+            // Outer has Drop (+10) and contains Inner with Drop (+1). ManuallyDrop suppresses both → 0
+            AssertSuccess("drop_tests/manually_drop_nested_test", 0);
+        }
+
+        [Test]
+        public void ManuallyDropSiblingStillDropsTest()
+        {
+            // c1 wrapped in ManuallyDrop (suppressed), c2 not wrapped (drops). a=0, b=1 → 1
+            AssertSuccess("drop_tests/manually_drop_sibling_still_drops_test", 1);
+        }
+
+        [Test]
+        public void ManuallyDropMultipleTest()
+        {
+            // Two counters both wrapped in ManuallyDrop → neither drops → 0
+            AssertSuccess("drop_tests/manually_drop_multiple_test", 0);
+        }
+
+        [Test]
+        public void ManuallyDropInFunctionTest()
+        {
+            // Value moved into function, wrapped in ManuallyDrop inside → drop suppressed → 0
+            AssertSuccess("drop_tests/manually_drop_in_function_test", 0);
+        }
+
+        [Test]
+        public void ManuallyDropWrapThenDropOtherTest()
+        {
+            // Suppressed adds 100 (not fired), active adds 7 (fired) → 7
+            AssertSuccess("drop_tests/manually_drop_wrap_then_drop_other_test", 7);
+        }
+
+        [Test]
         public void DropMutBorrowVisibleInCopyReturnTest()
         {
             // Returning a while non-Copy dd borrows &mut a → rejected
