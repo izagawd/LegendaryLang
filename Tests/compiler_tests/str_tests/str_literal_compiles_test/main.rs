@@ -1,4 +1,4 @@
 fn main() -> i32 {
-    let s: & str = "hello";
+    let s: Gc(str) = "hello";
     5
 }

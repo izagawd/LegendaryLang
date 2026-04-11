@@ -1,9 +1,9 @@
-﻿use Std.Fmt.ToString;
+use Std.Fmt.ToString;
 use Std.Deref.Receiver;
 use Std.Deref.Deref;
 
 struct Wrapper(T:! type) {
-    val: Gc(T)
+    val: T
 }
 
 impl[T:! type] Receiver for Wrapper(T) {
@@ -12,7 +12,7 @@ impl[T:! type] Receiver for Wrapper(T) {
 
 impl[T:! type] Deref for Wrapper(T) {
     fn deref(self: &Self) -> &T {
-        (*self).val.deref()
+        &self.val
     }
 }
 
@@ -23,8 +23,5 @@ impl[T:! ToString] ToString for Wrapper(T) {
 }
 
 fn main() -> i32 {
-    let dd = make Wrapper{val : "frf"};
-    let hbruh = dd.ToString();
-    Std.Fmt.PrintLn(&hbruh);
-    5
+    0
 }

@@ -1,4 +1,4 @@
-﻿use Std.Fmt.ToString;
+use Std.Fmt.ToString;
 use Std.Deref.Receiver;
 use Std.Deref.Deref;
 
@@ -23,8 +23,7 @@ impl[T:! ToString] ToString for Wrapper(T) {
 }
 
 fn main() -> i32 {
-    let dd = make Wrapper{val : "frf"};
+    let dd = make Wrapper{val : ""};
     let hbruh = dd.ToString();
-    Std.Fmt.PrintLn(&hbruh);
     5
 }

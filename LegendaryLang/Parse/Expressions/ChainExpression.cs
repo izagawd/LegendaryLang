@@ -952,7 +952,8 @@ public class MethodCallKind : IChainKind
         if (inherent.Count > 0)
         {
             var chosen = Disambiguate(inherent, targetType, expectedReturnType, analyzer);
-            return BuildImplResult(chosen!.Value, receiver, targetType, originalReceiverType, methodName,
+            var effectiveTarget = GetEffectiveTargetType(targetType, chosen!.Value);
+            return BuildImplResult(chosen!.Value, receiver, effectiveTarget, originalReceiverType, methodName,
                 arguments, rootVarName, analyzer, tokenLoc, needsAutoDeref, autoDerefDepth);
         }
 
@@ -971,12 +972,16 @@ public class MethodCallKind : IChainKind
                     $"Use qualified syntax to disambiguate.\n{tokenLoc}"));
                 return null;
             }
-            return BuildImplResult(chosen.Value, receiver, targetType, originalReceiverType, methodName,
+            var effectiveTarget = GetEffectiveTargetType(targetType, chosen.Value);
+            return BuildImplResult(chosen.Value, receiver, effectiveTarget, originalReceiverType, methodName,
                 arguments, rootVarName, analyzer, tokenLoc, needsAutoDeref, autoDerefDepth);
         }
         if (traits.Count == 1)
-            return BuildImplResult(traits[0], receiver, targetType, originalReceiverType, methodName,
+        {
+            var effectiveTarget = GetEffectiveTargetType(targetType, traits[0]);
+            return BuildImplResult(traits[0], receiver, effectiveTarget, originalReceiverType, methodName,
                 arguments, rootVarName, analyzer, tokenLoc, needsAutoDeref, autoDerefDepth);
+        }
 
         // Priority 3: Trait bounds (for generic type parameters)
         if (targetType is NormalLangPath nlpTarget && nlpTarget.PathSegments.Length == 1)
@@ -1012,6 +1017,11 @@ public class MethodCallKind : IChainKind
     /// <summary>
     /// Collects impl candidates matching a method name on a type, filtered by a predicate on the impl.
     /// Shared by inherent and trait searches — only the filter differs.
+    ///
+    /// For reference receivers (&amp;X): if a method takes &amp;self, the receiver &amp;X already provides
+    /// the &amp; layer that &amp;self needs. So impl Trait for X with fn method(&amp;self) is a direct match
+    /// on &amp;X (no auto-ref needed), and should be preferred over blanket impls like impl Trait for &amp;T
+    /// which would need auto-ref to &amp;&amp;X.
     /// </summary>
     private static List<(ImplDefinition impl, FunctionDefinition method,
         Dictionary<string, LangPath> bindings, RefKind? autoRefKind)> CollectImplCandidates(
@@ -1020,16 +1030,41 @@ public class MethodCallKind : IChainKind
         bool isAutoDeref = false)
     {
         var results = new List<(ImplDefinition, FunctionDefinition, Dictionary<string, LangPath>, RefKind?)>();
+        var directRefResults = new List<(ImplDefinition, FunctionDefinition, Dictionary<string, LangPath>, RefKind?)>();
+
+        // Pre-compute: if targetType is a reference &X, extract X for stripped matching
+        var strippedPointee = DerefExpression.TryGetPointeeType(targetType, out var isRef);
+        if (!isRef) strippedPointee = null;
+
         foreach (var impl in analyzer.ImplDefinitions)
         {
             if (!filter(impl)) continue;
             var method = impl.GetMethod(methodName);
             if (method == null || method.Arguments.Length == 0 || method.Arguments[0].Name != "self") continue;
+
+            var autoRefKind = DetectAutoRefKind(method.Arguments[0].TypePath);
             var bindings = impl.TryMatchConcreteType(targetType);
+            bool isDirectRefMatch = false;
+
+            // If no direct match on full receiver, try stripped match for &self methods.
+            // e.g., receiver &Wrapper(T), impl Deref for Wrapper(T) with fn deref(&self):
+            // &self = &Wrapper(T) = receiver — matches without auto-ref.
+            // Only if receiver's ref kind is compatible (e.g., &Foo can't match &mut self).
+            if (bindings == null && strippedPointee != null && autoRefKind != null)
+            {
+                var receiverRefKind = RefTypeDefinition.TryExtractRefKindFromPath(targetType);
+                if (receiverRefKind != null
+                    && DerefExpression.CanProduceRefKind(receiverRefKind.Value, autoRefKind.Value))
+                {
+                    bindings = impl.TryMatchConcreteType(strippedPointee);
+                    if (bindings != null)
+                        isDirectRefMatch = true;
+                }
+            }
+
             if (bindings != null && !impl.CheckBounds(bindings, analyzer)) bindings = null;
             if (bindings == null) continue;
 
-            var autoRefKind = DetectAutoRefKind(method.Arguments[0].TypePath);
             if (autoRefKind != null && maxCapability != null
                 && !DerefExpression.CanProduceRefKind(maxCapability.Value, autoRefKind.Value))
                 continue;
@@ -1039,9 +1074,44 @@ public class MethodCallKind : IChainKind
             if (isAutoDeref && autoRefKind == null && !analyzer.IsTypeCopy(targetType))
                 continue;
 
-            results.Add((impl, method, bindings, autoRefKind));
+            if (isDirectRefMatch)
+            {
+                // Receiver already IS &Self — no additional auto-ref wrapping needed
+                directRefResults.Add((impl, method, bindings, null));
+            }
+            else
+            {
+                results.Add((impl, method, bindings, autoRefKind));
+            }
         }
-        return results;
+
+        // Prefer direct-ref-match candidates (more specific) over regular candidates
+        return directRefResults.Count > 0 ? directRefResults : results;
+    }
+
+    /// <summary>
+    /// For direct-ref-match candidates (where receiver &amp;X matched an impl for X via &amp;self),
+    /// returns the stripped type X. Otherwise returns the original targetType.
+    /// This ensures BuildImplResult uses the correct Self type for codegen dispatch.
+    /// </summary>
+    private static LangPath GetEffectiveTargetType(LangPath targetType,
+        (ImplDefinition impl, FunctionDefinition method,
+            Dictionary<string, LangPath> bindings, RefKind? autoRefKind) candidate)
+    {
+        // Direct-ref match: autoRefKind=null but the method actually takes &self
+        if (candidate.autoRefKind == null)
+        {
+            var detected = DetectAutoRefKind(candidate.method.Arguments[0].TypePath);
+            if (detected != null)
+            {
+                // Method takes &self but autoRefKind was set to null → direct-ref match.
+                // Strip the & from targetType to get the impl's actual Self type.
+                var stripped = DerefExpression.TryGetPointeeType(targetType, out var isRef);
+                if (isRef && stripped != null)
+                    return stripped;
+            }
+        }
+        return targetType;
     }
 
     /// <summary>
