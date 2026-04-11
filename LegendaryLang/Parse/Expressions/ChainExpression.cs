@@ -946,7 +946,6 @@ public class MethodCallKind : IChainKind
                 var method = td.GetMethod(methodName);
                 if (method == null || method.Parameters.Length == 0 || method.Parameters[0].Name != "self") continue;
                 var autoRefKind = DetectAutoRefKind(method.Parameters[0].TypePath);
-                CheckImplicitBorrow(autoRefKind, rootVarName, analyzer);
                 CallExpressionHelper.CheckSelfMove(autoRefKind, rootVarName, originalReceiverType, analyzer, tokenLoc);
                 var traitPath = (td as IDefinition).TypePath;
                 var traitReturnType = CallExpressionHelper.IsSelfReturnType(method.ReturnTypePath)
@@ -1052,7 +1051,6 @@ public class MethodCallKind : IChainKind
         bool needsAutoDeref, int autoDerefDepth)
     {
         var (impl, method, bindings, autoRefKind) = candidate;
-        CheckImplicitBorrow(autoRefKind, rootVarName, analyzer);
         CallExpressionHelper.CheckSelfMove(autoRefKind, rootVarName, originalReceiverType, analyzer, tokenLoc);
         CallExpressionHelper.ValidateCallArguments(method, arguments,
             ImmutableArray<LangPath>.Empty, analyzer, tokenLoc, selfOffset: 1);
@@ -1099,13 +1097,6 @@ public class MethodCallKind : IChainKind
 
     private static RefKind? DetectAutoRefKind(LangPath? selfParamType)
         => RefTypeDefinition.TryExtractRefKindFromPath(selfParamType);
-
-    /// <summary>
-    private static void CheckImplicitBorrow(RefKind? autoRefKind, string? receiverVarName, SemanticAnalyzer analyzer)
-    {
-        if (autoRefKind == null || receiverVarName == null) return;
-        analyzer.InvalidateConflictingBorrows(receiverVarName, autoRefKind.Value);
-    }
 
     private static RefKind? GetReceiverAccessCapability(IExpression expr)
     {

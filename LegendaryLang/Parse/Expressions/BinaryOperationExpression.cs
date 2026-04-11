@@ -205,10 +205,6 @@ public class BinaryOperationExpression : IExpression
             // Uses the same borrow analysis as explicit & expressions.
             PointerGetterExpression.AnalyzeBorrow(Left, RefKind.Shared, analyzer);
             PointerGetterExpression.AnalyzeBorrow(Right, RefKind.Shared, analyzer);
-
-            // Check for conflicting borrows across both operands
-            CallExpressionHelper.CheckBorrowConflicts(
-                [Left, Right], analyzer, Left.Token);
         }
         else
         {

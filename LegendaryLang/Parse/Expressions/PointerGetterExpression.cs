@@ -74,14 +74,7 @@ public class PointerGetterExpression : IExpression
     /// </summary>
     internal static void AnalyzeBorrow(IExpression expr, RefKind refKind, SemanticAnalyzer analyzer)
     {
-        var prevSuppress = analyzer.SuppressUseWhileBorrowedChecks;
-        analyzer.SuppressUseWhileBorrowedChecks = true;
         expr.Analyze(analyzer);
-        analyzer.SuppressUseWhileBorrowedChecks = prevSuppress;
-
-        var borrowOrigin = ExtractBorrowOrigin(expr);
-        if (borrowOrigin != null)
-            analyzer.InvalidateConflictingBorrows(borrowOrigin, refKind);
     }
 
     /// <summary>

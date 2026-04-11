@@ -31,11 +31,6 @@ public class StructCreationExpression : IExpression
     {
         foreach (var i in AssignFields) i.EqualsTo.Analyze(analyzer);
 
-        // Check for conflicting borrows across field initializers
-        // e.g., make Foo { a: &mut x, b: &mut x }
-        CallExpressionHelper.CheckBorrowConflicts(
-            AssignFields.Select(f => f.EqualsTo), analyzer, Token);
-
         // Look up definition, stripping generics if needed
         var str = analyzer.GetDefinition(TypePath);
         if (str == null && TypePath is NormalLangPath nlpType && nlpType.GetFrontGenerics().Length > 0)

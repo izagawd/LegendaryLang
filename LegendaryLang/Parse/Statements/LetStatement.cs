@@ -195,8 +195,6 @@ public class LetStatement : IStatement
         var borrowSources = ExtractBorrowSources(EqualsTo, analyzer);
         foreach (var (sourceName, refKind) in borrowSources)
         {
-            // NLL-style: invalidate conflicting borrows
-            analyzer.InvalidateConflictingBorrows(sourceName, refKind);
             analyzer.RegisterBorrow(sourceName, VariableDefinition.Name, refKind, TypePath);
 
             if (!analyzer.IsFunctionParameter(sourceName))

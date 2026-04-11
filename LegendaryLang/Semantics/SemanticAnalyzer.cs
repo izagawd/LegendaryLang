@@ -219,37 +219,6 @@ public class DanglingReferenceException : SemanticException
     }
 }
 
-public class BorrowConflictException : SemanticException
-{
-    public string Source { get; }
-    public RefKind NewKind { get; }
-    public RefKind ExistingKind { get; }
-    public string ExistingBorrower { get; }
-    public BorrowConflictException(string source, string existingBorrower, RefKind existingKind, RefKind newKind, string location)
-        : base($"Cannot create &{RefTypeDefinition.GetRefName(newKind)} borrow of '{source}': " +
-               $"conflicts with existing &{RefTypeDefinition.GetRefName(existingKind)} borrow '{existingBorrower}'\n{location}")
-    {
-        Source = source;
-        ExistingBorrower = existingBorrower;
-        NewKind = newKind;
-        ExistingKind = existingKind;
-    }
-}
-
-public class UseWhileBorrowedException : SemanticException
-{
-    public string Source { get; }
-    public string Borrower { get; }
-    public RefKind BorrowKind { get; }
-    public UseWhileBorrowedException(string source, string borrower, RefKind borrowKind, string location)
-        : base($"Cannot use '{source}' because it was borrowed as &{RefTypeDefinition.GetRefName(borrowKind)} by '{borrower}'\n{location}")
-    {
-        Source = source;
-        Borrower = borrower;
-        BorrowKind = borrowKind;
-    }
-}
-
 public class MoveWhileBorrowedException : SemanticException
 {
     public string Source { get; }
@@ -332,11 +301,6 @@ public class SemanticAnalyzer
 
     /// <summary>
     /// When true, PathExpression.Analyze skips the "use while exclusively borrowed" check.
-    /// Set by PointerGetterExpression so that re-borrowing (e.g., &amp;mut a when a is already
-    /// &amp;mut-borrowed) is handled by the existing borrow compatibility rules, not the source-use check.
-    /// </summary>
-    public bool SuppressUseWhileBorrowedChecks { get; set; }
-
     /// <summary>
     /// Tracks which traits are in scope (imported via `use` or defined in the current file).
     /// Trait methods can only be called when their trait is in scope.
@@ -528,44 +492,6 @@ public class SemanticAnalyzer
         activeList.Add((borrower, kind));
     }
 
-    private static bool AreRefKindsCompatible(RefKind a, RefKind b)
-    {
-        // All borrows are compatible — no exclusive references exist
-        return true;
-    }
-
-    /// <summary>
-    /// NLL-style: invalidate any existing borrows from <paramref name="source"/>
-    /// that conflict with <paramref name="newKind"/>. Searches all scopes.
-    /// </summary>
-    public void InvalidateConflictingBorrows(string source, RefKind newKind)
-    {
-        foreach (var scope in _borrowScopes)
-        {
-            if (!scope.ActiveBorrows.TryGetValue(source, out var activeList))
-                continue;
-
-
-            var toInvalidate = activeList
-                .Where(b => !AreRefKindsCompatible(b.kind, newKind))
-                .Select(b => b.borrower)
-                .ToList();
-
-
-            foreach (var borrower in toInvalidate)
-            {
-                // Invalidate in the borrower's own scope
-                foreach (var s in _borrowScopes)
-                    if (s.BorrowerToSource.ContainsKey(borrower))
-                    {
-                        s.InvalidatedBorrows.Add(borrower);
-                        break;
-                    }
-                activeList.RemoveAll(b => b.borrower == borrower);
-            }
-        }
-    }
-
     /// <summary>
     /// Invalidate all borrows from <paramref name="source"/> across all scopes.
     /// Called on shadowing or scope exit.
@@ -626,23 +552,6 @@ public class SemanticAnalyzer
 
         if (IsBorrowInvalidated(fieldPath.Root))
             AddException(new BorrowInvalidatedException(fieldPath.Root, locationString));
-
-        if (!SuppressUseWhileBorrowedChecks)
-        {
-            var exclusiveBorrow = GetActiveExclusiveBorrow(fieldPath.Root);
-            if (exclusiveBorrow != null)
-                AddException(new UseWhileBorrowedException(
-                    fieldPath.Root, exclusiveBorrow.Value.borrower, exclusiveBorrow.Value.kind, locationString));
-        }
-    }
-
-    /// <summary>
-    /// Returns the first active exclusive borrow on the given source variable.
-    /// With only shared and mut references (both non-exclusive), this always returns null.
-    /// </summary>
-    public (string borrower, RefKind kind)? GetActiveExclusiveBorrow(string sourceName)
-    {
-        return null;
     }
 
     /// <summary>
@@ -1589,7 +1498,7 @@ public class SemanticAnalyzer
 
     /// <summary>
     /// Checks if a raw pointer kind can produce a reference of the given kind.
-    /// Follows the deref trait hierarchy: *mut → all, *const → &amp;/&amp;const, etc.
+    /// Follows the deref trait hierarchy: *uniq → all, *const → &amp;/&amp;const, etc.
     /// </summary>
     public void MarkAsMoved(string variableName) => MarkPathMoved(new FieldPath(variableName));
 

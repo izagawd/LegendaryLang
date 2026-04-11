@@ -3,7 +3,6 @@ using LegendaryLang.ConcreteDefinition;
 using LegendaryLang.Definitions;
 using LegendaryLang.Definitions.Types;
 using LegendaryLang.Lex.Tokens;
-using LegendaryLang.Parse.Statements;
 using LegendaryLang.Semantics;
 using LLVMSharp.Interop;
 
@@ -16,54 +15,13 @@ namespace LegendaryLang.Parse.Expressions;
 public static class CallExpressionHelper
 {
     /// <summary>
-    /// Checks for conflicting borrows across a set of sub-expressions within a single compound
-    /// expression (struct literal fields, function call arguments, enum variant fields).
-    /// 
-    /// The problem this solves: PointerGetterExpression.Analyze only invalidates existing borrows
-    /// but doesn't register new ones — registration is deferred to LetStatement. So within a single
-    /// compound expression like `make Foo { a: &amp;mut x, b: &amp;mut x }`, the two borrows never
-    /// see each other. This method collects all borrow sources and checks for conflicts.
-    /// </summary>
-    public static void CheckBorrowConflicts(
-        IEnumerable<IExpression> expressions, SemanticAnalyzer analyzer, Token? errorToken)
-    {
-        var seenBorrows = new List<(string source, RefKind kind, IExpression expr)>();
-        
-        foreach (var expr in expressions)
-        {
-            var sources = LetStatement.ExtractBorrowSources(expr, analyzer);
-            foreach (var (sourceName, refKind) in sources)
-            {
-                // Check against all previously seen borrows from earlier sub-expressions
-                foreach (var (prevSource, prevKind, _) in seenBorrows)
-                {
-                    if (prevSource != sourceName) continue;
-                    
-                    // All borrow kinds are compatible — no exclusive references exist
-                    // No conflict to report
-                }
-                
-                seenBorrows.Add((sourceName, refKind, expr));
-            }
-        }
-    }
-
-    /// <summary>
     /// Analyzes arguments and marks them as moved.
-    /// Also checks for conflicting borrows across arguments.
     /// </summary>
     public static void AnalyzeArgumentsWithReborrow(
         ImmutableArray<IExpression> arguments, SemanticAnalyzer analyzer)
     {
         foreach (var arg in arguments)
             AnalyzeExpressionWithReborrow(arg, analyzer);
-        
-        // Check for conflicting borrows across arguments
-        if (arguments.Length > 1)
-        {
-            var token = arguments.Length > 0 ? arguments[0].Token : null;
-            CheckBorrowConflicts(arguments, analyzer, token);
-        }
     }
 
     /// <summary>

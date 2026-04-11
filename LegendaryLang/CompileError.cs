@@ -197,23 +197,6 @@ public class DanglingReferenceError : CompileError
     public override string Message => "Borrowed value does not live long enough";
 }
 
-public class BorrowConflictError : CompileError
-{
-    public required string Source { get; init; }
-    public required string ExistingBorrower { get; init; }
-    public required string NewKindName { get; init; }
-    public required string ExistingKindName { get; init; }
-    public override string Message => $"Cannot create &{NewKindName} borrow of '{Source}': conflicts with existing &{ExistingKindName} borrow '{ExistingBorrower}'";
-}
-
-public class UseWhileBorrowedError : CompileError
-{
-    public required string Source { get; init; }
-    public required string Borrower { get; init; }
-    public required string BorrowKindName { get; init; }
-    public override string Message => $"Cannot use '{Source}' because it was borrowed as &{BorrowKindName} by '{Borrower}'";
-}
-
 public class MoveWhileBorrowedError : CompileError
 {
     public required string Source { get; init; }
