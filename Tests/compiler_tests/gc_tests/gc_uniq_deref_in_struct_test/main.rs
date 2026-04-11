@@ -3,7 +3,7 @@ struct Idk['a](T:! Sized) {
 }
 
 fn main() -> i32 {
-    let a = Gc.New(5);
+    let a = GcMut.New(5);
     let b = make Idk { dd: &mut *a };
     *b.dd
 }

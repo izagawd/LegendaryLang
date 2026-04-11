@@ -1,6 +1,6 @@
 fn main() -> i32 {
     {
-        let b: Gc(i32) = Gc.New(99);
+        let b: GcMut(i32) = GcMut.New(99);
     }
     5
 }

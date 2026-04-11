@@ -1,5 +1,5 @@
 struct Inner {
-    data: Gc(i32)
+    data: GcMut(i32)
 }
 
 struct Outer {
@@ -10,7 +10,7 @@ struct Outer {
 fn main() -> i32 {
     {
         let o = make Outer {
-            inner: make Inner { data: Gc.New(999) },
+            inner: make Inner { data: GcMut.New(999) },
             tag: 7
         };
     }

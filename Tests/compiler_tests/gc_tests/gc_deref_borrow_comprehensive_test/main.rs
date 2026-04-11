@@ -1,17 +1,17 @@
-fn read_through(r: &Gc(i32)) -> i32 {
+fn read_through(r: &GcMut(i32)) -> i32 {
     **r
 }
 
-fn write_through(r: &mut Gc(i32), val: i32) {
+fn write_through(r: &mut GcMut(i32), val: i32) {
     **r = val;
 }
 
-fn get_inner_ref(r: &Gc(i32)) -> &i32 {
+fn get_inner_ref(r: &GcMut(i32)) -> &i32 {
     &**r
 }
 
 fn main() -> i32 {
-    let b: Gc(i32) = Gc.New(0);
+    let b: GcMut(i32) = GcMut.New(0);
 
     write_through(&mut b, 42);
 

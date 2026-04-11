@@ -12,6 +12,6 @@ struct Wrap['a] { inner: &'a mut Holder }
 fn main() -> i32 {
     let h = make Holder { val: 42 };
     let w = make Wrap { inner: &mut h };
-    let b = Gc(Wrap).New(w);
+    let b = GcMut(Wrap).New(w);
     b.inner.get_uniq()
 }

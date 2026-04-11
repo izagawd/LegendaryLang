@@ -6,7 +6,7 @@ impl Counter {
     fn get(self: &Self) -> i32 { self.val }
 }
 fn main() -> i32 {
-    let b = Gc.New(make Counter { val: 41 });
+    let b = GcMut.New(make Counter { val: 41 });
     b.inc();
     b.get()
 }

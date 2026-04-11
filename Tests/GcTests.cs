@@ -6,7 +6,7 @@ namespace Tests;
 
 public class GcTests
 {
-    // ── Basic Gc operations ──
+    // ── Basic GcMut operations ──
 
     [Test] public void GcBasicTest() => AssertSuccess("gc_tests/gc_basic_test", 42);
 
@@ -39,8 +39,8 @@ public class GcTests
     [Test]
     public void GcReturnDerefTest()
     {
-        // fn get_val(b: Gc<i32>) -> i32 { *b }
-        // Return value must survive Gc.Drop
+        // fn get_val(b: GcMut<i32>) -> i32 { *b }
+        // Return value must survive GcMut.Drop
         AssertSuccess("gc_tests/gc_return_deref_test", 42);
     }
 
@@ -70,7 +70,7 @@ public class GcTests
     [Test]
     public void GcNestedStructTest()
     {
-        // Gc<Outer> with nested structs, field access through deref: 10+32 = 42
+        // GcMut<Outer> with nested structs, field access through deref: 10+32 = 42
         AssertSuccess("gc_tests/gc_nested_struct_test", 42);
     }
 
@@ -84,7 +84,7 @@ public class GcTests
     [Test]
     public void GcUniqDerefStructShadowTest()
     {
-        // Same as above but the Gc binding is shadowed by the struct — old Gc
+        // Same as above but the GcMut binding is shadowed by the struct — old GcMut
         // still lives on the stack, reference remains valid → *a.dd == 5
         AssertSuccess("gc_tests/gc_uniq_deref_struct_shadow_test", 5);
     }
@@ -208,14 +208,14 @@ public class DropFieldTests
         [Test]
         public void DerefRefBoxChainTest()
         {
-            // &Gc(Foo) → Gc(Foo) → Foo, 2-level chain = 42
+            // &GcMut(Foo) → GcMut(Foo) → Foo, 2-level chain = 42
             AssertSuccess("deref_hierarchy_tests/deref_ref_gc_chain_test", 42);
         }
 
         [Test]
         public void DerefBoxChainMethodTest()
         {
-            // Gc<Gc(Foo)> → Gc(Foo) → Foo, 2-level smart pointer chain = 42
+            // GcMut<GcMut(Foo)> → GcMut(Foo) → Foo, 2-level smart pointer chain = 42
             AssertSuccess("deref_hierarchy_tests/deref_gc_chain_method_test", 42);
         }
 
@@ -537,14 +537,14 @@ public class DropFieldTests
         [Test]
         public void ArgTypeNestedGenericCorrectTest()
         {
-            // &Gc(Foo) correct = 42
+            // &GcMut(Foo) correct = 42
             AssertSuccess("arg_type_tests/arg_type_nested_generic_correct_test", 42);
         }
 
         [Test]
         public void ArgTypeGenericOnFnNotTypeFailTest()
         {
-            // Gc(i32).New(42) — generic belongs on Gc, not new
+            // GcMut(i32).New(42) — generic belongs on GcMut, not new
             AssertFail("arg_type_tests/arg_type_generic_on_fn_not_type_fail_test");
         }
 
@@ -823,7 +823,7 @@ public class DropFieldTests
         public void ChainSharedReturnsRefFieldAccessTest()
             => AssertSuccess("method_chain_tests/chain_shared_returns_ref_field_access", 42);
 
-        // ── Chained calls through Gc auto-deref ──
+        // ── Chained calls through GcMut auto-deref ──
 
         [Test]
         public void ChainBoxSharedSharedTest()
@@ -845,7 +845,7 @@ public class DropFieldTests
         public void ChainBoxNestedFieldDerefTest()
             => AssertSuccess("method_chain_tests/chain_gc_nested_field_deref", 42);
 
-        // ── Sequential calls on Gc (mutation + read, NLL) ──
+        // ── Sequential calls on GcMut (mutation + read, NLL) ──
 
         [Test]
         public void ChainBoxUniqThenSharedTest()
@@ -888,7 +888,7 @@ public class DropFieldTests
         public void ChainCopyFieldThroughRefOkTest()
             => AssertSuccess("method_chain_tests/chain_copy_field_through_ref_ok", 42);
 
-        // ── Fail: borrow conflicts through Gc ──
+        // ── Fail: borrow conflicts through GcMut ──
 
 
         [Test]

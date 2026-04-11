@@ -30,6 +30,6 @@ fn main() -> i32 {
     let inner_ptr = alloc(Num);
     *inner_ptr = make Num { val: 42 };
     let w = make Wrapper(Num) { ptr: inner_ptr };
-    let b = Gc(Wrapper(Num)).New(w);
+    let b = GcMut(Wrapper(Num)).New(w);
     b.get()
 }

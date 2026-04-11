@@ -12,6 +12,6 @@ fn call_through(T:! Sized +Deref(Target = Foo), t: &T) -> i32 {
 
 fn main() -> i32 {
     let f = make Foo { val: 5 };
-    let b = Gc(Foo).New(f);
-    call_through(Gc(Foo), &b)
+    let b = GcMut(Foo).New(f);
+    call_through(GcMut(Foo), &b)
 }

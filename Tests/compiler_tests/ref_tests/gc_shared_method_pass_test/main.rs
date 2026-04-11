@@ -4,6 +4,6 @@ impl Foo {
     fn get(self: &Self) -> i32 { self.val }
 }
 fn main() -> i32 {
-    let g = Gc.New(make Foo { val: 42 });
+    let g = GcMut.New(make Foo { val: 42 });
     g.get()
 }

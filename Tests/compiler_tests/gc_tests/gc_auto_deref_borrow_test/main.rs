@@ -14,6 +14,6 @@ impl Pair {
 }
 
 fn main() -> i32 {
-    let b: Gc(Pair) = Gc.New(make Pair { x: 10, y: 32 });
+    let b: GcMut(Pair) = GcMut.New(make Pair { x: 10, y: 32 });
     b.get_x() + b.get_y()
 }

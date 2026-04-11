@@ -256,7 +256,7 @@ public class DerefExpression : IExpression
     {
         var innerVal = Inner.CodeGen(codeGenContext);
 
-        // When the inner expression is a temporary (e.g., *Gc.New(45)), the smart pointer
+        // When the inner expression is a temporary (e.g., *GcMut.New(45)), the smart pointer
         // value is not bound to any variable, so it would never be dropped. Spill it to an
         // anonymous local so the drop system sees it and calls free at scope exit.
         // This applies only to trait-based deref (Box, smart pointers) — raw references and

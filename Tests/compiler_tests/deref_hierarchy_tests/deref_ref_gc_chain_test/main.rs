@@ -5,7 +5,7 @@ impl Foo {
 }
 
 fn main() -> i32 {
-    let b = Gc(Foo).New(make Foo { val: 42 });
-    let r: &Gc(Foo) = &b;
+    let b = GcMut(Foo).New(make Foo { val: 42 });
+    let r: &GcMut(Foo) = &b;
     r.get()
 }

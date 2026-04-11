@@ -12,6 +12,6 @@ impl Foo {
 }
 
 fn main() -> i32 {
-    let b: Gc(Foo) = Gc.New(make Foo { x: 10, y: 32 });
+    let b: GcMut(Foo) = GcMut.New(make Foo { x: 10, y: 32 });
     b.sum()
 }

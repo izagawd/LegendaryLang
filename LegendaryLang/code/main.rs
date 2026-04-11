@@ -1,5 +1,5 @@
 ﻿
 fn main() -> i32{
-    let made =  *Gc.New(45);
+    let made =  *GcMut.New(45);
 
 }

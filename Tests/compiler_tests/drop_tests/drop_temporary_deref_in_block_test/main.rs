@@ -1,4 +1,4 @@
-// The temporary Gc created by *Gc.New(x) inside an inner block must be
+// The temporary GcMut created by *GcMut.New(x) inside an inner block must be
 // dropped when that block exits, not at end of main. We verify via a
 // side-channel counter that drop has already fired by the time we reach
 // the addition after the block.

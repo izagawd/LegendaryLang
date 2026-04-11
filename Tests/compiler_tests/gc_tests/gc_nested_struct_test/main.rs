@@ -10,7 +10,7 @@ struct Outer {
 impl Copy for Outer {}
 
 fn main() -> i32 {
-    let b: Gc(Outer) = Gc.New(make Outer {
+    let b: GcMut(Outer) = GcMut.New(make Outer {
         a: make Inner { val: 10 },
         b: make Inner { val: 32 }
     });

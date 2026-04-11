@@ -1,4 +1,4 @@
-// b.get_x().get_val() — Gc<Outer> auto-derefs to Outer. get_x returns &Inner (Copy).
+// b.get_x().get_val() — GcMut<Outer> auto-derefs to Outer. get_x returns &Inner (Copy).
 // Then get_val takes &Self on Inner through auto-deref of &Inner.
 use Std.Marker.Copy;
 struct Inner { val: i32 }
@@ -7,6 +7,6 @@ struct Outer { x: Inner }
 impl Outer { fn get_x(self: &Self) -> Inner { self.x } }
 impl Inner { fn get_val(self: &Self) -> i32 { self.val } }
 fn main() -> i32 {
-    let b = Gc.New(make Outer { x: make Inner { val: 42 } });
+    let b = GcMut.New(make Outer { x: make Inner { val: 42 } });
     b.get_x().get_val()
 }
