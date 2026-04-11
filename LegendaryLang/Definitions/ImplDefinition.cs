@@ -476,6 +476,14 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                 && !traitGenericNames.Contains(kv.Key))
                 associatedTypeNames.Add(kv.Key);
 
+        // Build a substitution map for impl types: includes Self and associated types,
+        // but excludes trait generic params to avoid name collisions with impl generic params.
+        // e.g., impl[T] Into(Gc(T)) for GcMut(T) — trait's T→Gc(T) must NOT substitute impl's T.
+        var implSubstitutions = new Dictionary<string, LangPath>();
+        foreach (var kv in traitSubstitutions)
+            if (!traitGenericNames.Contains(kv.Key))
+                implSubstitutions[kv.Key] = kv.Value;
+
         // Push impl generic bounds so TypeImplementsTrait can verify supertrait impls
         // for generic types (e.g., impl[T:! Sized +Copy] A for Wrapper(T) where trait A: B)
         var implBounds = SemanticAnalyzer.BuildGenericBounds(GenericParameters);
@@ -550,7 +558,7 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                     if (traitParamType == null || implParamType == null) continue;
 
                     var resolvedTraitParamType = SubstituteAll(traitParamType, traitSubstitutions, associatedTypeNames);
-                    var resolvedImplParamType = SubstituteAll(implParamType, traitSubstitutions, associatedTypeNames);
+                    var resolvedImplParamType = SubstituteAll(implParamType, implSubstitutions, associatedTypeNames);
                     if (resolvedTraitParamType != resolvedImplParamType)
                     {
                         // If trait expects &T and impl provides T, auto-adjust the impl param
@@ -577,7 +585,7 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
             // Validate return type matches
             {
                 var resolvedTraitReturn = SubstituteAll(traitMethod.ReturnTypePath, traitSubstitutions, associatedTypeNames);
-                var resolvedImplReturn = SubstituteAll(implMethod.ReturnTypePath, traitSubstitutions, associatedTypeNames);
+                var resolvedImplReturn = SubstituteAll(implMethod.ReturnTypePath, implSubstitutions, associatedTypeNames);
                 if (resolvedTraitReturn != resolvedImplReturn)
                 {
                     analyzer.AddException(new SemanticException(
@@ -608,7 +616,7 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                         .Select(tb => SubstituteAll(tb.TraitPath, traitSubstitutions))
                         .ToList();
                     var resolvedImplBounds = implGp.TraitBounds
-                        .Select(tb => SubstituteAll(tb.TraitPath, traitSubstitutions))
+                        .Select(tb => SubstituteAll(tb.TraitPath, implSubstitutions))
                         .ToList();
 
                     // Impl must not add bounds that the trait didn't require

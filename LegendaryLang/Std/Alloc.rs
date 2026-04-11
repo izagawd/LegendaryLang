@@ -6,7 +6,8 @@ use Std.Mem.AlignOf;
 use Std.Ptr.PtrWrite;
 use Std.Ptr.PtrAsU8;
 use Std.Ptr.DestructPtr;
-
+use Std.Ops.Into;
+use Std.Ops.TryInto;
 fn Alloc(size: usize, align: usize) -> *mut u8;
 fn Dealloc(ptr: *mut u8, size: usize, align: usize);
 fn AllocZeroed(size: usize, align: usize) -> *mut u8;
@@ -64,4 +65,18 @@ impl[T:! type] DerefMut for GcMut(T) {
     fn deref_mut(self: &mut Self) -> &mut T {
         &mut *self.ptr
     }
+}
+
+impl[T:! type] Into(Gc(T)) for GcMut(T) {
+    fn Into(self: Self) -> Gc(T) {
+        make Gc {
+            ptr: self.ptr
+        }    
+    }
+}
+
+impl[T:! type] TryInto(Gc(T)) for GcMut(T) {
+    fn TryInto(self: Self) -> Option(Gc(T)) {
+        Option.Some(self.Into())    
+    }    
 }

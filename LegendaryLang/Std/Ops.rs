@@ -236,6 +236,10 @@ impl[T:! PartialOrd(T)] PartialOrd(&mut T) for &mut T {
     }
 }
 
+trait Into(T:! Sized): TryInto(T) {
+    fn Into(self: Self) -> T;    
+}
+
 trait TryInto(T:! Sized): Sized {
     fn TryInto(self: Self) -> Option(T);
 }

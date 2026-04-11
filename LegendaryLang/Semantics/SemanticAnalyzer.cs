@@ -2046,6 +2046,7 @@ public class SemanticAnalyzer
         // Everything else requires explicit path or 'use'.
         var autoImportPaths = new[]
         {
+            new NormalLangPath(null, new NormalLangPath.PathSegment[] { "Std", "Alloc", "Gc" }),
             new NormalLangPath(null, new NormalLangPath.PathSegment[] { "Std", "Alloc", "GcMut" }),
             new NormalLangPath(null, new NormalLangPath.PathSegment[] { "Std", "Marker", "Copy" }),
             new NormalLangPath(null, new NormalLangPath.PathSegment[] { "Std", "Marker", "MutReassign" }),
