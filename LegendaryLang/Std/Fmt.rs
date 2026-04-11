@@ -39,12 +39,12 @@ impl[T:! ToString] ToString for &mut T {
 
 impl[T:! ToString] ToString for Gc(T) {
     fn ToString(self: &Self) -> &str {
-        self.deref().ToString()
+        (*self).deref().ToString()
     }
 }
 
 impl[T:! ToString] ToString for GcMut(T) {
     fn ToString(self: &Self) -> &str {
-        self.deref().ToString()
+        (*self).deref().ToString()
     }
 }

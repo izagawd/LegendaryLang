@@ -239,6 +239,12 @@ public class DerefExpression : IExpression
 
             ptrVal = retRefType.ExtractDataPointer(context, derefResult);
             pointeeType = retRefType.PointingToType;
+
+            // Unsized pointee (str, slices): the fat pointer IS the value.
+            // Extracting just the data pointer would lose the metadata (length).
+            // Return the reference itself — same as RefType and RawPtrType cases.
+            if (pointeeType is UnsizedType)
+                return derefResult;
         }
         else
         {
