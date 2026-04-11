@@ -3,7 +3,7 @@ enum Holder {
     Empty
 }
 
-fn set(h: &uniq Holder, v: i32) {
+fn set(h: &mut Holder, v: i32) {
     match h {
         Holder.Val(x) => *x = v,
         Holder.Empty => {}
@@ -12,8 +12,8 @@ fn set(h: &uniq Holder, v: i32) {
 
 fn main() -> i32 {
     let h = Holder.Val(0);
-    set(&uniq h, 42);
-    set(&uniq h, 77);
+    set(&mut h, 42);
+    set(&mut h, 77);
     match h {
         Holder.Val(v) => v,
         Holder.Empty => 0

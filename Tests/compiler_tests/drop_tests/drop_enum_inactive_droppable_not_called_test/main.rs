@@ -3,7 +3,7 @@ use Std.Ops.Drop;
 struct Tracker['a] { r: &'a mut i32 }
 
 impl['a] Drop for Tracker['a] {
-    fn Drop(self: &uniq Self) { *self.r = *self.r + 1; }
+    fn Drop(self: &mut Self) { *self.r = *self.r + 1; }
 }
 
 enum Maybe['a] {

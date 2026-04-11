@@ -1,5 +1,5 @@
 fn bad(r: &i32) -> i32 {
-    let a: &uniq i32 = &uniq *r;
+    let a: &mut i32 = &mut *r;
     *a
 }
 fn main() -> i32 { 0 }

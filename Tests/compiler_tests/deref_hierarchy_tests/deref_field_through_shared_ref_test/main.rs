@@ -7,7 +7,7 @@ impl Holder {
 }
 
 struct Wrapper['a] {
-    inner: &'a uniq Holder
+    inner: &'a mut Holder
 }
 
 fn read_through(w: &Wrapper) -> i32 {
@@ -16,6 +16,6 @@ fn read_through(w: &Wrapper) -> i32 {
 
 fn main() -> i32 {
     let h = make Holder { val: 42 };
-    let w = make Wrapper { inner: &uniq h };
+    let w = make Wrapper { inner: &mut h };
     read_through(&w)
 }

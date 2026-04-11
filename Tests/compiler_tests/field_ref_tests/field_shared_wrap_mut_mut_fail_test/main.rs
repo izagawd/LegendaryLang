@@ -3,8 +3,8 @@ impl Copy for Holder {}
 impl Holder {
     fn get(self: &Self) -> i32 { self.val }
     fn get_mut(self: &mut Self) -> i32 { self.val }
-    fn get_const(self: &const Self) -> i32 { self.val }
-    fn get_uniq(self: &uniq Self) -> i32 { self.val }
+    fn get_const_CONST_REFERENCE_TYPES_ARE_NOW_DEPRECATED(self: & Self) -> i32 { self.val }
+    fn get_uniq(self: &mut Self) -> i32 { self.val }
 }
 
 struct WrapMut['a] { inner: &'a mut Holder }

@@ -7,11 +7,11 @@ impl Holder {
 }
 
 struct Middle['a] {
-    target: &'a uniq Holder
+    target: &'a mut Holder
 }
 
 struct Outer['a, 'b] {
-    mid: &'a uniq Middle['b]
+    mid: &'a mut Middle['b]
 }
 
 fn deep_read(o: &Outer) -> i32 {
@@ -20,7 +20,7 @@ fn deep_read(o: &Outer) -> i32 {
 
 fn main() -> i32 {
     let h = make Holder { val: 42 };
-    let m = make Middle { target: &uniq h };
-    let o = make Outer { mid: &uniq m };
+    let m = make Middle { target: &mut h };
+    let o = make Outer { mid: &mut m };
     deep_read(&o)
 }

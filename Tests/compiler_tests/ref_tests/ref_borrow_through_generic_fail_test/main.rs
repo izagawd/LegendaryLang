@@ -1,5 +1,5 @@
 struct Yo['a]{
-    dd: &'a uniq i32
+    dd: &'a mut i32
 }
 
 fn PassAround[T:! type](input: T) -> T {
@@ -9,7 +9,7 @@ fn PassAround[T:! type](input: T) -> T {
 fn main() -> i32 {
     let dd = 5;
     let yo = make Yo {
-        dd: &uniq dd
+        dd: &mut dd
     };
     let passed = PassAround(yo);
     dd = 10;

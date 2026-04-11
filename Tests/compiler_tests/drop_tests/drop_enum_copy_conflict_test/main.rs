@@ -7,7 +7,7 @@ enum Color {
 impl Copy for Color {}
 
 impl Drop for Color {
-    fn Drop(self: &uniq Self) {}
+    fn Drop(self: &mut Self) {}
 }
 
 fn main() -> i32 {

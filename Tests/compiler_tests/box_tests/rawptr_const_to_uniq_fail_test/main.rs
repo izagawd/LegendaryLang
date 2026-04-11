@@ -1,4 +1,4 @@
-fn bad(p: *const i32) -> &uniq i32 {
-    &uniq *p
+fn bad(p: *const i32) -> &mut i32 {
+    &mut *p
 }
 fn main() -> i32 { 0 }

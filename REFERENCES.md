@@ -47,53 +47,53 @@ let m = &mut x;     // ERROR — &const and &mut are incompatible
 
 Raw pointer equivalent: `*const T`
 
-### `&uniq T` — Unique Reference
-Guarantees that **nothing else references the value**. Provides exclusive access — no other reference of any kind can coexist with `&uniq T`.
+### `&mut T` — Unique Reference
+Guarantees that **nothing else references the value**. Provides exclusive access — no other reference of any kind can coexist with `&mut T`.
 
 ```
 let x = 10;
-let u = &uniq x;
-let r = &x;        // ERROR — &uniq is incompatible with everything
+let u = &mut x;
+let r = &x;        // ERROR — &mut is incompatible with everything
 let m = &mut x;     // ERROR
 let c = &const x;   // ERROR
 ```
 
-Raw pointer equivalent: `*uniq T`
+Raw pointer equivalent: `*mut T`
 
 ## Compatibility Table
 
-| Existing ↓ / New → | `&`  | `&mut` | `&const` | `&uniq` |
+| Existing ↓ / New → | `&`  | `&mut` | `&const` | `&mut` |
 |---------------------|------|--------|----------|---------|
 | `&`                 | ✅   | ✅     | ✅       | ❌      |
 | `&mut`              | ✅   | ✅     | ❌       | ❌      |
 | `&const`            | ✅   | ❌     | ✅       | ❌      |
-| `&uniq`             | ❌   | ❌     | ❌       | ❌      |
+| `&mut`             | ❌   | ❌     | ❌       | ❌      |
 
 ## Capability Hierarchy (Deref Chain Narrowing)
 
 When accessing fields through references, the outer reference narrows what the inner reference can produce:
 
 ```
-&uniq  >  &mut, &const  >  &
+&mut  >  &mut, &const  >  &
 ```
 
 - Through `&Wrapper`, you can only produce `&` access to fields
 - Through `&mut Wrapper`, you can produce up to `&mut` access
 - Through `&const Wrapper`, you can produce up to `&const` access
-- Through `&uniq Wrapper`, you can produce any level of access
+- Through `&mut Wrapper`, you can produce any level of access
 
-Example: if `Wrapper` has field `inner: &uniq Holder`, accessing through `&Wrapper` narrows the effective capability to `&` — you cannot call a method requiring `&uniq Self` on the inner field.
+Example: if `Wrapper` has field `inner: &mut Holder`, accessing through `&Wrapper` narrows the effective capability to `&` — you cannot call a method requiring `&mut Self` on the inner field.
 
 ```
-struct Wrapper['a] { inner: &'a uniq Holder }
+struct Wrapper['a] { inner: &'a mut Holder }
 
 fn through_shared(w: &Wrapper) -> i32 {
     w.inner.get()       // OK — & method through & wrapper
-    // w.inner.modify() // ERROR — &uniq method through & wrapper
+    // w.inner.modify() // ERROR — &mut method through & wrapper
 }
 
-fn through_uniq(w: &uniq Wrapper) -> i32 {
-    w.inner.modify()    // OK — &uniq method through &uniq wrapper
+fn through_uniq(w: &mut Wrapper) -> i32 {
+    w.inner.modify()    // OK — &mut method through &mut wrapper
 }
 ```
 
@@ -101,7 +101,7 @@ fn through_uniq(w: &uniq Wrapper) -> i32 {
 
 When a variable is borrowed, the original variable is restricted based on the reference kind:
 
-- **`&uniq` borrow**: The source variable cannot be used in any way until the `&uniq` reference is no longer alive (NLL — last use determines liveness).
+- **`&mut` borrow**: The source variable cannot be used in any way until the `&mut` reference is no longer alive (NLL — last use determines liveness).
 - **`&mut` borrow**: Can coexist with `&` borrows. Incompatible with `&const` borrows.
 - **`&const` borrow**: Can coexist with `&` borrows. Incompatible with `&mut` borrows.
 - **`&` borrow**: Can coexist with `&`, `&mut`, and `&const` borrows.
@@ -111,11 +111,11 @@ When a variable is borrowed, the original variable is restricted based on the re
 Types with lifetime parameters (e.g., `Holder['a]`) carry borrows from their reference fields. The borrow persists as long as the struct/enum value is alive:
 
 ```
-struct Holder['a] { val: &'a uniq i32 }
+struct Holder['a] { val: &'a mut i32 }
 
 fn main() -> i32 {
     let x = 10;
-    let h = make Holder { val: &uniq x };
+    let h = make Holder { val: &mut x };
     // x = 20;     // ERROR — x is uniquely borrowed by h
     DropNow(h);     // h is consumed, borrow released
     x               // OK — x is accessible again
@@ -127,13 +127,13 @@ fn main() -> i32 {
 When a function takes a reference parameter and returns a value that could hold a borrow (reference or lifetime-bearing type), the return value inherits the borrow:
 
 ```
-fn wrap(r: &uniq i32) -> Holder {
+fn wrap(r: &mut i32) -> Holder {
     make Holder { val: r }
 }
 
 fn main() -> i32 {
     let x = 10;
-    let h = wrap(&uniq x);   // h borrows from x
+    let h = wrap(&mut x);   // h borrows from x
     // let y = x;             // ERROR — x borrowed by h
     DropNow(h);               // borrow released
     x                         // OK
@@ -151,13 +151,13 @@ Each reference kind has a corresponding deref trait:
 | `&T`      | `Deref`      | `deref(&Self)`       | `&Target`   |
 | `&const T`| `DerefConst` | `deref_const(&const Self)` | `&const Target` |
 | `&mut T`  | `DerefMut`   | `deref_mut(&mut Self)`   | `&mut Target`   |
-| `&uniq T` | `DerefUniq`  | `deref_uniq(&uniq Self)`  | `&uniq Target`  |
+| `&mut T` | `DerefUniq`  | `deref_uniq(&mut Self)`  | `&mut Target`  |
 
 Smart pointers (like `Box(T)`) implement these traits to enable transparent field access and method calls through the pointer.
 
 ## MutReassign Trait
 
-By default, reassigning a value through `&mut` is forbidden. Only `&uniq` allows arbitrary reassignment. To allow reassignment through `&mut`, a type must implement the `MutReassign` marker trait:
+By default, reassigning a value through `&mut` is forbidden. Only `&mut` allows arbitrary reassignment. To allow reassignment through `&mut`, a type must implement the `MutReassign` marker trait:
 
 ```
 use Std.Marker.MutReassign;
@@ -179,7 +179,7 @@ fn main() -> i32 {
 - All primitive types (`i32`, `u8`, `usize`, `bool`), references, and raw pointers implement `MutReassign` automatically.
 - Structs can implement `MutReassign` only if **all fields** implement `MutReassign`.
 - Enums can implement `MutReassign` only if they are **flat** (all unit variants, no payload).
-- `&uniq` always allows reassignment regardless of `MutReassign`.
+- `&mut` always allows reassignment regardless of `MutReassign`.
 - `MutReassign` is auto-imported (like `Copy` and `Box`).
 
 ### Why?
@@ -218,29 +218,29 @@ The binding's reference kind matches the scrutinee's reference kind:
 | `&Enum` | `&T` |
 | `&mut Enum` | `&mut T` |
 | `&const Enum` | `&const T` |
-| `&uniq Enum` | `&uniq T` |
+| `&mut Enum` | `&mut T` |
 
 ## Auto-Reborrow
 
-When a `&uniq` reference is passed to a function, it is automatically reborrowed rather than moved. This allows reusing the reference after the call:
+When a `&mut` reference is passed to a function, it is automatically reborrowed rather than moved. This allows reusing the reference after the call:
 
 ```
-fn set(r: &uniq i32, val: i32) {
+fn set(r: &mut i32, val: i32) {
     *r = val;
 }
 
 fn main() -> i32 {
     let x = 0;
-    let r = &uniq x;
+    let r = &mut x;
     set(r, 10);     // auto-reborrow — r is NOT consumed
     set(r, 20);     // can still use r
     *r              // 20
 }
 ```
 
-This matches Rust's `&mut` auto-reborrow behavior. Without auto-reborrow, `&uniq` would be moved on first use (since it's non-Copy), making it impractical for exclusive references.
+This matches Rust's `&mut` auto-reborrow behavior. Without auto-reborrow, `&mut` would be moved on first use (since it's non-Copy), making it impractical for exclusive references.
 
-Note: `let p = r` still moves `&uniq` — auto-reborrow only applies to function/method arguments.
+Note: `let p = r` still moves `&mut` — auto-reborrow only applies to function/method arguments.
 
 ## Non-Lexical Lifetimes (NLL)
 
@@ -249,7 +249,7 @@ Borrows expire at the borrower's **last use**, not at the end of the enclosing s
 ```
 fn main() -> i32 {
     let x = 10;
-    let r = &uniq x;
+    let r = &mut x;
     let val = *r;        // last use of r — borrow expires here
     x + val              // OK — x is accessible again
 }
@@ -274,7 +274,7 @@ When a type with lifetime parameters (e.g., `Holder['a]`) is passed through a ge
 
 ```
 struct Holder['a] {
-    r: &'a uniq i32
+    r: &'a mut i32
 }
 
 fn PassAround[T:! type](input: T) -> T {
@@ -283,7 +283,7 @@ fn PassAround[T:! type](input: T) -> T {
 
 fn main() -> i32 {
     let x = 5;
-    let h = make Holder { r: &uniq x };
+    let h = make Holder { r: &mut x };
     let h2 = PassAround(h);    // h2 still borrows x
     // x = 10;                  // ERROR — x borrowed by h2
     0

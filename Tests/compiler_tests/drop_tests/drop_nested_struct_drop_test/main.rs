@@ -5,11 +5,11 @@ struct Inner {
 
 struct Outer['a] {
     inner: Inner,
-    r: &'a uniq i32
+    r: &'a mut i32
 }
 
 impl['a] Drop for Outer['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.r = *self.r + self.inner.x;
     }
 }
@@ -17,7 +17,7 @@ impl['a] Drop for Outer['a] {
 fn main() -> i32 {
     let counter = 0;
     {
-        let o = make Outer { inner : make Inner { x : 15 }, r : &uniq counter };
+        let o = make Outer { inner : make Inner { x : 15 }, r : &mut counter };
     }
     counter
 }

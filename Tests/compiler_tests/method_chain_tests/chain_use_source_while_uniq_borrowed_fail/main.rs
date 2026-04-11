@@ -1,4 +1,4 @@
-// Wrapper borrows &uniq dropped. While vald (which holds &uniq dropped) is live,
+// Wrapper borrows &mut dropped. While vald (which holds &mut dropped) is live,
 // using dropped directly is a use-while-borrowed error.
 use Std.Ops.Drop;
 use Std.Deref.Receiver;
@@ -6,11 +6,11 @@ use Std.Deref.Deref;
 
 struct Wrapper['a] {
     inner: Box(i32),
-    dropped: &'a uniq i32
+    dropped: &'a mut i32
 }
 
 impl['a] Wrapper['a] {
-    fn New(dropped: &'a uniq i32, val: i32) -> Wrapper['a] {
+    fn New(dropped: &'a mut i32, val: i32) -> Wrapper['a] {
         make Wrapper { inner: Box.New(val), dropped: dropped }
     }
 }
@@ -21,14 +21,14 @@ impl['a] Deref for Wrapper['a] {
 }
 
 impl['a] Drop for Wrapper['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.dropped = *self.dropped + 1;
     }
 }
 
 fn Run() -> i32 {
     let dropped = 0;
-    let vald = Wrapper.New(&uniq dropped, 7);
+    let vald = Wrapper.New(&mut dropped, 7);
     let val = &*vald;
     *val + dropped
 }

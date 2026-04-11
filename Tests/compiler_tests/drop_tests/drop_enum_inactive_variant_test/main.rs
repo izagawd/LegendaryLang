@@ -1,7 +1,7 @@
 use Std.Ops.Drop;
 
 struct Droppable['a] {
-    reference: &'a uniq i32
+    reference: &'a mut i32
 }
 
 enum Foo['a] {
@@ -10,7 +10,7 @@ enum Foo['a] {
 }
 
 impl['a] Drop for Droppable['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.reference = *self.reference + 1;
     }
 }

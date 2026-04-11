@@ -5,7 +5,7 @@ struct Counter['a] {
 }
 
 impl['a] Drop for Counter['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.val = *self.val + 10;
     }
 }

@@ -5,8 +5,8 @@ impl Foo {
 }
 fn main() -> i32 {
     let f = make Foo { val: 5 };
-    let r: &uniq Foo = &uniq f;
-    let rr: &&uniq Foo = &r;
+    let r: &mut Foo = &mut f;
+    let rr: &&mut Foo = &r;
     f.get();
     rr.get()
 }

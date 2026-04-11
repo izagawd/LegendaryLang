@@ -1,6 +1,6 @@
 use Std.Ops.Drop;
 struct Wrapper(T:! type) {
-    ptr: *uniq T
+    ptr: *mut T
 }
 
 impl[T:! type] Receiver for Wrapper(T) {
@@ -14,7 +14,7 @@ impl[T:! type] Deref for Wrapper(T) {
 }
 
 impl[T:! type] Drop for Wrapper(T) {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         free(self.ptr);
     }
 }

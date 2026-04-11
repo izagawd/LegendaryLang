@@ -1,10 +1,10 @@
 use Std.Ops.Drop;
 struct Dropper['a] {
-    r: &'a uniq i32
+    r: &'a mut i32
 }
 
 impl['a] Drop for Dropper['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.r = *self.r + 1;
     }
 }
@@ -12,10 +12,10 @@ impl['a] Drop for Dropper['a] {
 fn main() -> i32 {
     let counter = 0;
     {
-        let d1 = make Dropper { r : &uniq counter };
+        let d1 = make Dropper { r : &mut counter };
     }
     {
-        let d2 = make Dropper { r : &uniq counter };
+        let d2 = make Dropper { r : &mut counter };
     }
     counter
 }

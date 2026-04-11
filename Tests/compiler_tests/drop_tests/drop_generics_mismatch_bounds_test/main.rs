@@ -6,7 +6,7 @@ struct Wrapper(T:! Foo) {
 }
 
 impl[T:! type] Drop for Wrapper(T) {
-    fn Drop(self: &uniq Self) {}
+    fn Drop(self: &mut Self) {}
 }
 
 fn main() -> i32 {

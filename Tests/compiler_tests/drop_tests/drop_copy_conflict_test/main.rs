@@ -5,7 +5,7 @@ struct Foo {
 
 impl Copy for Foo {}
 impl Drop for Foo {
-    fn Drop(self: &uniq Self) {}
+    fn Drop(self: &mut Self) {}
 }
 
 fn main() -> i32 {

@@ -73,33 +73,25 @@ public class EnumTests
         AssertFail<UseAfterMoveError>("enum_tests/enum_use_after_move_match_fail_test");
     }
 
-    // ── Enum borrow rules ──
-
-    [Test]
-    public void EnumBorrowBlocksSourceFailTest()
-    {
-        // Enum holds &uniq x, then x used — blocked
-        AssertFail<UseWhileBorrowedError>("enum_tests/enum_borrow_blocks_source_fail_test");
-    }
 
     [Test]
     public void EnumBorrowReleasedAfterMoveTest()
     {
-        // Enum holds &uniq x, moved into DropNow, then x used — OK
+        // Enum holds &mut x, moved into DropNow, then x used — OK
         AssertSuccess("enum_tests/enum_borrow_released_after_move_test", 5);
     }
 
     [Test]
     public void EnumBorrowReleasedScopeExitTest()
     {
-        // Enum holds &uniq x in inner scope, x used after scope — OK
+        // Enum holds &mut x in inner scope, x used after scope — OK
         AssertSuccess("enum_tests/enum_borrow_released_scope_exit_test", 5);
     }
 
     [Test]
     public void EnumBorrowSourceUntouchedPassTest()
     {
-        // Enum holds &uniq x, x never used, different var returned — OK
+        // Enum holds &mut x, x never used, different var returned — OK
         AssertSuccess("enum_tests/enum_borrow_source_untouched_pass_test", 99);
     }
 

@@ -1,4 +1,4 @@
-fn read_via_uniq(p: *uniq i32) -> &i32 {
+fn read_via_uniq(p: *mut i32) -> &i32 {
     &*p
 }
 fn main() -> i32 {

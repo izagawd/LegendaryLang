@@ -3,11 +3,11 @@ struct Holder {
 }
 impl Copy for Holder {}
 impl Holder {
-    fn modify(self: &uniq Self) -> i32 { self.val }
+    fn modify(self: &mut Self) -> i32 { self.val }
 }
 
 struct Wrapper['a] {
-    inner: &'a uniq Holder
+    inner: &'a mut Holder
 }
 
 fn modify_through(w: &Wrapper) -> i32 {
@@ -16,6 +16,6 @@ fn modify_through(w: &Wrapper) -> i32 {
 
 fn main() -> i32 {
     let h = make Holder { val: 42 };
-    let w = make Wrapper { inner: &uniq h };
+    let w = make Wrapper { inner: &mut h };
     modify_through(&w)
 }

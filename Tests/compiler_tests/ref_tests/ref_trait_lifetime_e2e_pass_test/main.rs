@@ -10,6 +10,6 @@ fn main() -> i32 {
     let x = 10;
     let y = 20;
     let r = (i32 as Picker).pick(&x, &y);
-    &uniq y;
+    &mut y;
     *r
 }

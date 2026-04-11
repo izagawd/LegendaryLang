@@ -295,7 +295,7 @@ Implicit lifetime parameters go in `[]`. Generic type parameters go in `()`. The
 
 ```
 struct Holder['a] {
-    r: &'a uniq i32
+    r: &'a mut i32
 }
 
 struct RefWrapper['a](T:! type) {
@@ -805,11 +805,11 @@ Implement `Drop` to run cleanup code when a value goes out of scope:
 use Std.Ops.Drop;
 
 struct Guard['a] {
-    counter: &'a uniq i32
+    counter: &'a mut i32
 }
 
 impl['a] Drop for Guard['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.counter = *self.counter + 1;
     }
 }
@@ -817,7 +817,7 @@ impl['a] Drop for Guard['a] {
 fn main() -> i32 {
     let count = 0;
     {
-        let g = make Guard { counter: &uniq count };
+        let g = make Guard { counter: &mut count };
         // g is dropped here — count becomes 1
     }
     count
@@ -847,7 +847,7 @@ LegendaryLang has four reference kinds with distinct aliasing and mutation guara
 | Shared | `&T` | Multiple | Read-only (but can observe mutations from `&mut`) | `&`, `&mut`, `&const` |
 | Mutable | `&mut T` | Multiple | Read + Write | `&`, `&mut` |
 | Const | `&const T` | Multiple | Read-only (guaranteed no mutations observed) | `&`, `&const` |
-| Unique | `&uniq T` | Exclusive | Read + Write | Nothing |
+| Unique | `&mut T` | Exclusive | Read + Write | Nothing |
 
 ```
 fn increment(r: &mut i32) {
@@ -875,7 +875,7 @@ fn main() -> i32 {
 }
 ```
 
-`&uniq` can always reassign any type. `&mut` can only reassign types that implement `MutReassign`:
+`&mut` can always reassign any type. `&mut` can only reassign types that implement `MutReassign`:
 
 ```
 use Std.Marker.MutReassign;
@@ -911,16 +911,16 @@ fn main() -> i32 {
 
 ### Auto-Reborrow
 
-`&uniq` references are automatically reborrowed when passed to functions, allowing reuse:
+`&mut` references are automatically reborrowed when passed to functions, allowing reuse:
 
 ```
-fn set(r: &uniq i32, val: i32) {
+fn set(r: &mut i32, val: i32) {
     *r = val;
 }
 
 fn main() -> i32 {
     let x = 0;
-    let r = &uniq x;
+    let r = &mut x;
     set(r, 10);              // r is reborrowed, not moved
     set(r, 20);              // can use r again
     *r                       // 20
@@ -933,7 +933,7 @@ Lifetime parameters on structs declare that the type borrows from external data:
 
 ```
 struct Holder['a] {
-    val: &'a uniq i32
+    val: &'a mut i32
 }
 ```
 
@@ -961,7 +961,7 @@ Borrows expire at the borrower's **last use**, not at scope exit:
 ```
 fn main() -> i32 {
     let x = 10;
-    let r = &uniq x;
+    let r = &mut x;
     let val = *r;             // last use of r
     x + val                   // OK — r's borrow has expired
 }
@@ -969,7 +969,7 @@ fn main() -> i32 {
 
 ### Raw Pointers
 
-Raw pointers (`*shared`, `*const`, `*mut`, `*uniq`) are the unsafe counterparts of references. They are used internally by `Box` and the allocator but bypass borrow checking:
+Raw pointers (`*shared`, `*const`, `*mut`, `*mut`) are the unsafe counterparts of references. They are used internally by `Box` and the allocator but bypass borrow checking:
 
 ```
 // Raw pointers are primarily used through Box internals
@@ -1098,7 +1098,7 @@ Note: `main.rs` files adopt their parent directory as the module name. A file at
 
 | Item  | Description |
 |-------|-------------|
-| `Drop` | Destructor trait — `fn Drop(self: &uniq Self)` runs on scope exit. |
+| `Drop` | Destructor trait — `fn Drop(self: &mut Self)` runs on scope exit. |
 | `Add` | `+` operator — `trait Add(Rhs:! type) { let Output :! type; fn Add(lhs: Self, rhs: Rhs) -> Self.Output; }` |
 | `Sub` | `-` operator — same shape as Add. |
 | `Mul` | `*` operator — same shape as Add. |
@@ -1136,7 +1136,7 @@ All four arithmetic traits are implemented for `i32` with `Output = i32`.
 | Item               | Description                                        |
 |--------------------|----------------------------------------------------|
 | `PtrWrite(dst, val)` | Writes a value to a raw pointer destination.     |
-| `PtrAsU8(ptr)`     | Casts a typed raw pointer to `*uniq u8`.           |
+| `PtrAsU8(ptr)`     | Casts a typed raw pointer to `*mut u8`.           |
 | `DestructPtr(ptr)` | Destructs the value at a pointer (Drop + field drops). |
 
 ### `Std.Deref`
@@ -1147,7 +1147,7 @@ All four arithmetic traits are implemented for `i32` with `Output = i32`.
 | `Deref`      | `fn deref(self: &Self) -> &Self.Target`                      |
 | `DerefConst` | `fn deref_const(self: &const Self) -> &const Self.Target`    |
 | `DerefMut`   | `fn deref_mut(self: &mut Self) -> &mut Self.Target`          |
-| `DerefUniq`  | `fn deref_uniq(self: &uniq Self) -> &uniq Self.Target`       |
+| `DerefUniq`  | `fn deref_uniq(self: &mut Self) -> &mut Self.Target`       |
 
 ## Syntax Quick Reference
 
@@ -1194,12 +1194,12 @@ impl Point { fn origin() -> Self { make Point { x: 0, y: 0 } } }
 let r = &x;                   // shared
 let r = &mut x;               // mutable (shared)
 let r = &const x;             // const (no mutations observed)
-let r = &uniq x;              // unique (exclusive)
+let r = &mut x;              // unique (exclusive)
 *r = 42;                      // deref assignment
 r.field                       // auto-deref field access
 
 // Lifetimes
-struct Holder['a] { val: &'a uniq i32 }
+struct Holder['a] { val: &'a mut i32 }
 fn first['a](a: &'a i32, b: &i32) -> &'a i32 { a }
 
 // Reference pattern matching

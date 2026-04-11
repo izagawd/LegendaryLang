@@ -1,5 +1,5 @@
 struct Wrapper(T:! type) {
-    ptr: *uniq T
+    ptr: *mut T
 }
 
 impl[T:! type] Receiver for Wrapper(T) {
@@ -20,6 +20,6 @@ impl Foo {
 
 fn main() -> i32 {
     let f = make Foo { val: 42 };
-    let w = make Wrapper(Foo) { ptr: &raw uniq f };
+    let w = make Wrapper(Foo) { ptr: &raw mut f };
     w.get()
 }

@@ -11,7 +11,7 @@ struct Sentinel['a] {
 }
 
 impl['a] Drop for Sentinel['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.counter = *self.counter + 1;
     }
 }

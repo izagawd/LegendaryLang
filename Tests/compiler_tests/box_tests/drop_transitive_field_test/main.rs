@@ -1,10 +1,10 @@
 use Std.Ops.Drop;
 struct C['a] {
-    r: &'a uniq i32
+    r: &'a mut i32
 }
 
 impl['a] Drop for C['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.r = *self.r + 1;
     }
 }
@@ -18,7 +18,7 @@ struct A['a] {
 }
 
 impl['a] Drop for A['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.b.c.r = *self.b.c.r + 10;
     }
 }
@@ -28,7 +28,7 @@ fn main() -> i32 {
     {
         let a = make A {
             b: make B {
-                c: make C { r: &uniq counter }
+                c: make C { r: &mut counter }
             }
         };
     }

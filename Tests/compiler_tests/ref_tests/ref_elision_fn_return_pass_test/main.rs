@@ -1,8 +1,8 @@
-fn input[T:! type](dd: &uniq T) -> &uniq T {
+fn input[T:! type](dd: &mut T) -> &mut T {
     dd
 }
 fn main() -> i32 {
     let num = 5;
-    let derived = input(&uniq num);
+    let derived = input(&mut num);
     *derived
 }

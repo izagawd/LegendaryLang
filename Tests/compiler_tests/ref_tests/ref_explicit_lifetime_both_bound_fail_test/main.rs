@@ -5,6 +5,6 @@ fn main() -> i32 {
     let x = 10;
     let y = 20;
     let r = pick(&x, &y);
-    &uniq y;
+    &mut y;
     *r
 }

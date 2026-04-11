@@ -1,5 +1,5 @@
 struct Holder['a] {
-    r: &'a uniq i32
+    r: &'a mut i32
 }
 
 enum MaybeHolder['a] {
@@ -11,7 +11,7 @@ fn DropNow[T:! type](x: T) {}
 
 fn main() -> i32 {
     let x = 5;
-    let m = MaybeHolder.Has(make Holder { r: &uniq x });
+    let m = MaybeHolder.Has(make Holder { r: &mut x });
     DropNow(m);
     x
 }

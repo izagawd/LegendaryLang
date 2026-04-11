@@ -3,7 +3,7 @@ use Std.Ops.Drop;
 struct Idk['a] { dd: &'a mut i32 }
 
 impl['a] Drop for Idk['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.dd = *self.dd + 1;
     }
 }

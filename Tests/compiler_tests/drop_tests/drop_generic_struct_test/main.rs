@@ -1,11 +1,11 @@
 use Std.Ops.Drop;
 struct Wrapper['a](T:! type) {
     val: T,
-    r: &'a uniq i32
+    r: &'a mut i32
 }
 
 impl['a, T:! type] Drop for Wrapper('a, T) {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.r = *self.r + 1;
     }
 }
@@ -13,7 +13,7 @@ impl['a, T:! type] Drop for Wrapper('a, T) {
 fn main() -> i32 {
     let counter = 0;
     {
-        let w = make Wrapper(i32) { val : 42, r : &uniq counter };
+        let w = make Wrapper(i32) { val : 42, r : &mut counter };
     }
     counter
 }

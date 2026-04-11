@@ -4,7 +4,7 @@ struct Dropper['a] {
 }
 
 impl['a] Drop for Dropper['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.r = *self.r + 10;
     }
 }

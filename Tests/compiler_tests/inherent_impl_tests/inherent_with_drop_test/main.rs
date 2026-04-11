@@ -1,6 +1,6 @@
 use Std.Ops.Drop;
 struct Guard['a] {
-    r: &'a uniq i32
+    r: &'a mut i32
 }
 
 impl['a] Guard['a] {
@@ -10,7 +10,7 @@ impl['a] Guard['a] {
 }
 
 impl['a] Drop for Guard['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.r = *self.r + 100;
     }
 }
@@ -18,7 +18,7 @@ impl['a] Drop for Guard['a] {
 fn main() -> i32 {
     let counter = 0;
     {
-        let g = make Guard { r : &uniq counter };
+        let g = make Guard { r : &mut counter };
         let v = g.value();
     }
     counter

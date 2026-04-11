@@ -192,7 +192,7 @@ public static class IntrinsicCodeGen
     }
 
     /// <summary>
-    /// DestructPtr(*uniq T): destructs the value at the pointer — calls Drop (if T implements it)
+    /// DestructPtr(*mut T): destructs the value at the pointer — calls Drop (if T implements it)
     /// and recursively drops T's fields. Does NOT free memory.
     /// Used by Box.Drop to destruct the heap-allocated T before calling Dealloc.
     /// </summary>

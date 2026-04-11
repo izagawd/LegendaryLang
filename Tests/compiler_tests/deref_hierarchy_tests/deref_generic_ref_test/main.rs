@@ -12,5 +12,5 @@ fn bro(T:! Deref(Target = Foo), dd: T) -> i32 {
 
 fn main() -> i32 {
     let bruh = make Foo {};
-    bro(&const Foo, &const bruh)
+    bro(&Foo, &bruh)
 }

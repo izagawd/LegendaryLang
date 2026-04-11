@@ -7,7 +7,7 @@ struct Point {
 impl Copy for Point {}
 
 impl Drop for Point {
-    fn Drop(self: &uniq Self) {}
+    fn Drop(self: &mut Self) {}
 }
 
 fn main() -> i32 {

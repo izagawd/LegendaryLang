@@ -1,5 +1,5 @@
 struct UniqHolder['a]{
-    r: &'a uniq i32
+    r: &'a mut i32
 }
 
 fn PassAround[T:! type](input: T) -> T {
@@ -8,7 +8,7 @@ fn PassAround[T:! type](input: T) -> T {
 
 fn main() -> i32 {
     let x = 5;
-    let h = make UniqHolder { r: &uniq x };
+    let h = make UniqHolder { r: &mut x };
     let h2 = PassAround(h);
     x = 10;
     return x;

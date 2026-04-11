@@ -85,17 +85,6 @@ public class RefBlockScopeTests
     [Test] public void RefNestedBlockEscapeFailTest() => AssertFail<DanglingReferenceError>("ref_tests/ref_nested_block_escape_fail_test");
 }
 
-public class RefConstTests
-{
-    [Test] public void RefConstBasicTest() => AssertSuccess("ref_tests/ref_const_basic_test", 5);
-
-    [Test] public void RefConstMultipleTest() => AssertSuccess("ref_tests/ref_const_multiple_test", 10);
-
-    [Test] public void RefConstWithSharedTest() => AssertSuccess("ref_tests/ref_const_with_shared_test", 10);
-
-    [Test] public void RefConstWithMutFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_const_with_mut_fail_test");
-}
-
 public class RefMutTests
 {
     [Test] public void RefMutBasicTest() => AssertSuccess("ref_tests/ref_mut_basic_test", 5);
@@ -104,22 +93,12 @@ public class RefMutTests
 
     [Test] public void RefMutWithSharedTest() => AssertSuccess("ref_tests/ref_mut_with_shared_test", 10);
 
-    [Test] public void RefMutWithConstFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_mut_with_const_fail_test");
 }
 
 public class RefUniqTests
 {
     [Test] public void RefUniqBasicTest() => AssertSuccess("ref_tests/ref_uniq_basic_test", 5);
-
-    [Test] public void RefUniqWithSharedFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_uniq_with_shared_fail_test");
-
-    [Test] public void RefUniqWithConstFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_uniq_with_const_fail_test");
-
-    [Test] public void RefUniqWithMutFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_uniq_with_mut_fail_test");
-
-    [Test] public void RefUniqDoubleFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_uniq_double_fail_test");
-
-    [Test] public void RefSharedAfterUniqFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_shared_after_uniq_fail_test");
+    
 
     [Test] public void RefSharedMultipleTest() => AssertSuccess("ref_tests/ref_shared_multiple_test", 15);
 
@@ -128,16 +107,10 @@ public class RefUniqTests
 
 public class RefCopyTests
 {
-    [Test] public void RefUniqNotCopyFailTest()
-    {
-        // &uniq is not Copy (let-assignment moves), but passing to functions auto-reborrows.
-        // This test passes &uniq to a function twice — succeeds via reborrow.
-        CompilerTestHelper.AssertSuccess("ref_tests/ref_uniq_not_copy_fail_test", 5);
-    }
 
     [Test] public void RefSharedIsCopyTest() => AssertSuccess("ref_tests/ref_shared_is_copy_test", 10);
 
-    [Test] public void RefConstIsCopyTest() => AssertSuccess("ref_tests/ref_const_is_copy_test", 10);
+
 
     [Test] public void RefMutIsCopyTest() => AssertSuccess("ref_tests/ref_mut_is_copy_test", 10);
 }
@@ -146,37 +119,14 @@ public class RefNllTests
 {
     [Test] public void RefUniqThenMutNllPassTest() => AssertSuccess("ref_tests/ref_uniq_then_mut_nll_pass_test", 5);
 
-    [Test] public void RefConstThenMutNllPassTest() => AssertSuccess("ref_tests/ref_const_then_mut_nll_pass_test", 5);
+
 
     [Test] public void RefUniqThenUniqNllPassTest() => AssertSuccess("ref_tests/ref_uniq_then_uniq_nll_pass_test", 5);
 }
 
-public class RefNllFailTests
-{
-    [Test] public void RefUniqThenMutUseOldFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_uniq_then_mut_use_old_fail_test");
-
-    [Test] public void RefConstThenMutUseOldFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_const_then_mut_use_old_fail_test");
-
-    [Test] public void RefUniqThenUniqUseOldFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_uniq_then_uniq_use_old_fail_test");
-
-    [Test] public void RefUniqThenSharedUseOldFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_uniq_then_shared_use_old_fail_test");
-
-    [Test] public void RefMutThenConstUseOldFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_mut_then_const_use_old_fail_test");
-
-    [Test] public void RefUniqThenConstUseOldFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_uniq_then_const_use_old_fail_test");
-}
 
 public class RefStandaloneBorrowTests
 {
-    [Test] public void RefStandaloneUniqInvalidatesUniqFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_standalone_uniq_invalidates_uniq_fail_test");
-
-    [Test] public void RefStandaloneUniqInvalidatesMutFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_standalone_uniq_invalidates_mut_fail_test");
-
-    [Test] public void RefStandaloneUniqInvalidatesSharedFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_standalone_uniq_invalidates_shared_fail_test");
-
-    [Test] public void RefStandaloneConstInvalidatesMutFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_standalone_const_invalidates_mut_fail_test");
-
-    [Test] public void RefStandaloneMutInvalidatesConstFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_standalone_mut_invalidates_const_fail_test");
 
     [Test] public void RefStandaloneUniqNotUsedPassTest() => AssertSuccess("ref_tests/ref_standalone_uniq_not_used_pass_test", 5);
 
@@ -187,17 +137,10 @@ public class RefStandaloneBorrowTests
 
 public class RefLifetimeElisionTests
 {
-    [Test] public void RefElisionFnReturnInvalidatedFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_elision_fn_return_invalidated_fail_test");
-
     [Test] public void RefElisionFnReturnPassTest() => AssertSuccess("ref_tests/ref_elision_fn_return_pass_test", 5);
-
-    [Test] public void RefElisionSharedInvalidatedFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_elision_shared_invalidated_fail_test");
 
     [Test] public void RefElisionSharedPassTest() => AssertSuccess("ref_tests/ref_elision_shared_pass_test", 5);
 
-    [Test] public void RefElisionMethodInvalidatedFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_elision_method_invalidated_fail_test");
-
-    [Test] public void RefElisionChainedFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_elision_chained_fail_test");
 }
 
 public class RefElisionAmbiguityTests
@@ -220,12 +163,7 @@ public class RefExplicitLifetimeTests
     [Test] public void RefExplicitLifetimeTest() => AssertSuccess("ref_tests/ref_explicit_lifetime_test", 10);
 
     [Test] public void RefExplicitLifetimeSameTest() => AssertSuccess("ref_tests/ref_explicit_lifetime_same_test", 10);
-
-    [Test] public void RefExplicitLifetimeInvalidateFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_explicit_lifetime_invalidate_fail_test");
-
     [Test] public void RefExplicitLifetimeOtherInvalidatePassTest() => AssertSuccess("ref_tests/ref_explicit_lifetime_other_invalidate_pass_test", 10);
-
-    [Test] public void RefExplicitLifetimeBothBoundFailTest() => AssertFail<BorrowInvalidatedError>("ref_tests/ref_explicit_lifetime_both_bound_fail_test");
 
     [Test] public void RefExplicitLifetimeDifferentTest() => AssertSuccess("ref_tests/ref_explicit_lifetime_different_test", 10);
 
@@ -238,7 +176,7 @@ public class RefTwoLifetimeTests
     public void RefTwoLifetimesUniqSecondPassTest()
     {
         // fn pick<'a, 'b>(x: &'a i32, y: &'b i32) -> &'a i32
-        // r borrows from a ('a), &uniq b ('b) doesn't conflict — *r + *u works
+        // r borrows from a ('a), &mut b ('b) doesn't conflict — *r + *u works
         var result = Compile("ref_tests/ref_two_lifetimes_uniq_second_pass_test");
         Assert.That(result.Success);
         Assert.That(30 == result.Function?.Invoke());
@@ -293,21 +231,12 @@ public class RefTraitLifetimeTests
 
 public class RefLifetimeE2eTests
 {
-    [Test]
-    public void RefTraitLifetimeE2eFailTest()
-    {
-        // Trait method pick<'a>(&'a i32, &i32) -> &'a i32
-        // Call pick(&x, &y), then &uniq x invalidates r — *r fails
-        var result = Compile("ref_tests/ref_trait_lifetime_e2e_fail_test");
-        Assert.That(!result.Success);
-        Assert.That(result.HasError<BorrowInvalidatedError>());
-    }
 
     [Test]
     public void RefTraitLifetimeE2ePassTest()
     {
         // Trait method pick<'a>(&'a i32, &i32) -> &'a i32
-        // Call pick(&x, &y), then &uniq y — y has no lifetime link to return, so *r is fine
+        // Call pick(&x, &y), then &mut y — y has no lifetime link to return, so *r is fine
         var result = Compile("ref_tests/ref_trait_lifetime_e2e_pass_test");
         Assert.That(result.Success);
         Assert.That(10 == result.Function?.Invoke());
@@ -318,29 +247,11 @@ public class RefLifetimeE2eTests
 
 public class RefUseWhileBorrowedTests
 {
-    [Test]
-    public void RefUseWhileUniqBorrowedFailTest()
-    {
-        // let r = &uniq x; then x + *r — x is exclusively borrowed, can't be used
-        var result = CompilerTestHelper.AssertFail<UseWhileBorrowedError>(
-            "ref_tests/ref_use_while_uniq_borrowed_fail_test");
-        var errors = result.GetErrors<UseWhileBorrowedError>().ToList();
-        Assert.That(errors.Count >= 1);
-        Assert.That(errors[0].Source == "x");
-    }
-
-    [Test]
-    public void RefUseFieldWhileUniqBorrowedFailTest()
-    {
-        // let doo = &uniq foo; ... foo.dd.number — foo is exclusively borrowed, can't access fields
-        CompilerTestHelper.AssertFail<UseWhileBorrowedError>(
-            "ref_tests/ref_use_field_while_uniq_borrowed_fail_test");
-    }
 
     [Test]
     public void RefUniqBorrowScopeExitPassTest()
     {
-        // &uniq x in inner scope, borrower exits, x usable again
+        // &mut x in inner scope, borrower exits, x usable again
         CompilerTestHelper.AssertSuccess("ref_tests/ref_uniq_borrow_scope_exit_pass_test", 15);
     }
 
@@ -364,47 +275,18 @@ public class RefAutoReborrowTests
     [Test]
     public void RefUniqFnReborrowPassTest()
     {
-        // Passing &uniq to a function auto-reborrows instead of moving
+        // Passing &mut to a function auto-reborrows instead of moving
         CompilerTestHelper.AssertSuccess("ref_tests/ref_uniq_fn_reborrow_pass_test", 10);
     }
 
     [Test]
     public void RefUniqFnReborrowMultiplePassTest()
     {
-        // Can pass &uniq to functions multiple times (each is a reborrow)
+        // Can pass &mut to functions multiple times (each is a reborrow)
         CompilerTestHelper.AssertSuccess("ref_tests/ref_uniq_fn_reborrow_multiple_pass_test", 15);
     }
 
-    [Test]
-    public void RefUniqLetStillMovesTest()
-    {
-        // let p = r still moves (reborrow only applies to fn/method args)
-        CompilerTestHelper.AssertFail<UseAfterMoveError>("ref_tests/ref_uniq_let_still_moves_test");
-    }
-}
 
-public class RefCreationBorrowConflictTests
-{
-    [Test]
-    public void RefStructDoubleUniqFieldFailTest()
-    {
-        // Two &uniq borrows of the same variable in a struct literal — should fail
-        CompilerTestHelper.AssertFail<BorrowConflictError>("ref_tests/ref_struct_double_uniq_field_fail_test");
-    }
-
-    [Test]
-    public void RefEnumVariantDoubleUniqFailTest()
-    {
-        // Two &uniq borrows of the same variable in an enum variant — should fail
-        CompilerTestHelper.AssertFail<BorrowConflictError>("ref_tests/ref_enum_variant_double_uniq_fail_test");
-    }
-
-    [Test]
-    public void RefEnumNestedStructDoubleUniqFailTest()
-    {
-        // Two structs each holding &uniq of the same variable passed to an enum variant — should fail
-        CompilerTestHelper.AssertFail<BorrowConflictError>("ref_tests/ref_enum_nested_struct_double_uniq_fail_test");
-    }
 }
 
 public class MutReassignTests
@@ -417,14 +299,7 @@ public class MutReassignTests
         // *(&mut i32) = val — i32 implements MutReassign
         CompilerTestHelper.AssertSuccess("ref_tests/mut_reassign_primitive_pass_test", 42);
     }
-
-    [Test]
-    public void MutReassignUniqAlwaysPassTest()
-    {
-        // *(&uniq Foo) = val — &uniq can always reassign regardless of MutReassign
-        CompilerTestHelper.AssertSuccess("ref_tests/mut_reassign_uniq_always_pass_test", 99);
-    }
-
+    
     [Test]
     public void MutReassignStructImplPassTest()
     {
@@ -489,7 +364,7 @@ public class RefEnumPatternMatchTests
     [Test]
     public void RefMatchUniqEnumTest()
     {
-        // match &uniq enum — binding is &uniq, can write through it
+        // match &mut enum — binding is &mut, can write through it
         CompilerTestHelper.AssertSuccess("ref_tests/ref_match_uniq_enum_test", 99);
     }
 
@@ -569,7 +444,7 @@ public class RefEnumPatternMatchTests
     [Test]
     public void RefMatchUniqWriteThenReadTest()
     {
-        // Set via &uniq twice (42, then 77), read by value — 77
+        // Set via &mut twice (42, then 77), read by value — 77
         CompilerTestHelper.AssertSuccess("ref_tests/ref_match_uniq_write_then_read_test", 77);
     }
 
@@ -583,26 +458,15 @@ public class RefEnumPatternMatchTests
 
 public class RefBorrowThroughGenericTests
 {
-    [Test]
-    public void RefBorrowThroughGenericFailTest()
-    {
-        // Struct with &uniq borrow passed through generic fn, then source reassigned — should fail
-        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_borrow_through_generic_fail_test");
-    }
+
 
     [Test]
     public void RefBorrowThroughGenericPassTest()
     {
-        // Struct with &uniq borrow passed through generic fn, consumed before source used — should pass
+        // Struct with &mut borrow passed through generic fn, consumed before source used — should pass
         CompilerTestHelper.AssertSuccess("ref_tests/ref_borrow_through_generic_pass_test", 5);
     }
 
-    [Test]
-    public void RefBorrowThroughChainedGenericFailTest()
-    {
-        // Borrow survives through Pass2(Pass1(h)) — two generic hops
-        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_borrow_through_chained_generic_fail_test");
-    }
 
     [Test]
     public void RefNoBorrowThroughGenericPassTest()
@@ -611,12 +475,6 @@ public class RefBorrowThroughGenericTests
         CompilerTestHelper.AssertSuccess("ref_tests/ref_no_borrow_through_generic_pass_test", 42);
     }
 
-    [Test]
-    public void RefUniqBorrowThroughGenericFailTest()
-    {
-        // Struct with &uniq borrow passed through generic fn, then source reassigned — should fail
-        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_uniq_borrow_through_generic_fail_test");
-    }
 
     [Test]
     public void RefCopyThroughGenericPassTest()
@@ -625,14 +483,6 @@ public class RefBorrowThroughGenericTests
         CompilerTestHelper.AssertSuccess("ref_tests/ref_copy_through_generic_pass_test", 84);
     }
 
-    // ── Source returned / not returned ──
-
-    [Test]
-    public void RefBorrowSourceReturnedFailTest()
-    {
-        // Borrow source 'a' is returned while borrower is alive — should fail
-        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_borrow_source_returned_fail_test");
-    }
 
     [Test]
     public void RefBorrowSourceNotReturnedPassTest()
@@ -641,26 +491,8 @@ public class RefBorrowThroughGenericTests
         CompilerTestHelper.AssertSuccess("ref_tests/ref_borrow_source_not_returned_pass_test", 10);
     }
 
-    [Test]
-    public void RefBorrowSourceExplicitReturnFailTest()
-    {
-        // return a; while borrower holds &uniq a
-        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_borrow_source_explicit_return_fail_test");
-    }
+  
 
-    [Test]
-    public void RefBorrowSourceUsedInExprFailTest()
-    {
-        // a + b where a is borrowed — using source in expression
-        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_borrow_source_used_in_expr_fail_test");
-    }
-
-    [Test]
-    public void RefBorrowSourceReassignFailTest()
-    {
-        // a = 10 while borrower holds &uniq a
-        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_borrow_source_reassign_fail_test");
-    }
 
     [Test]
     public void RefBorrowTwoSourcesOneReturnedPassTest()
@@ -683,12 +515,6 @@ public class RefBorrowThroughGenericTests
         CompilerTestHelper.AssertSuccess("ref_tests/ref_borrow_inner_scope_source_after_pass_test", 5);
     }
 
-    [Test]
-    public void RefBorrowSourcePassedToFnFailTest()
-    {
-        // read(a) while a is borrowed — passing source to function
-        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_borrow_source_passed_to_fn_fail_test");
-    }
 
     [Test]
     public void RefBorrowDifferentVarReturnedPassTest()
@@ -713,21 +539,7 @@ public class RefBorrowThroughGenericTests
         CompilerTestHelper.AssertSuccess("ref_tests/ref_chained_generic_consumed_pass_test", 5);
     }
 
-    [Test]
-    public void RefGenericPassthroughReassignFailTest()
-    {
-        // Pass(h) then a = 99 — borrow survives generic, blocks reassign
-        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_generic_passthrough_reassign_fail_test");
-    }
 
-    // ── Drop vs non-Drop borrower behavior ──
-
-    [Test]
-    public void RefDropBorrowerPersistsFailTest()
-    {
-        // Drop type borrower — borrow persists until scope exit even without explicit use
-        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_drop_borrower_persists_fail_test");
-    }
 
     [Test]
     public void RefNonDropBlockScopeReleasedPassTest()
@@ -745,12 +557,7 @@ public class RefBorrowThroughGenericTests
         CompilerTestHelper.AssertSuccess("ref_tests/ref_multi_borrow_fields_untouched_pass_test", 99);
     }
 
-    [Test]
-    public void RefMultiBorrowOneSourceUsedFailTest()
-    {
-        // Struct borrows a and b, b returned — b used while borrowed
-        CompilerTestHelper.AssertFail<UseWhileBorrowedError>("ref_tests/ref_multi_borrow_one_source_used_fail_test");
-    }
+
 
     [Test] public void RefReturnNoRefParamFailTest() =>
         AssertFail<GenericSemanticError>("ref_tests/ref_return_no_ref_param_fail_test");

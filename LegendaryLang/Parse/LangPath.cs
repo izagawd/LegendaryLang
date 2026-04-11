@@ -218,7 +218,7 @@ public abstract class LangPath
     {
         var next = parser.Peek();
 
-        // Reference type: &T, &'a T, &'a const T, &mut T, &'a uniq T in type position
+        // Reference type: &T, &'a T, &'a const T, &mut T, &'a mut T in type position
         if (next is AmpersandToken && typePosition)
         {
             parser.Pop(); // consume &

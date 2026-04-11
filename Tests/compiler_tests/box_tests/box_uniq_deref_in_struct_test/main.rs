@@ -1,9 +1,9 @@
 struct Idk['a](T:! type) {
-    dd: &'a uniq T
+    dd: &'a mut T
 }
 
 fn main() -> i32 {
     let a = Box.New(5);
-    let b = make Idk { dd: &uniq *a };
+    let b = make Idk { dd: &mut *a };
     *b.dd
 }

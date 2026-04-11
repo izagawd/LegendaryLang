@@ -5,7 +5,7 @@ struct Tracker['a] {
 }
 
 impl['a] Drop for Tracker['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.counter = *self.counter + 100;
     }
 }

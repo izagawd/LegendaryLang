@@ -1,5 +1,5 @@
 struct Holder {
-    r: &uniq i32
+    r: &mut i32
 }
 
 enum Wrapper {
@@ -9,8 +9,8 @@ enum Wrapper {
 fn main() -> i32 {
     let x = 0;
     let w = Wrapper.Two(
-        make Holder { r: &uniq x },
-        make Holder { r: &uniq x }
+        make Holder { r: &mut x },
+        make Holder { r: &mut x }
     );
     0
 }

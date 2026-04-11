@@ -3,7 +3,7 @@ struct Counter {
 }
 
 impl Counter {
-    fn inc(self: &uniq Self) {
+    fn inc(self: &mut Self) {
         self.val = self.val + 1;
     }
 

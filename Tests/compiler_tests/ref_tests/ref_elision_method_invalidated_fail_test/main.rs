@@ -13,6 +13,6 @@ impl GetRef for Holder {
 fn main() -> i32 {
     let h = make Holder { val : 42 };
     let r = h.get_ref();
-    &uniq h;
+    &mut h;
     *r
 }

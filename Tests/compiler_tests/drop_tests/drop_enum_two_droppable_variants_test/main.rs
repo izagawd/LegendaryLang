@@ -4,10 +4,10 @@ struct CounterA['a] { r: &'a mut i32 }
 struct CounterB['a] { r: &'a mut i32 }
 
 impl['a] Drop for CounterA['a] {
-    fn Drop(self: &uniq Self) { *self.r = *self.r + 10; }
+    fn Drop(self: &mut Self) { *self.r = *self.r + 10; }
 }
 impl['a] Drop for CounterB['a] {
-    fn Drop(self: &uniq Self) { *self.r = *self.r + 100; }
+    fn Drop(self: &mut Self) { *self.r = *self.r + 100; }
 }
 
 enum Choice['a] {

@@ -7,7 +7,7 @@ struct Wrapper(T:! Bar + Baz) {
 }
 
 impl[T:! Bar] Drop for Wrapper(T) {
-    fn Drop(self: &uniq Self) {}
+    fn Drop(self: &mut Self) {}
 }
 
 fn main() -> i32 {

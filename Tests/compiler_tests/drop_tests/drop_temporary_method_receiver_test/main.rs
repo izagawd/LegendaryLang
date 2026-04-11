@@ -11,7 +11,7 @@ impl['a] Foo['a] {
 }
 
 impl['a] Drop for Foo['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.kk = *self.kk + 1;
     }
 }

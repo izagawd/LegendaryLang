@@ -17,7 +17,7 @@ public class DerefAssignTests
     [Test]
     public void DerefAssignUniqParamTest()
     {
-        // fn add_to(r: &uniq i32, amount: i32) { *r = *r + amount; }
+        // fn add_to(r: &mut i32, amount: i32) { *r = *r + amount; }
         // Called twice: 0 + 7 = 7, 7 + 3 = 10
         var result = Compile("ref_tests/deref_assign_uniq_param_test");
         Assert.That(result.Success);

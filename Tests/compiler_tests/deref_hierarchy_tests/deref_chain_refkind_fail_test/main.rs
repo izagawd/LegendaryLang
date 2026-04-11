@@ -1,7 +1,7 @@
 struct Foo { val: i32 }
 impl Copy for Foo {}
 impl Foo {
-    fn need_uniq(self: &uniq Self) -> i32 { self.val }
+    fn need_uniq(self: &mut Self) -> i32 { self.val }
 }
 
 fn take_ref_const(r: &&const Foo) -> i32 {

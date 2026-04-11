@@ -332,8 +332,8 @@ public class SemanticAnalyzer
 
     /// <summary>
     /// When true, PathExpression.Analyze skips the "use while exclusively borrowed" check.
-    /// Set by PointerGetterExpression so that re-borrowing (e.g., &amp;uniq a when a is already
-    /// &amp;uniq-borrowed) is handled by the existing borrow compatibility rules, not the source-use check.
+    /// Set by PointerGetterExpression so that re-borrowing (e.g., &amp;mut a when a is already
+    /// &amp;mut-borrowed) is handled by the existing borrow compatibility rules, not the source-use check.
     /// </summary>
     public bool SuppressUseWhileBorrowedChecks { get; set; }
 
@@ -1589,7 +1589,7 @@ public class SemanticAnalyzer
 
     /// <summary>
     /// Checks if a raw pointer kind can produce a reference of the given kind.
-    /// Follows the deref trait hierarchy: *uniq → all, *const → &amp;/&amp;const, etc.
+    /// Follows the deref trait hierarchy: *mut → all, *const → &amp;/&amp;const, etc.
     /// </summary>
     public void MarkAsMoved(string variableName) => MarkPathMoved(new FieldPath(variableName));
 

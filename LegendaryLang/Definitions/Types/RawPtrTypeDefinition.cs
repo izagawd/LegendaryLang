@@ -7,7 +7,7 @@ using LLVMSharp.Interop;
 namespace LegendaryLang.Definitions.Types;
 
 /// <summary>
-/// Raw pointer types: *shared T, *const T, *mut T, *uniq T.
+/// Raw pointer types: *shared T, *const T, *mut T, *mut T.
 /// Unlike references, raw pointers have no borrow checking and are always Copy.
 /// </summary>
 public class RawPtrTypeDefinition : PointerTypeDefinitionBase

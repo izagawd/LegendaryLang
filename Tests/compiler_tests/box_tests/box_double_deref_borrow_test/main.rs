@@ -1,8 +1,8 @@
-fn borrower(dd: &uniq Box(i32)) -> &uniq i32 {
-    &uniq **dd
+fn borrower(dd: &mut Box(i32)) -> &mut i32 {
+    &mut **dd
 }
 
 fn main() -> i32 {
     let dd: Box(i32) = Box.New(4);
-    *borrower(&uniq dd)
+    *borrower(&mut dd)
 }

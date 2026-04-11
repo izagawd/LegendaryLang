@@ -4,7 +4,7 @@ struct Simple {
 }
 
 impl[T:! type] Drop for Simple {
-    fn Drop(self: &uniq Self) {}
+    fn Drop(self: &mut Self) {}
 }
 
 fn main() -> i32 {

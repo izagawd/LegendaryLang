@@ -16,7 +16,7 @@ public enum RefKind
 public static class RefKindParser
 {
     /// <summary>
-    /// Parse a RefKind from the token stream. Consumes mut/const/uniq if present,
+    /// Parse a RefKind from the token stream. Consumes mut/const/mut if present,
     /// defaults to Shared.
     /// </summary>
     public static RefKind Parse(Parser parser)

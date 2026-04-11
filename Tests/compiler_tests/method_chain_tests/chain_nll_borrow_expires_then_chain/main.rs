@@ -2,7 +2,7 @@
 struct Counter { val: i32 }
 impl Counter {
     fn get_ref(self: &Self) -> &i32 { &self.val }
-    fn inc(self: &uniq Self) { self.val = self.val + 1; }
+    fn inc(self: &mut Self) { self.val = self.val + 1; }
     fn get(self: &Self) -> i32 { self.val }
 }
 fn main() -> i32 {

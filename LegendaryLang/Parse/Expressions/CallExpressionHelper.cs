@@ -21,7 +21,7 @@ public static class CallExpressionHelper
     /// 
     /// The problem this solves: PointerGetterExpression.Analyze only invalidates existing borrows
     /// but doesn't register new ones — registration is deferred to LetStatement. So within a single
-    /// compound expression like `make Foo { a: &amp;uniq x, b: &amp;uniq x }`, the two borrows never
+    /// compound expression like `make Foo { a: &amp;mut x, b: &amp;mut x }`, the two borrows never
     /// see each other. This method collects all borrow sources and checks for conflicts.
     /// </summary>
     public static void CheckBorrowConflicts(

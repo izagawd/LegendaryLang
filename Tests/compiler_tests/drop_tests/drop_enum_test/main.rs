@@ -5,11 +5,11 @@ enum Action {
 }
 
 struct Watcher['a] {
-    r: &'a uniq i32
+    r: &'a mut i32
 }
 
 impl['a] Drop for Watcher['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.r = *self.r + 1;
     }
 }
@@ -17,7 +17,7 @@ impl['a] Drop for Watcher['a] {
 fn main() -> i32 {
     let counter = 0;
     {
-        let w = make Watcher { r : &uniq counter };
+        let w = make Watcher { r : &mut counter };
     }
     counter
 }

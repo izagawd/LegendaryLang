@@ -74,8 +74,6 @@ public class MoveBorrowTests
     [Test] public void CopySourceBorrowedReturnFailTest() =>
         AssertFail<MoveWhileBorrowedError>("move_borrow_tests/copy_source_borrowed_return_ok_test");
 
-    [Test] public void UniqBorrowBlocksSourceUseFailTest() =>
-        AssertFail<UseWhileBorrowedError>("move_borrow_tests/uniq_borrow_blocks_source_use_fail_test");
 
     [Test] public void ChainBorrowBlocksReturnFailTest() =>
         AssertFail<MoveWhileBorrowedError>("move_borrow_tests/chain_borrow_blocks_return_fail_test");

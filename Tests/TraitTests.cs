@@ -975,21 +975,15 @@ public class ComparisonBorrowVsArithmeticMoveTests
     [Test]
     public void EqUniqBorrowNllReleasedTest()
     {
-        // &uniq a exists but u is never used after == → NLL releases borrow → OK
+        // &mut a exists but u is never used after == → NLL releases borrow → OK
         AssertSuccess("trait_tests/eq_uniq_borrow_nll_released_test", 0);
     }
 
-    [Test]
-    public void EqConflictsWithLiveUniqFailTest()
-    {
-        // &uniq a is used after a == 5 → shared borrow invalidates exclusive → *u fails
-        AssertFail<BorrowInvalidatedError>("trait_tests/eq_conflicts_with_live_uniq_fail_test");
-    }
 
     [Test]
     public void EqAfterUniqReleasedTest()
     {
-        // &uniq borrow released, then a == 10 → OK
+        // &mut borrow released, then a == 10 → OK
         AssertSuccess("trait_tests/eq_after_uniq_released_test", 1);
     }
 

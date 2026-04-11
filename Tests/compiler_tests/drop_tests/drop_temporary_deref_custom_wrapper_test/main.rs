@@ -30,7 +30,7 @@ impl['a] Deref for Wrapper['a] {
 }
 
 impl['a] Drop for Wrapper['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.dropped = *self.dropped + 1;
     }
 }

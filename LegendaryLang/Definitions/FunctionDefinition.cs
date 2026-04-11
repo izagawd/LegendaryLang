@@ -316,7 +316,7 @@ public class FunctionDefinition : IItem, IDefinition, IAnalyzable, IPathResolvab
 
     /// <summary>
     /// Checks ref-kind subsumption: can 'actual' be used where 'expected' is needed?
-    /// e.g., &amp;uniq T → &amp;T (unique can be used as shared).
+    /// e.g., &amp;mut T → &amp;T (unique can be used as shared).
     /// Both must be reference types to the same inner type.
     /// Follows the deref hierarchy: Uniq→all, Mut→Shared, Const→Shared.
     /// </summary>

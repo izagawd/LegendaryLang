@@ -12,7 +12,7 @@ impl['a] Counter['a] {
 }
 
 impl['a] Drop for Counter['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.target = *self.target + 1;
     }
 }

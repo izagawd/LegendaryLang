@@ -5,7 +5,7 @@ struct Incrementer['a] {
 }
 
 impl['a] Drop for Incrementer['a] {
-    fn Drop(self: &uniq Self) {
+    fn Drop(self: &mut Self) {
         *self.target = *self.target + 1;
     }
 }
