@@ -32,4 +32,20 @@ public class InferenceTests
     }
 
     [Test] public void InferFnAnnotationConflictTest() => AssertFail("inference_tests/infer_fn_annotation_conflict_test");
+
+    [Test]
+    public void MatchDisambiguateTryIntoTest()
+    {
+        // match made.TryInto() { Option.Some(gotten) => gotten, _ => 0 }
+        // Expected return i32 → scrutinee expected Option(i32) → disambiguates to TryInto(i32)
+        AssertSuccess("inference_tests/match_disambiguate_tryinto_test", 5);
+    }
+
+    [Test]
+    public void QualifiedTraitGenericReturnTest()
+    {
+        // (usize as TryInto(i32)).TryInto(made) — trait generic T=i32 must be
+        // substituted in return type Option(T) → Option(i32)
+        AssertSuccess("inference_tests/qualified_trait_generic_return_test", 42);
+    }
 }

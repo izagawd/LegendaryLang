@@ -1,11 +1,9 @@
-﻿use Std.Ops.Into;
 use Std.Ops.TryInto;
-use Std.Fmt.ToString;
-fn main() -> i32{
-    let made : usize =  SizeOf(Gc(str));
+
+fn main() -> i32 {
+    let made: usize = 42;
     match (usize as TryInto(i32)).TryInto(made) {
         Option.Some(gotten) => gotten,
         _ => 0
-        }
-    
+    }
 }

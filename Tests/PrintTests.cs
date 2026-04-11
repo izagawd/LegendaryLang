@@ -20,9 +20,8 @@ public class PrintTests
     [Test]
     public void QualifiedTraitCallDispatchTest()
     {
-        // T.ToString(self.deref()) where self.deref() returns &Wrapper(T) (not &T)
-        // must produce valid LLVM IR — dispatches to Wrapper(T).ToString, not str.ToString.
-        // Would stack overflow at runtime, so only check compilation.
-        AssertSuccess("print_tests/qualified_trait_call_dispatch_test");
+        // self.deref() on &Wrapper(T) should dispatch to Wrapper(T): Deref (not &T: Deref).
+        // T.ToString(self.deref()) then correctly passes &str to str.ToString.
+        AssertSuccess("print_tests/qualified_trait_call_dispatch_test", 5);
     }
 }

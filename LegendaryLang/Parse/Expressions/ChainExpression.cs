@@ -631,6 +631,25 @@ public class FunctionCallKind : IChainKind
         LangPath traitRet, NormalLangPath functionPath,
         NormalLangPath? qualifiedAsType, SemanticAnalyzer analyzer, string tokenLoc)
     {
+        // Substitute trait generic params in the return type.
+        // e.g., (usize as TryInto(i32)).TryInto(...) → trait path = TryInto(i32),
+        // trait def has param T, return type Option(T) → substitute T=i32 → Option(i32).
+        var strippedFn = functionPath;
+        if (strippedFn.GetFrontGenerics().Length > 0) strippedFn = strippedFn.PopGenerics()!;
+        var traitPathFromFn = strippedFn.Pop();
+        if (traitPathFromFn is NormalLangPath nlpTraitPath)
+        {
+            var traitGenericArgs = nlpTraitPath.GetFrontGenerics();
+            if (traitGenericArgs.Length > 0)
+            {
+                var traitBasePath = LangPath.StripGenerics(nlpTraitPath);
+                var traitDefn = analyzer.GetDefinition(traitBasePath) as TraitDefinition;
+                if (traitDefn != null && traitDefn.GenericParameters.Length == traitGenericArgs.Length)
+                    traitRet = FieldAccessExpression.SubstituteGenerics(
+                        traitRet, traitDefn.GenericParameters, traitGenericArgs);
+            }
+        }
+
         if (qualifiedAsType != null)
         {
             bool isGenericParam = qualifiedAsType is NormalLangPath nlpQual
