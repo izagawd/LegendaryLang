@@ -135,7 +135,7 @@ public class FieldAccessKind : IChainKind
     /// <summary>
     /// Maximum ref kind capability for method calls through this field access chain.
     /// Set when accessing fields through a reference — narrows what methods can be called.
-    /// e.g., through &amp;shared Wrapper, field &amp;uniq Holder narrows to shared capability.
+    /// e.g., through &amp;shared Wrapper, field &amp;mut Holder narrows to shared capability.
     /// </summary>
     public RefKind? MaxCapability { get; init; }
     public IEnumerable<ISyntaxNode> KindChildren => Receiver.KindChildren;
@@ -181,7 +181,7 @@ public class EnumVariantCreationKind : IChainKind
 
     public List<(string sourceName, RefKind refKind)> GetBorrowSources(SemanticAnalyzer analyzer)
     {
-        // Propagate borrows from arguments — e.g., Foo.One(make Droppable{reference: &uniq x})
+        // Propagate borrows from arguments — e.g., Foo.One(make Droppable{reference: &mut x})
         // borrows x through the struct field, same as struct creation.
         var results = new List<(string, RefKind)>();
         foreach (var arg in Arguments)
@@ -1125,10 +1125,7 @@ public class MethodCallKind : IChainKind
     internal static RefKind MinRefKindCapability(RefKind a, RefKind b)
     {
         if (a == RefKind.Shared || b == RefKind.Shared) return RefKind.Shared;
-        if (a == RefKind.Uniq) return b;
-        if (b == RefKind.Uniq) return a;
-        if (a == b) return a;
-        return RefKind.Shared;
+        return a;
     }
 
     internal static RefKind? GetDerefCapability(LangPath? typePath, SemanticAnalyzer analyzer)
@@ -1143,9 +1140,7 @@ public class MethodCallKind : IChainKind
             }
             return ptrKind;
         }
-        if (analyzer.TypeImplementsTrait(typePath, SemanticAnalyzer.DerefUniqTraitPath)) return RefKind.Uniq;
         if (analyzer.TypeImplementsTrait(typePath, SemanticAnalyzer.DerefMutTraitPath)) return RefKind.Mut;
-        if (analyzer.TypeImplementsTrait(typePath, SemanticAnalyzer.DerefConstTraitPath)) return RefKind.Const;
         if (analyzer.TypeImplementsTrait(typePath, SemanticAnalyzer.DerefTraitPath)) return RefKind.Shared;
         return null;
     }
@@ -1834,7 +1829,7 @@ public class ChainExpression : IExpression
     /// </summary>
     internal static LangPath? TryResolveAsType(IExpression expr, SemanticAnalyzer analyzer)
     {
-        // Reference type in comptime position: &const Foo → Std.Reference.const_(Foo)
+        // Reference type in comptime position: &Foo → Std.Reference.shared(Foo)
         if (expr is PointerGetterExpression pge)
         {
             var innerType = TryResolveAsType(pge.PointingTo, analyzer);

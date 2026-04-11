@@ -10,9 +10,7 @@ namespace LegendaryLang.Definitions.Types;
 public enum RefKind
 {
     Shared,   // &T
-    Const,    // &const T
     Mut,      // &mut T
-    Uniq      // &uniq T
 }
 
 public static class RefKindParser
@@ -27,16 +25,6 @@ public static class RefKindParser
         {
             parser.Pop();
             return RefKind.Mut;
-        }
-        if (parser.Peek() is IdentifierToken { Identity: "const" })
-        {
-            parser.Pop();
-            return RefKind.Const;
-        }
-        if (parser.Peek() is IdentifierToken { Identity: "uniq" })
-        {
-            parser.Pop();
-            return RefKind.Uniq;
         }
         return RefKind.Shared;
     }
@@ -110,27 +98,14 @@ public class RefTypeDefinition : PointerTypeDefinitionBase
     public static string GetRefName(RefKind kind) => kind switch
     {
         RefKind.Shared => "shared",
-        RefKind.Const => "const_",
         RefKind.Mut => "mut_",
-        RefKind.Uniq => "uniq",
         _ => throw new ArgumentOutOfRangeException(nameof(kind))
     };
 
     public RefKind Kind { get; }
 
     /// <summary>
-    /// Checks whether a type path represents a &amp;uniq reference.
-    /// Used to implement automatic reborrowing.
-    /// </summary>
-    public static bool IsUniqRefType(LangPath? typePath)
-    {
-        return typePath is NormalLangPath nlp
-               && nlp.Contains(GetRefModule())
-               && nlp.PathSegments.Any(s => s is NormalLangPath.NormalPathSegment nps && nps.Text == GetRefName(RefKind.Uniq));
-    }
-
-    /// <summary>
-    /// Checks if a type path represents any reference type (&amp;, &amp;mut, &amp;const, &amp;uniq).
+    /// Checks if a type path represents any reference type (&amp;, &amp;mut).
     /// </summary>
     public static bool IsReferenceType(LangPath? typePath)
     {

@@ -206,9 +206,7 @@ public class MoveOutOfReferenceException : SemanticException
     private static string FormatRef(RefKind kind, LangPath typePath) => kind switch
     {
         RefKind.Shared => $"&{typePath}",
-        RefKind.Const => $"&const {typePath}",
         RefKind.Mut => $"&mut {typePath}",
-        RefKind.Uniq => $"&uniq {typePath}",
         _ => $"&{typePath}"
     };
 }
@@ -532,11 +530,7 @@ public class SemanticAnalyzer
 
     private static bool AreRefKindsCompatible(RefKind a, RefKind b)
     {
-        // &uniq is incompatible with everything
-        if (a == RefKind.Uniq || b == RefKind.Uniq) return false;
-        // &const and &mut are incompatible with each other
-        if ((a == RefKind.Const && b == RefKind.Mut) || (a == RefKind.Mut && b == RefKind.Const))
-            return false;
+        // All borrows are compatible — no exclusive references exist
         return true;
     }
 
@@ -643,39 +637,11 @@ public class SemanticAnalyzer
     }
 
     /// <summary>
-    /// Returns the first active exclusive (&amp;uniq) borrow on the given source variable
-    /// that is still active. For reference/Copy borrowers, NLL applies (borrow expires at last use).
-    /// For non-Copy, non-reference borrowers, borrow persists until moved or scope exit
-    /// (because Drop could access the borrowed data at scope exit).
+    /// Returns the first active exclusive borrow on the given source variable.
+    /// With only shared and mut references (both non-exclusive), this always returns null.
     /// </summary>
     public (string borrower, RefKind kind)? GetActiveExclusiveBorrow(string sourceName)
     {
-        foreach (var scope in _borrowScopes)
-        {
-            if (!scope.ActiveBorrows.TryGetValue(sourceName, out var activeList))
-                continue;
-
-            foreach (var (borrower, kind) in activeList)
-            {
-                if (kind != RefKind.Uniq) continue;
-
-                bool isNllEligible = IsBorrowerNllEligible(borrower);
-
-                if (isNllEligible)
-                {
-                    // References & Copy types: NLL — borrow expires when borrower is no longer live
-                    if (IsVariableLiveTransitive(borrower))
-                        return (borrower, kind);
-                }
-                else
-                {
-                    // Non-Copy, non-reference: borrow persists until moved or scope exit
-                    if (!IsMoved(borrower))
-                        return (borrower, kind);
-                }
-            }
-        }
-
         return null;
     }
 
@@ -1597,23 +1563,17 @@ public class SemanticAnalyzer
 
     public static readonly NormalLangPath DerefTraitPath =
         new(null, new NormalLangPath.PathSegment[] { "Std", "Deref", "Deref" });
-    public static readonly NormalLangPath DerefConstTraitPath =
-        new(null, new NormalLangPath.PathSegment[] { "Std", "Deref", "DerefConst" });
     public static readonly NormalLangPath DerefMutTraitPath =
         new(null, new NormalLangPath.PathSegment[] { "Std", "Deref", "DerefMut" });
-    public static readonly NormalLangPath DerefUniqTraitPath =
-        new(null, new NormalLangPath.PathSegment[] { "Std", "Deref", "DerefUniq" });
 
     /// <summary>
     /// Returns the deref trait required for a given reference kind.
-    /// &amp; → Deref, &amp;const → DerefConst, &amp;mut → DerefMut, &amp;uniq → DerefUniq
+    /// &amp; → Deref, &amp;mut → DerefMut
     /// </summary>
     public static NormalLangPath GetDerefTraitForRefKind(RefKind kind) => kind switch
     {
         RefKind.Shared => DerefTraitPath,
-        RefKind.Const => DerefConstTraitPath,
         RefKind.Mut => DerefMutTraitPath,
-        RefKind.Uniq => DerefUniqTraitPath,
         _ => DerefTraitPath
     };
 
@@ -1623,9 +1583,7 @@ public class SemanticAnalyzer
     public static string GetDerefMethodForRefKind(RefKind kind) => kind switch
     {
         RefKind.Shared => "deref",
-        RefKind.Const => "deref_const",
         RefKind.Mut => "deref_mut",
-        RefKind.Uniq => "deref_uniq",
         _ => "deref"
     };
 

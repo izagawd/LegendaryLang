@@ -44,7 +44,6 @@ public class AssignVariableExpression : IExpression
                 $"Cannot assign variable of type '{Assigner.TypePath}' to an expression of type '{EqualsTo.TypePath}'\n{Token.GetLocationStringRepresentation()}"));
 
         // Check MutReassign: assigning through &mut requires the pointee type to implement MutReassign.
-        // &uniq can always reassign. Only &mut is restricted.
         if (Assigner is DerefExpression derefAssigner)
         {
             var innerType = derefAssigner.Inner.TypePath;
@@ -57,8 +56,7 @@ public class AssignVariableExpression : IExpression
                     if (pointeeType != null && !analyzer.TypeImplementsTrait(pointeeType, SemanticAnalyzer.MutReassignTraitPath))
                     {
                         analyzer.AddException(new SemanticException(
-                            $"Cannot reassign through '&mut' reference: type '{pointeeType}' does not implement MutReassign. " +
-                            $"Use '&uniq' for reassignment of types that don't implement MutReassign\n" +
+                            $"Cannot reassign through '&mut' reference: type '{pointeeType}' does not implement MutReassign.\n" +
                             Token.GetLocationStringRepresentation()));
                     }
                 }

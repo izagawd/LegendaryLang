@@ -32,7 +32,7 @@ public class StructCreationExpression : IExpression
         foreach (var i in AssignFields) i.EqualsTo.Analyze(analyzer);
 
         // Check for conflicting borrows across field initializers
-        // e.g., make Foo { a: &uniq x, b: &uniq x } — two exclusive borrows of x
+        // e.g., make Foo { a: &mut x, b: &mut x }
         CallExpressionHelper.CheckBorrowConflicts(
             AssignFields.Select(f => f.EqualsTo), analyzer, Token);
 

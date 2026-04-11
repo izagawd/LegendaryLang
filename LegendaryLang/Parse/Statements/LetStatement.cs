@@ -321,7 +321,7 @@ public class LetStatement : IStatement
             if (kindSources.Count > 0) return kindSources;
         }
 
-        // Case 1: Direct borrow — &x, &mut x, &const x, &uniq x
+        // Case 1: Direct borrow — &x, &mut x
         if (expr is PointerGetterExpression pge)
         {
             var origin = GetVariableOrigin(pge.PointingTo);
@@ -346,7 +346,7 @@ public class LetStatement : IStatement
         }
 
         // Case 5: Struct creation with reference fields — track borrows from field initializers
-        // e.g., Dropper { val = &uniq counter } borrows from counter
+        // e.g., Dropper { val = &mut counter } borrows from counter
         if (expr is StructCreationExpression sce)
         {
             foreach (var field in sce.AssignFields)

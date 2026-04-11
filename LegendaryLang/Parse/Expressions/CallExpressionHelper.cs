@@ -39,21 +39,8 @@ public static class CallExpressionHelper
                 {
                     if (prevSource != sourceName) continue;
                     
-                    // &uniq conflicts with everything (including another &uniq)
-                    if (refKind == RefKind.Uniq || prevKind == RefKind.Uniq)
-                    {
-                        var tokenLoc = errorToken?.GetLocationStringRepresentation() ?? "";
-                        analyzer.AddException(new BorrowConflictException(
-                            sourceName, "(earlier field/argument)", prevKind, refKind, tokenLoc));
-                    }
-                    // &const and &mut conflict with each other
-                    else if ((refKind == RefKind.Const && prevKind == RefKind.Mut) ||
-                             (refKind == RefKind.Mut && prevKind == RefKind.Const))
-                    {
-                        var tokenLoc = errorToken?.GetLocationStringRepresentation() ?? "";
-                        analyzer.AddException(new BorrowConflictException(
-                            sourceName, "(earlier field/argument)", prevKind, refKind, tokenLoc));
-                    }
+                    // All borrow kinds are compatible — no exclusive references exist
+                    // No conflict to report
                 }
                 
                 seenBorrows.Add((sourceName, refKind, expr));
@@ -62,9 +49,8 @@ public static class CallExpressionHelper
     }
 
     /// <summary>
-    /// Analyzes arguments and marks non-&amp;uniq ones as moved.
-    /// &amp;uniq arguments get automatic reborrowing (like Rust's &amp;mut auto-reborrow).
-    /// Also checks for conflicting borrows across arguments (e.g., foo(&amp;uniq x, &amp;uniq x)).
+    /// Analyzes arguments and marks them as moved.
+    /// Also checks for conflicting borrows across arguments.
     /// </summary>
     public static void AnalyzeArgumentsWithReborrow(
         ImmutableArray<IExpression> arguments, SemanticAnalyzer analyzer)
@@ -81,14 +67,13 @@ public static class CallExpressionHelper
     }
 
     /// <summary>
-    /// Analyzes a single expression and marks it as moved unless it's &amp;uniq (auto-reborrow).
+    /// Analyzes a single expression and marks it as moved.
     /// Used for function/method arguments and operator operands.
     /// </summary>
     public static void AnalyzeExpressionWithReborrow(IExpression expr, SemanticAnalyzer analyzer)
     {
         expr.Analyze(analyzer);
-        if (!RefTypeDefinition.IsUniqRefType(expr.TypePath))
-            analyzer.TryMarkExpressionAsMoved(expr);
+        analyzer.TryMarkExpressionAsMoved(expr);
     }
 
     /// <summary>

@@ -494,7 +494,7 @@ public class CodeGenContext
     /// </summary>
     /// <summary>
     /// All reference types are now {ptr, metadata} structs. When calling a function whose
-    /// first parameter is a reference (e.g. Drop's self: &uniq Self), we must wrap the
+    /// first parameter is a reference (e.g. Drop's self: &mut Self), we must wrap the
     /// raw alloca pointer into that struct type before passing it.
     /// Gets the expected type directly from the LLVM function's first parameter.
     /// </summary>

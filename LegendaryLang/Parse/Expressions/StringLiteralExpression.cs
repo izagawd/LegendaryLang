@@ -27,10 +27,10 @@ public class StringLiteralExpression : IExpression
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
-        // Type is &const str — a fat reference to the unsized str type
+        // Type is &str — a fat reference to the unsized str type
         var strPath = LangPath.PrimitivePath.Append("str");
         var refPath = RefTypeDefinition.GetRefModule()
-            .Append(RefTypeDefinition.GetRefName(RefKind.Const))
+            .Append(RefTypeDefinition.GetRefName(RefKind.Shared))
             .AppendGenerics([strPath]);
         TypePath = refPath;
     }
@@ -51,10 +51,10 @@ public class StringLiteralExpression : IExpression
         globalVar.IsGlobalConstant = true;
         globalVar.Linkage = LLVMLinkage.LLVMPrivateLinkage;
 
-        // Get the &const str fat pointer type
+        // Get the &str fat pointer type
         var refTypeItem = codeGenContext.GetRefItemFor(TypePath!) as TypeRefItem;
         if (refTypeItem?.Type is not PointerLikeType fatPtrType || !fatPtrType.HasNonTrivialMetadata)
-            throw new InvalidOperationException("&const str should be a fat pointer type");
+            throw new InvalidOperationException("&str should be a fat pointer type");
 
         // Build fat pointer: {data_ptr, length}
         var dataPtr = globalVar;

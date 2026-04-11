@@ -1,7 +1,7 @@
 use Std.Core.Ordering;
 
 trait Drop {
-    fn Drop(self: &uniq Self);
+    fn Drop(self: &mut Self);
 }
 
 trait Add(Rhs:! type): Sized {
@@ -218,12 +218,6 @@ impl[T:! PartialEq(T)] PartialEq(&mut T) for &mut T {
     }
 }
 
-impl[T:! PartialEq(T)] PartialEq(&uniq T) for &uniq T {
-    fn Eq(lhs: &&uniq T, rhs: &&uniq T) -> bool {
-        (T as PartialEq(T)).Eq(*lhs, *rhs)
-    }
-}
-
 impl[T:! PartialOrd(T)] PartialOrd(&T) for &T {
     fn Lt(lhs: &&T, rhs: &&T) -> bool {
         (T as PartialOrd(T)).Lt(*lhs, *rhs)
@@ -238,15 +232,6 @@ impl[T:! PartialOrd(T)] PartialOrd(&mut T) for &mut T {
         (T as PartialOrd(T)).Lt(*lhs, *rhs)
     }
     fn Gt(lhs: &&mut T, rhs: &&mut T) -> bool {
-        (T as PartialOrd(T)).Gt(*lhs, *rhs)
-    }
-}
-
-impl[T:! PartialOrd(T)] PartialOrd(&uniq T) for &uniq T {
-    fn Lt(lhs: &&uniq T, rhs: &&uniq T) -> bool {
-        (T as PartialOrd(T)).Lt(*lhs, *rhs)
-    }
-    fn Gt(lhs: &&uniq T, rhs: &&uniq T) -> bool {
         (T as PartialOrd(T)).Gt(*lhs, *rhs)
     }
 }

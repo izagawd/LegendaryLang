@@ -15,17 +15,13 @@ public class PrimitiveTypeGenerator
         // Add unsized primitive types
         items.Add(new StrTypeDefinition());
 
-        // Add reference type definitions for all 4 reference kinds
+        // Add reference type definitions
         items.Add(new RefTypeDefinition(RefKind.Shared)); // &T
-        items.Add(new RefTypeDefinition(RefKind.Const));  // &const T
         items.Add(new RefTypeDefinition(RefKind.Mut));    // &mut T
-        items.Add(new RefTypeDefinition(RefKind.Uniq));   // &uniq T
 
-        // Add raw pointer type definitions for all 4 pointer kinds
+        // Add raw pointer type definitions
         items.Add(new RawPtrTypeDefinition(RefKind.Shared)); // *shared T
-        items.Add(new RawPtrTypeDefinition(RefKind.Const));  // *const T
         items.Add(new RawPtrTypeDefinition(RefKind.Mut));    // *mut T
-        items.Add(new RawPtrTypeDefinition(RefKind.Uniq));   // *uniq T
 
         return new ParseResult
         {

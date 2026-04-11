@@ -439,8 +439,8 @@ public class ImplDefinition : IItem, IAnalyzable, IPathResolvable
                 new Dictionary<string, LangPath> { ["Self"] = ForTypePath });
 
         // Resolve associated types from supertrait impls (transitively).
-        // e.g., DerefUniq: Deref+DerefConst+DerefMut, Deref: Receiver { type Target; }
-        // Target is defined in Receiver, two levels up from DerefUniq.
+        // e.g., DerefMut: Deref, Deref: Receiver { type Target; }
+        // Target is defined in Receiver, two levels up from DerefMut.
         if (traitDef != null)
         {
             var visited = new HashSet<LangPath>();

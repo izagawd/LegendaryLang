@@ -87,7 +87,7 @@ public class DerefExpression : IExpression
 
                 // Flag non-Copy deref ONLY for value types.
                 // If the pointee is itself a reference or raw pointer, deref just accesses it
-                // (not a move). e.g., *self where self: &&uniq T → produces &uniq T (fine).
+                // (not a move). e.g., *self where self: &&mut T → produces &mut T (fine).
                 var isPointeeRef = TryGetPointeeType(TypePath, out _, out _) != null;
                 if (!isPointeeRef && !analyzer.IsTypeCopy(TypePath))
                     IsNonCopyRefDeref = true;
@@ -124,12 +124,8 @@ public class DerefExpression : IExpression
                     TypePath = target;
 
                     // Determine capability from the highest implemented deref trait
-                    if (analyzer.TypeImplementsTrait(Inner.TypePath, SemanticAnalyzer.DerefUniqTraitPath))
-                        SourceDerefKind = RefKind.Uniq;
-                    else if (analyzer.TypeImplementsTrait(Inner.TypePath, SemanticAnalyzer.DerefMutTraitPath))
+                    if (analyzer.TypeImplementsTrait(Inner.TypePath, SemanticAnalyzer.DerefMutTraitPath))
                         SourceDerefKind = RefKind.Mut;
-                    else if (analyzer.TypeImplementsTrait(Inner.TypePath, SemanticAnalyzer.DerefConstTraitPath))
-                        SourceDerefKind = RefKind.Const;
                     else if (analyzer.TypeImplementsTrait(Inner.TypePath, SemanticAnalyzer.DerefTraitPath))
                         SourceDerefKind = RefKind.Shared;
                     else
@@ -155,7 +151,7 @@ public class DerefExpression : IExpression
 
     /// <summary>
     /// The deref capability — what ref kinds &amp;*expr can produce.
-    /// Follows the trait hierarchy: Deref(&amp;) / DerefConst(&amp;const,&amp;) / DerefMut(&amp;mut,&amp;) / DerefUniq(all).
+    /// Follows the trait hierarchy: Deref(&amp;) / DerefMut(&amp;mut,&amp;).
     /// For raw pointers: maps from pointer kind. For references: maps from ref kind.
     /// For trait-based deref: determined by which Deref* trait is implemented.
     /// </summary>
@@ -163,18 +159,13 @@ public class DerefExpression : IExpression
 
     /// <summary>
     /// Can a deref source of the given capability produce a reference of the requested kind?
-    /// Follows the deref trait hierarchy exactly:
     ///   Deref → &amp; only
-    ///   DerefConst: Deref → &amp;const, &amp;
-    ///   DerefMut: Deref → &amp;mut, &amp;
-    ///   DerefUniq: Deref+DerefConst+DerefMut → &amp;uniq, &amp;mut, &amp;const, &amp;
+    ///   DerefMut → &amp;mut, &amp;
     /// </summary>
     public static bool CanProduceRefKind(RefKind source, RefKind requested)
     {
         if (requested == RefKind.Shared) return true;
-        if (requested == RefKind.Const) return source is RefKind.Const or RefKind.Uniq;
-        if (requested == RefKind.Mut) return source is RefKind.Mut or RefKind.Uniq;
-        if (requested == RefKind.Uniq) return source == RefKind.Uniq;
+        if (requested == RefKind.Mut) return source == RefKind.Mut;
         return false;
     }
 
@@ -186,7 +177,7 @@ public class DerefExpression : IExpression
     /// <summary>
     /// Shared deref codegen — works for any dereferenceable type (RefType, RawPtrType, StructType with Deref impl).
     /// Used by both DerefExpression.CodeGen and MethodCallKind auto-deref.
-    /// For struct types, calls the appropriate deref trait method (deref/deref_mut/deref_const/deref_uniq)
+    /// For struct types, calls the appropriate deref trait method (deref/deref_mut)
     /// regardless of internal fields — deref behaviour is defined solely by the trait implementation.
     /// </summary>
     public static ValueRefItem EmitDeref(CodeGenContext context, ValueRefItem inner, RefKind? derefKind = null)
@@ -218,7 +209,7 @@ public class DerefExpression : IExpression
         }
         else if (inner.Type is StructType structType)
         {
-            // Trait-based deref: call the appropriate deref method (deref/deref_mut/deref_const/deref_uniq).
+            // Trait-based deref: call the appropriate deref method (deref/deref_mut).
             // The method takes &Self and returns &T — we load through the returned reference to get T*.
             if (derefKind == null)
                 throw new InvalidOperationException(
@@ -227,7 +218,7 @@ public class DerefExpression : IExpression
             var methodName = SemanticAnalyzer.GetDerefMethodForRefKind(derefKind.Value);
 
             // Build the correct self reference kind for this deref method:
-            // deref → &Self, deref_const → &const Self, deref_mut → &mut Self, deref_uniq → &uniq Self
+            // deref → &Self, deref_mut → &mut Self
             var selfRefTypePath = RefTypeDefinition.GetRefModule()
                 .Append(RefTypeDefinition.GetRefName(derefKind.Value))
                 .AppendGenerics([structType.TypePath!]);

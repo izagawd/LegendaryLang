@@ -240,7 +240,7 @@ public abstract class LangPath
                 .AppendGenerics([innerType]);
         }
 
-        // Double reference type: &&T, &&mut T, &&const T, &&uniq T in type position
+        // Double reference type: &&T, &&mut T in type position
         if (next is OperatorToken { OperatorType: Operator.And } && typePosition)
         {
             parser.Pop(); // consume &&
@@ -260,12 +260,12 @@ public abstract class LangPath
                 .AppendGenerics([innerRef]);
         }
 
-        // Raw pointer type: *shared T, *const T, *mut T, *uniq T in type position
+        // Raw pointer type: *shared T, *mut T in type position
         if (next is OperatorToken { OperatorType: Operator.Multiply } && typePosition)
         {
             var peeked = parser.PeekAt(1);
             var isRawPtr = peeked is MutToken
-                || (peeked is IdentifierToken { Identity: "const" or "uniq" or "shared" });
+                || (peeked is IdentifierToken { Identity: "shared" });
 
             if (isRawPtr)
             {
@@ -275,16 +275,6 @@ public abstract class LangPath
                 if (parser.Peek() is MutToken)
                 {
                     ptrKind = RefKind.Mut;
-                    parser.Pop();
-                }
-                else if (parser.Peek() is IdentifierToken { Identity: "const" })
-                {
-                    ptrKind = RefKind.Const;
-                    parser.Pop();
-                }
-                else if (parser.Peek() is IdentifierToken { Identity: "uniq" })
-                {
-                    ptrKind = RefKind.Uniq;
                     parser.Pop();
                 }
                 else if (parser.Peek() is IdentifierToken { Identity: "shared" })
