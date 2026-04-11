@@ -198,6 +198,8 @@ public class BlockExpression : IExpression
                 if (lastItem is { HasSemiColonAfter: false, Node: ChainExpression lastChain })
                     lastChain.ExpectedReturnType ??= ExpectedReturnType;
             }
+            if (syntaxNode is MatchExpression matchExpr)
+                matchExpr.ExpectedReturnType ??= ExpectedReturnType;
             foreach (var i in syntaxNode.Children.Where(i => i is not IItem)) SetExpectedReturnTypesRecursively(i);
         }
 

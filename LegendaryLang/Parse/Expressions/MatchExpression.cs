@@ -76,12 +76,29 @@ public class MatchExpression : IExpression
     public RefKind? ScrutineeRefKind { get; private set; }
 
     /// <summary>
+    /// Expected return type of the match expression, propagated from the enclosing block.
+    /// Used to infer the scrutinee's expected type for method disambiguation.
+    /// </summary>
+    public LangPath? ExpectedReturnType { get; set; }
+
+    /// <summary>
     /// The actual enum type path (after unwrapping any reference).
     /// </summary>
     public LangPath? UnwrappedEnumTypePath { get; private set; }
 
     public void Analyze(SemanticAnalyzer analyzer)
     {
+        // If we have an expected return type, try to infer the scrutinee's expected type
+        // from the arm patterns. e.g., match x.TryInto() { Option.Some(v) => v, _ => 0 }
+        // with expected return i32 → scrutinee should return Option(i32).
+        if (ExpectedReturnType != null && Scrutinee is ChainExpression scrutineeChain
+            && scrutineeChain.ExpectedReturnType == null)
+        {
+            var inferred = TryInferScrutineeType(analyzer);
+            if (inferred != null)
+                scrutineeChain.ExpectedReturnType = inferred;
+        }
+
         Scrutinee.Analyze(analyzer);
         var scrutineeType = Scrutinee.TypePath;
 
@@ -239,6 +256,40 @@ public class MatchExpression : IExpression
         }
 
         TypePath = armType ?? LangPath.VoidBaseLangPath;
+    }
+
+    /// <summary>
+    /// Pre-scans arm patterns to find the enum being matched. If the enum has generic
+    /// parameters, constructs the expected scrutinee type using the match's expected
+    /// return type. e.g., patterns mention Option.Some → enum is Option(T),
+    /// expected return is i32 → scrutinee expected type is Option(i32).
+    /// </summary>
+    private LangPath? TryInferScrutineeType(SemanticAnalyzer analyzer)
+    {
+        foreach (var arm in Arms)
+        {
+            NormalLangPath? variantPath = arm.Pattern switch
+            {
+                VariantPattern vp => vp.VariantPath,
+                TupleVariantPattern tvp => tvp.VariantPath,
+                _ => null
+            };
+            if (variantPath == null || variantPath.PathSegments.Length < 2) continue;
+
+            var enumPath = variantPath.Pop();
+            if (enumPath == null) continue;
+
+            var enumDef = analyzer.GetDefinition(enumPath) as EnumTypeDefinition;
+            if (enumDef == null) continue;
+
+            // For single-generic-param enums (like Option(T)), map the expected
+            // return type to the generic parameter to construct the scrutinee type.
+            if (enumDef.GenericParameters.Length == 1 && ExpectedReturnType != null)
+                return enumPath.AppendGenerics([ExpectedReturnType]);
+
+            break;
+        }
+        return null;
     }
 
     public ValueRefItem CodeGen(CodeGenContext codeGenContext)
