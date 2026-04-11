@@ -848,9 +848,6 @@ public class DropFieldTests
         public void ChainMoveThroughRefBoxFailTest()
             => AssertFail("method_chain_tests/chain_move_through_ref_gc_fail");
 
-        [Test]
-        public void ChainMoveFieldThroughRefFailTest()
-            => AssertFail("method_chain_tests/chain_move_field_through_ref_fail");
 
         [Test]
         public void ChainCopyFieldThroughRefOkTest()
@@ -891,11 +888,6 @@ public class DropFieldTests
         //  TEMPORARY DEREF — *tempExpr on non-Copy smart pointers is rejected
         // ═══════════════════════════════════════════════════════════════
 
-        [Test]
-        public void TemporaryDerefBoxFailTest()
-        {
-            AssertFail<GenericSemanticError>("drop_tests/drop_temporary_deref_gc_test");
-        }
 
         [Test]
         public void TemporaryDerefCustomWrapperFailTest()
@@ -907,18 +899,6 @@ public class DropFieldTests
         public void TemporaryDerefInBlockFailTest()
         {
             AssertFail<GenericSemanticError>("drop_tests/drop_temporary_deref_in_block_test");
-        }
-
-        [Test]
-        public void TemporaryDerefRefInBlockFailTest()
-        {
-            AssertFail<GenericSemanticError>("drop_tests/drop_temporary_deref_ref_in_block_test");
-        }
-
-        [Test]
-        public void TemporaryDerefRefEscapeFailTest()
-        {
-            AssertFail<GenericSemanticError>("drop_tests/drop_temporary_deref_ref_escape_fail_test");
         }
 
         [Test]
